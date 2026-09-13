@@ -227,13 +227,6 @@ nav:
       - External Kafka: HowTo/Telemetry/configure_external_kafka.md
       - External VictoriaMetrics: HowTo/Telemetry/configure_external_victoria.md
       - External VictoriaLogs: HowTo/Telemetry/configure_external_victoria_logs.md
-      - Verify iDRAC: HowTo/Telemetry/verify_idrac.md
-      - Verify LDMS: HowTo/Telemetry/verify_ldms.md
-      - Verify OME: HowTo/Telemetry/verify_ome.md
-      - Verify PowerScale: HowTo/Telemetry/verify_powerscale.md
-      - Verify UFM: HowTo/Telemetry/verify_ufm.md
-      - Verify VAST: HowTo/Telemetry/verify_vast.md
-      - Verify Vector LDMS: HowTo/Telemetry/verify_vector_ldms.md
       - Prepare Worker-to-BMC Network Access: HowTo/Telemetry/worker_node_vlan_configuration.md
     - BUILDSTREAM:
       - HowTo/build_stream/index.md
@@ -275,6 +268,7 @@ nav:
       - Additional Cloud Init: Reference/Configuration/additional_cloud_init.md
       - PXE Boot Config: Reference/Configuration/set_pxe_boot_config.md
       - Telemetry Config: Reference/Configuration/telemetry_config.md
+      - Telemetry Storage Config: Reference/Configuration/telemetry_storage_config.md
       - Telemetry Packages: Reference/Configuration/telemetry_packages.md
       - Install OS Config: Reference/Configuration/install_os_config.md
       - Collect PXE Inventory: Reference/Configuration/collect_pxe.md

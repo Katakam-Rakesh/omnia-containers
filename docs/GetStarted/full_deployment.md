@@ -447,10 +447,7 @@ For source-specific configuration and verification guides, see the
     enabled, also review `deploy_unreachable_nodes.ldms`.
 
 7. Verify the enabled data paths with the source-specific guides on the
-   [Telemetry landing page](../HowTo/Telemetry/index.md). For LDMS, use
-   [Verify LDMS](../HowTo/Telemetry/verify_ldms.md) and
-   [Verify Vector-LDMS](../HowTo/Telemetry/verify_vector_ldms.md) when its
-   bridge is enabled.
+   [Telemetry landing page](../HowTo/Telemetry/index.md).
 
 ## Next steps
 
