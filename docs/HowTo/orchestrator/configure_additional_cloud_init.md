@@ -1,19 +1,8 @@
 # Configure Additional Cloud-Init
 
-The Orchestrator source contains a contract and metadata-service templates for
-adding custom cloud-init directives to provisioned nodes. The intended feature
-supports boot-time customization such as writing configuration files or
-running setup commands without modifying platform-managed templates.
-
-!!! warning "Current implementation limitation"
-
-    The current Orchestrator setup loads `orchestrator_config.yml` into an
-    internal configuration dictionary, but does not publish
-    `additional_cloud_init_config_file` to the runtime fact consumed by the
-    OpenCHAMI configuration role. A non-empty path is checked for existence,
-    but the configured file is not subsequently loaded or applied to nodes.
-    Do not rely on additional cloud-init in this release. The source must first
-    publish this configuration value to the provisioning workflow.
+Orchestrator supports adding custom cloud-init directives to provisioned nodes.
+Use this feature for boot-time customization such as writing configuration
+files or running setup commands without modifying platform-managed templates.
 
 ## Overview
 
@@ -33,8 +22,8 @@ Both scopes support the following cloud-init directives:
 
     Do not use `bootcmd`, `network`, `network-config`, or `packages`. These
     keys are platform-managed by Omnia and are outside the supported
-    additional cloud-init format. The current input validator does not reject
-    every unsupported key before provisioning.
+    additional cloud-init format. Orchestrator input validation rejects these
+    keys before provisioning.
 
 ## Prerequisites
 
@@ -45,11 +34,10 @@ Both scopes support the following cloud-init directives:
 - The [Create Local Repos](../repo_manager/configure_repos.md) procedure is complete (local Pulp repository is set up with required packages).
 - The [Build Cluster Images](../image_build_manager/build_images.md) procedure is complete.
 
-## Intended configuration contract
+## Configuration
 
-The following steps document the input contract that the provisioning flow is
-designed to consume after the runtime publication issue is corrected. Creating
-these files in the current release does not activate additional cloud-init.
+The following steps configure the additional cloud-init input consumed by the
+provisioning flow.
 
 ### Step 1: Select an additional cloud-init file
 
@@ -128,18 +116,16 @@ File structure details:
 runcmd entries: 
 Each entry in the `runcmd` list must be a string. Commands execute during the final stage of cloud-init, after all `write_files` directives are processed.
 
-### Step 3: Apply the configuration after the limitation is fixed
+### Step 3: Apply the configuration
 
-Do not run provisioning in the current release with the expectation that this
-file will be applied. After the Orchestrator runtime publishes
-`additional_cloud_init_config_file`, use the normal provisioning command:
+Run the normal provisioning command:
 
 ```bash title="Run on: OIM"
 cd src/main
 ./omnia.sh --run orchestrator --tags provision
 ```
 
-With that runtime fix present, the provisioning playbook:
+The provisioning playbook:
 
 1. Confirms that the configured additional cloud-init file exists. Its
    directives are parsed and merged later in the provisioning workflow.
@@ -160,20 +146,19 @@ This ensures that platform-critical configurations (networking, boot parameters)
 
 ## Verification
 
-Use the following checks when preparing the file. Only file existence is
-currently enforced by the Orchestrator input validator; the remaining rows
-describe the supported format and must be reviewed before provisioning:
+The Orchestrator input-validation flow enforces the following checks before
+provisioning:
 
 | Check | Description |
 |-------|-------------|
 | File existence | The specified configuration file must exist. |
-| YAML syntax | Supply valid YAML. Parsing errors surface during provisioning rather than the initial file-existence check. |
+| YAML syntax | Supply valid YAML. Parse errors fail input validation. |
 | Top-level keys | Use only `common` and `groups` at the top level. |
-| Prohibited keys | Do not use `bootcmd`, `network`, `network-config`, or `packages` in any section. |
+| Prohibited keys | Do not use `bootcmd`, `network`, `network-config`, or `packages` in any section; validation rejects them. |
 | Allowed keys | Use only `write_files` and `runcmd` within each section. |
 | `write_files` path | Include a `path` in every `write_files` entry. |
 | `runcmd` type | Supply every `runcmd` entry as a string. |
-| Functional group names | Match keys under `groups` to a `FUNCTIONAL_GROUP_NAME` in the PXE mapping file. |
+| Functional group names | Match keys under `groups` to a `FUNCTIONAL_GROUP_NAME` in the PXE mapping file; unknown groups fail validation. |
 
 ### Examples
 
@@ -239,28 +224,25 @@ In this case, Slurm compute nodes have both the common `runcmd` and the group-sp
 
 ## Troubleshooting
 
-- **Custom cloud-init directives not applied on nodes**: This is the expected
-  behavior in the current implementation because the configured path is not
-  published to the OpenCHAMI runtime role. Verifying the path and rerunning the
-  `provision` tag does not resolve this limitation.
+- **Custom cloud-init directives are not applied on nodes**: Run the
+  Orchestrator `validate` phase and resolve any reported file, schema, key,
+  value-type, or functional-group error. Confirm that the configured absolute
+  path points to the intended project file, and then rerun the `provision`
+  phase.
 
 ### Limitations
 
 - Customization granularity is at the functional-group level. Per-node cloud-init customization is not supported.
 - Only `write_files` and `runcmd` (config and final stage directives) are supported. Early-boot keys remain platform-managed.
-- The current release validates a configured file path but does not propagate
-  it into the OpenCHAMI provisioning workflow, so the file is not applied.
-- The current input validator checks that the configured file exists, but does
-  not enforce all supported keys, value types, or functional-group names.
-  Review these requirements before provisioning; unsupported content can fail
-  later or produce unintended merged cloud-init.
+- The input validator enforces the supported top-level and section keys,
+  `write_files` and `runcmd` value types, supported encodings and permissions,
+  and functional-group names selected in `pxe_mapping_file.csv`.
 
 !!! info
 
     - [Provision Nodes](provision_nodes.md) -- Run Orchestrator provisioning to apply cloud-init configurations.
     - [Orchestrator contract](../../Reference/domain_contracts/orchestrator_contract.md) -- Orchestrator output paths and runtime behavior.
     - [Additional Cloud Init Reference](../../Reference/Configuration/additional_cloud_init.md) -- Configuration file reference.
-
 
 
 

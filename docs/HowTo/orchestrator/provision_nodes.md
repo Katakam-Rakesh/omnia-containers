@@ -24,13 +24,14 @@ The source recognizes these categories:
   requires a successful `repo_status.yml`, a valid Pulp public certificate, and
   a successful `build_status.yml` containing an image for each functional
   group.
-- Provide the discovery mapping with these case-sensitive columns:
-  `FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `SERVICE_TAG`,
-  `PARENT_SERVICE_TAG`, `HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and
-  `BMC_IP`. `IB_NIC_NAME` and `IB_IP` are supported optional columns.
-- Use unique service tags, hostnames, and admin IPs. Hostnames must be lowercase,
-  must not begin with a number, and must not contain underscores, dots, or
-  spaces.
+- Provide the mapping with the exact 11 case-sensitive columns documented in
+  [PXE mapping file](../../Reference/SampleFiles/pxe_mapping_file.md), including
+  `IB_NIC_NAME` and `IB_IP`. Optional cells may be empty, but columns must not
+  be removed.
+- Use unique hostnames, normalized admin MAC addresses, and admin IPs. Every
+  nonempty service tag and InfiniBand IP must also be unique. Hostnames must be
+  lowercase, must not begin with a number, and must not contain underscores,
+  dots, or spaces.
 - Configure `network_spec.yml`. Every mapped admin IP must be valid for the
   configured network.
 - For physical-server PXE boot, provide reachable Dell iDRAC addresses and BMC
@@ -79,8 +80,9 @@ empty. Set it to an absolute path only when the mapping is stored elsewhere.
 
 For a complete run, use the playbook without tags. An untagged run executes all
 phases that are not protected by the Ansible `never` tag, in playbook order:
-precheck, input validation, standalone credential collection, preparation and
-service readiness, provisioning, and PXE boot when `enable_pxe_boot` is `true`.
+shared setup and input validation, functional-group generation, precheck,
+standalone credential collection, preparation, deployment and service
+readiness, provisioning, and PXE boot when `enable_pxe_boot` is `true`.
 
 ```bash title="Run on: OIM"
 ./omnia.sh --run orchestrator
@@ -117,7 +119,10 @@ The provisioning validation compares expected mapping xnames with SMD,
 confirms boot-service configurations for functional groups, checks
 metadata-service group data and hostname assignments, and generates
 `orchestrator_inventory.yaml` and `bmc_group_data.csv` in the same output
-directory.
+directory. Its `overall_status` is based on missing SMD nodes. Missing boot
+configurations, metadata, admin interfaces, or hostname assignments are
+reported in warning arrays and can therefore coexist with
+`overall_status: success`.
 
 After PXE boot, inspect the two PXE-specific artifacts as well:
 
@@ -145,8 +150,9 @@ reports `overall_status`, total, success, and failure counts, plus each node's
 
 **Input validation fails for the mapping**
 
-Confirm the configured path, uppercase headers, unique identifiers, valid admin
-IPs, and lowercase hostnames. Review the detailed validation log at
+Confirm the configured path, exact 11-column header, unique identifiers, valid
+addresses, paired IB fields, supported functional groups, and lowercase
+hostnames. Review the detailed validation log at
 `$OMNIA_DATA_PATH/log/core/playbooks/orchestrator_validation_${OMNIA_PROJECT_NAME}.log`.
 The surrounding Ansible execution is recorded separately in
 `/var/log/omnia/orchestrator/orchestrator.log`.

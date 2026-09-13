@@ -15,17 +15,19 @@ active control-plane node fails, kube-vip automatically migrates the VIP
 to a healthy node, ensuring uninterrupted API access.
 
 !!! important
-    The current provisioning path always configures kube-vip from the first
-    `service_k8s_cluster_ha` entry. Keep the intended entry first and provide a
-    valid `virtual_ip_address`. The `enable_k8s_ha` value is read but does not
-    currently disable kube-vip generation.
+    Configure exactly one `service_k8s_cluster_ha` entry. Its `cluster_name`
+    must match the single `service_k8s_cluster` entry selected with
+    `deployment: true`. The `enable_k8s_ha` value is read but does not
+    currently disable kube-vip generation, so set it to `true` for the
+    supported configuration.
 
 ## Prerequisites
 
 - For an HA topology, define at least three control-plane nodes in the PXE
-  mapping using the exact functional-layer name from the selected catalog. For
-  the bundled RHEL 10.0 x86_64 catalog, use
-  `service_kube_control_plane_rhel_10_0_x86_64`.
+  mapping. Use either the Discovery-style
+  `service_kube_control_plane_x86_64` name or a matching catalog-qualified
+  name such as `service_kube_control_plane_rhel_10_0_x86_64`. When present,
+  the OS/version segment must match the selected catalog.
 - `omnia_config.yml`, `high_availability_config.yml`, and the PXE mapping file
   are staged for the project.
 - A virtual IP address is available on the admin network subnet, not assigned to any other device.
@@ -44,13 +46,16 @@ service_k8s_cluster_ha:
 
 | Parameter | Description |
 |---|---|
-| `cluster_name` | Identifies the intended cluster. Keep it aligned with the selected entry in [omnia_config.yml](../../Reference/Configuration/omnia_config.md); the current role does not use this field to select an HA entry. |
+| `cluster_name` | Identifies the intended cluster. It must match the single entry selected with `deployment: true` in [omnia_config.yml](../../Reference/Configuration/omnia_config.md). |
 | `enable_k8s_ha` | Set to `true` for the supported HA configuration. The current role reads this value but does not use it to gate kube-vip generation. |
 | `virtual_ip_address` | IPv4 address consumed by the generated kube-vip and Kubernetes API configuration. Reserve a free address on the admin subnet that does not overlap any `ADMIN_IP`, the MetalLB `pod_external_ip_range`, or the OIM admin IP. |
 
-The current input validator does not cross-check the HA cluster name, control-
-plane count, VIP subnet, or address conflicts. Verify those conditions before
-provisioning.
+The input validator checks the HA cluster-name relationship, IPv4 syntax, VIP
+placement in the control-plane admin subnet, and conflicts with OIM, mapped
+node, DHCP, and MetalLB addresses. It also requires every mapped control-plane
+node to use the same admin subnet and the complete `pod_external_ip_range` to
+belong to that subnet. The minimum three-control-plane-node HA topology remains
+an operational planning requirement and is not enforced by input validation.
 
 For the full parameter reference, see
 [HA Config Reference](../../Reference/Configuration/high_availability_config.md).
@@ -98,23 +103,20 @@ ssh kcp1 'cat /etc/kubernetes/manifests/kube-vip.yaml'
 
 ### VIP conflicts with another address or is unreachable
 
-The current input validator does not detect a VIP conflict. If kube-vip cannot
-claim the address or the Kubernetes API is unreachable, confirm manually that
-`virtual_ip_address` belongs to the admin subnet and does not match any
-`ADMIN_IP` in the [PXE mapping file](../../Reference/SampleFiles/pxe_mapping_file.md),
-the OIM admin IP, a DHCP range, or an IP within `pod_external_ip_range`.
-Choose a different free IP when a conflict exists.
+Run the Orchestrator `validate` phase and resolve the reported HA conflict. The
+validator requires `virtual_ip_address` to belong to the control-plane admin
+subnet and rejects collisions with OIM admin or BMC addresses, mapped node
+admin, BMC, or InfiniBand addresses, DHCP ranges, and
+`pod_external_ip_range`. If validation succeeds but kube-vip still cannot
+claim the address, check for an external device using the VIP; that live
+network condition cannot be detected from the input files.
 
 ### Common error messages
 
 | Symptom | Cause | Resolution |
 |---|---|---|
-| Generated configuration contains an empty API endpoint | `virtual_ip_address` is empty | Set a valid IPv4 address in [high_availability_config.yml](../../Reference/Configuration/high_availability_config.md) before provisioning. |
+| Input validation rejects `virtual_ip_address` | The value is missing, empty, invalid, outside the shared control-plane subnet, or conflicts with a reserved address | Set a valid, free IPv4 address in [high_availability_config.yml](../../Reference/Configuration/high_availability_config.md), then rerun the `validate` phase. |
 | VIP is unreachable or kube-vip repeatedly restarts | VIP is outside the admin subnet, already in use, or the control-plane interface cannot claim it | Correct the VIP or network configuration, then reprovision the affected Kubernetes nodes. |
-
-
-
-
 
 
 

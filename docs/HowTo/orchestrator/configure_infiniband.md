@@ -71,12 +71,15 @@ Networks:
 | Parameter      | Description                                                  |
 |----------------|--------------------------------------------------------------|
 | `subnet`       | Network address for the IB subnet (e.g., `192.168.0.0`)     |
-| `netmask_bits` | CIDR prefix length for the IB network. It can differ from the admin-network prefix length. |
+| `netmask_bits` | CIDR prefix length for the IB network. Set it to the primary admin-network prefix length because the current node configuration uses that shared value. |
 | `dns`          | List of DNS server IPs to configure on the IB interface      |
 
 !!! caution
-    The IB subnet must not overlap with the admin network range. The two
-    networks do not need to use the same CIDR prefix length.
+    The IB subnet must not overlap the admin network range. The current input
+    validator rejects overlap but does not enforce equal prefix lengths. Set
+    the IB and primary admin `netmask_bits` values to the same prefix because
+    the generated node configuration currently applies the admin prefix to the
+    IB interface.
 
 ### Step 2: Add IB columns to the PXE mapping file
 
@@ -301,7 +304,6 @@ Only devices with `Link layer: InfiniBand` are used by Omnia.
     ```bash title="Run on: compute node"
     perfquery
     ```
-
 
 
 

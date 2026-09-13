@@ -70,10 +70,11 @@ ansible-vault view "$credential_dir/orchestrator_credentials.yml" \
   --vault-password-file "$credential_dir/.orchestrator_credentials_key"
 ```
 
-Use the domain credential workflow to create the file and fill values that are
-still empty. It retains existing non-empty values. For an approved credential
-rotation or administrative recovery, edit the encrypted file with its matching
-key:
+Use the domain credential workflow to create the file and validate stored
+values. Valid stored credentials are retained; missing or invalid values are
+prompted for and replaced. For an intentional rotation of a still-valid
+credential, or for approved administrative recovery, edit the encrypted file
+with its matching key:
 
 ```bash
 ansible-vault edit "$credential_dir/orchestrator_credentials.yml" \
@@ -81,7 +82,6 @@ ansible-vault edit "$credential_dir/orchestrator_credentials.yml" \
 ```
 
 If you have any feedback about Omnia documentation, please reach out at [omnia.readme@dell.com](mailto:omnia.readme@dell.com).
-
 
 
 

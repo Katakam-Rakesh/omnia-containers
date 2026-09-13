@@ -28,8 +28,10 @@ then unmounts the corresponding storage and removes its `/etc/fstab` entries.
 
 ## Prerequisites
 
-- Run cleanup from the OIM with the same `OMNIA_DATA_PATH` and
-  `OMNIA_PROJECT_NAME` used for deployment.
+- Run cleanup from the OIM with the same `OMNIA_PROJECT_NAME` and resolved
+  Orchestrator data root used for deployment. Set `ORCHESTRATOR_DATA_PATH` to
+  the original custom root; when it is unset, Orchestrator uses
+  `<OMNIA_DATA_PATH>/orchestrator`.
 - Stop cluster workloads that use the selected services or shared storage.
 - Back up configuration, application, project, scratch, and other required
   data stored in directories managed through the selected mounts.

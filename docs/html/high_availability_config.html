@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <div class="omnia-cell">
-                            <p>High Availability (HA) configuration for Kubernetes (K8s) service clusters. The current provisioning path consumes the first entry and generates kube-vip configuration from its virtual IP address.</p>
+                            <p>High Availability (HA) configuration for Kubernetes (K8s) service clusters. Configure exactly one entry. Orchestrator validates it against the Kubernetes cluster selected for deployment and generates kube-vip configuration from its virtual IP address.</p>
                         </div>
                     </td>
                 </tr>
@@ -35,13 +35,13 @@
                             <p class="omnia-title" id="module-parameter-service-k8s-cluster-ha-cluster-name">
                                 <strong>cluster_name</strong>
                             </p>
-                            <p class="omnia-type-line"><span class="omnia-type">string</span></p>
+                            <p class="omnia-type-line"><span class="omnia-type">string</span> / <span class="omnia-required">required</span></p>
                         </div>
                     </td>
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Identifies the intended service cluster. Keep this value aligned with <code class="docutils literal notranslate"><span class="pre">omnia_config.yml</span></code>. The current provisioning role does not use the name to select an HA entry.</p>
+                            <p>Identifies the intended service cluster. This value must match the single <code class="docutils literal notranslate"><span class="pre">service_k8s_cluster</span></code> entry selected with <code class="docutils literal notranslate"><span class="pre">deployment: true</span></code> in <code class="docutils literal notranslate"><span class="pre">omnia_config.yml</span></code>.</p>
                         </div>
                     </td>
                 </tr>
@@ -53,14 +53,13 @@
                             <p class="omnia-title" id="module-parameter-service-k8s-cluster-ha-enable-k8s-ha">
                                 <strong>enable_k8s_ha</strong>
                             </p>
-                            <p class="omnia-type-line"><span class="omnia-type">boolean</span></p>
+                            <p class="omnia-type-line"><span class="omnia-type">boolean</span> / <span class="omnia-required">required</span></p>
                         </div>
                     </td>
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
                             <p><b>Possible values:</b> <code class="docutils literal notranslate"><span class="pre">true</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code></p>
-                            <p><b>Runtime default:</b> <code class="docutils literal notranslate"><span class="pre">false</span></code> when omitted.</p>
                             <p>Set this value to <code class="docutils literal notranslate"><span class="pre">true</span></code> for the supported HA configuration. The current provisioning role reads the value but does not use it to disable kube-vip generation.</p>
                         </div>
                     </td>
@@ -82,7 +81,7 @@
                             <p>This is a mandatory and user-configurable parameter.</p>
                             <p>Captures the virtual IP address for the K8s service node HA setup. Ensure that the <code class="docutils literal notranslate"><span class="pre">virtual_ip_address</span></code> does not belong to the <code class="docutils literal notranslate"><span class="pre">dynamic_range</span></code> mentioned in the network_spec.yml.</p>
                             <p><b>Sample value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.1</span></code></p>
-                            <p>The current input validator does not verify the VIP subnet or detect conflicts with node, OIM, DHCP, or MetalLB addresses. Perform these checks before provisioning.</p>
+                            <p>Input validation requires this VIP to be a usable address in the shared control-plane admin subnet, requires the complete MetalLB pool to belong to that subnet, and rejects conflicts with OIM, mapped node, DHCP, and MetalLB addresses.</p>
                         </div>
                     </td>
                 </tr>

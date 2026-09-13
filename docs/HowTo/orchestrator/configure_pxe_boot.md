@@ -20,9 +20,15 @@ override, and node-registration timing.
 
 - Complete the `provision` phase in [Provision Nodes](provision_nodes.md) so
   boot and cloud-init configurations exist in OpenCHAMI.
-- Ensure every target row in the active project's Orchestrator
-  `pxe_mapping_file.csv` has `SERVICE_TAG`, `HOSTNAME`, `ADMIN_IP`, and
-  `BMC_IP` values.
+- Ensure the configured Repository Manager `repo_status.yml` exists, reports
+  `overall_status: success`, and references an existing Pulp server
+  certificate. The default is the active project's Repository Manager output;
+  use `repo_manager_output_path` in `orchestrator_config.yml` when the status
+  file is stored elsewhere.
+- Ensure the active project's Orchestrator `pxe_mapping_file.csv` retains the
+  `SERVICE_TAG`, `HOSTNAME`, `ADMIN_IP`, and `BMC_IP` columns. Every PXE target
+  requires nonempty `HOSTNAME`, `ADMIN_IP`, and `BMC_IP` values;
+  `SERVICE_TAG` may be empty.
 - Configure Orchestrator credentials so the encrypted credential file contains
   `bmc_username` and `bmc_password`.
 - Ensure the OIM can reach each iDRAC address and each server can reach the OIM
@@ -82,6 +88,13 @@ override, and node-registration timing.
 
 ## Verification
 
+- When `enable_pxe_boot: false`, a standalone `--tags pxeboot` run skips the
+  entire PXE import and does not refresh `pxeboot_status.yml`,
+  `orchestrator_status.yml`, or `failed_nodes.json`. During an untagged or
+  `execute` run, provisioning refreshes `orchestrator_status.yml` with the PXE
+  phase set to `not_run`, but it does not refresh `pxeboot_status.yml` or
+  `failed_nodes.json`. Existing PXE-specific files may therefore describe an
+  earlier run; do not use them as evidence for the skipped PXE phase.
 - Confirm that the play recap reports no failed hosts.
 - Review `pxeboot_status.yml`, `orchestrator_status.yml`, and
   `failed_nodes.json` in the active project's Orchestrator output directory.

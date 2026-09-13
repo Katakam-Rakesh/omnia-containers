@@ -51,8 +51,9 @@ set on the OIM.
   `repo_status.yml` and `build_status.yml` are not required. They become
   mandatory for the full, precheck, and provisioning flows described above.
 - Copy the discovery mapping to the Orchestrator project input directory. The
-  mapping must contain the required uppercase columns and unique service tags,
-  hostnames, and admin IP addresses.
+  mapping must contain the exact uppercase header. Hostnames, normalized admin
+  MAC addresses, and admin IP addresses must be unique; every nonempty service
+  tag and InfiniBand IP must also be unique.
 
 ## Procedure
 

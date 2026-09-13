@@ -10,35 +10,38 @@ configures the Kubernetes software and mounts selected by the Kubernetes
 bolt-on list.
 
 The default Kubernetes bolt-ons are `mount_config`, `k8s_config`, and
-`telemetry`. The current Kubernetes provisioning playbook implements the first
-two. It does not run a Telemetry role, and its default list does not include
-OpenLDAP. Deploy Telemetry through the Telemetry domain after Kubernetes is
-available. Do not assume that selecting OpenLDAP in the catalog configures an
-OpenLDAP client on Kubernetes nodes.
+`telemetry`. The current Kubernetes provisioning playbook implements
+`mount_config` and `k8s_config`; deploy Telemetry through the Telemetry domain
+after Kubernetes is available. An optional `orchestrator.bolt_ons.kubernetes`
+override in `omnia_config.yml` can include `openldap`. That role runs only when
+the selected catalog also enables OpenLDAP support.
 
 The source provides x86_64 templates for the first control-plane node,
-additional control-plane nodes, and worker nodes. In the PXE mapping, use the
-exact Kubernetes functional-layer names from the selected catalog. For the
-bundled RHEL 10.0 x86_64 catalog, these are
+additional control-plane nodes, and worker nodes. The PXE mapping accepts the
+Discovery-style names `service_kube_control_plane_x86_64` and
+`service_kube_node_x86_64`, or their catalog-qualified forms. For the bundled
+RHEL 10.0 x86_64 catalog, the qualified names are
 `service_kube_control_plane_rhel_10_0_x86_64` and
-`service_kube_node_rhel_10_0_x86_64`. Orchestrator promotes the first mapped
+`service_kube_node_rhel_10_0_x86_64`. When an OS/version segment is supplied,
+it must match the selected catalog. Orchestrator promotes the first mapped
 control-plane occurrence to the corresponding internal `_first` group.
 
 ## Prerequisites
 
 - Complete Repo Manager and Image Build Manager with Kubernetes content and an
   image for each `service_kube_` functional group.
-- Add the Kubernetes nodes to the PXE mapping with their service tags,
-  lowercase hostnames, admin network data, and BMC data for physical nodes.
+- Add the Kubernetes nodes to the PXE mapping with lowercase hostnames, admin
+  network data, and BMC data for physical nodes. Retain the `SERVICE_TAG`
+  column; its value may be empty, but every nonempty value must be unique.
 - Configure the OIM admin network and any additional node subnets in
   `network_spec.yml`. The Kubernetes role derives the node-network CIDRs from
   the mapped control-plane and worker admin IPs.
 - Provide an NFS mount whose `name` matches `nfs_storage_name` in
   `omnia_config.yml`. The OIM must be able to mount it and create the Kubernetes
   configuration directories.
-- Configure `high_availability_config.yml` and keep the intended Kubernetes HA
-  entry first. The current Kubernetes configuration role reads the first HA
-  entry; it does not select an entry by `cluster_name`.
+- Configure exactly one entry in `high_availability_config.yml`. Its
+  `cluster_name` must match the single Kubernetes cluster selected with
+  `deployment: true` in `omnia_config.yml`.
 - To deploy PowerScale CSI, set `enable_powerscale_csi: true` on the deployed
   `service_k8s_cluster` and provide its secret and values file paths.
 
@@ -56,6 +59,10 @@ etcd data.
    `pxe_mapping_file.csv`:
 
     ```text title="pxe_mapping_file.csv — functional-group examples"
+    service_kube_control_plane_x86_64
+    service_kube_node_x86_64
+
+    # Equivalent catalog-qualified forms for the bundled RHEL 10.0 catalog:
     service_kube_control_plane_rhel_10_0_x86_64
     service_kube_node_rhel_10_0_x86_64
     ```
@@ -63,10 +70,9 @@ etcd data.
    Do not add the internal `_first` marker to the source mapping. The source
    currently has no aarch64 Kubernetes metadata-service templates.
 
-2. Configure the Kubernetes cluster in `omnia_config.yml`. Mark the intended
-   entry with `deployment: true`. The runtime rejects multiple entries marked
-   `true`; when none is marked, the current provisioning path selects the first
-   entry in the list.
+2. Configure the Kubernetes cluster in `omnia_config.yml`. Mark exactly one
+   entry with `deployment: true`. Input validation rejects configurations with
+   no selected cluster or with multiple entries marked `true`.
 
     ```yaml title="omnia_config.yml"
     service_k8s_cluster:
@@ -85,9 +91,12 @@ etcd data.
     ```
 
    Set `k8s_cni` to `calico`. The current provisioning path stages and applies
-   Calico and does not select a Flannel manifest from this value. Keep the
-   external IP range unused by cluster nodes and keep the service and pod
-   networks unused in the surrounding infrastructure.
+   Calico and does not select a Flannel manifest from this value. Supply
+   canonical service and pod CIDRs and an ordered external address range. The
+   three ranges must not overlap each other. Service and pod CIDRs must not
+   overlap the primary or additional admin networks or the InfiniBand network.
+   The external pool must exclude OIM addresses, mapped `ADMIN_IP`, `BMC_IP`,
+   and `IB_IP` values, and every configured DHCP range.
 
 3. Configure the matching HA entry:
 

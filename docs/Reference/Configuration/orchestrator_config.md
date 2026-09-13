@@ -21,7 +21,7 @@ $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml
 | `default_lease_time` | string or integer | Yes | `86400`; must resolve to a positive number of seconds. |
 | `dns_enabled` | boolean | No | `false`; enables DNS-based hostname resolution through coresmd. |
 | `kernel_version_override` | string | No | Empty selects the latest image; a value must match `X.Y.Z-suffix`. |
-| `additional_cloud_init_config_file` | string | No | Empty disables additional cloud-init. A configured file must exist, but the current runtime does not publish this value to the OpenCHAMI role, so the file is not applied. |
+| `additional_cloud_init_config_file` | string | No | Empty disables additional cloud-init. Set an absolute path to a supported file; Orchestrator validates and applies its common and per-functional-group directives during provisioning. |
 | `boot_kernel_params` | string | No | Additional kernel command-line parameters applied to all functional groups. |
 | `catalog_file_path` | string | No | Empty uses the shared configured catalog path. |
 | `enable_pxe_boot` | boolean | No | `true`; set to `false` for environments without iDRAC/BMC PXE control. |
@@ -29,16 +29,10 @@ $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml
 | `repo_manager_output_path` | string | No | Empty uses `$REPO_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/repo_status.yml`; the component path defaults to `$OMNIA_DATA_PATH/repo_manager`. |
 | `dcgm_enabled` | boolean | No | `true`; enables NVIDIA DCGM installation on GPU nodes. |
 
-The selected PXE mapping must contain the required headers and must not contain
-duplicate service tags, hostnames, or admin IP addresses. Admin IP addresses
-must be valid and belong to a subnet defined in `network_spec.yml`.
-
-!!! warning "Additional cloud-init is not active"
-
-    A non-empty `additional_cloud_init_config_file` currently passes
-    file-existence validation but is not propagated from the loaded
-    Orchestrator configuration to the OpenCHAMI runtime role. Treat this field
-    as unavailable until that source-code issue is corrected.
+The selected PXE mapping must contain the exact 11-column canonical header.
+Nonempty service tags, hostnames, normalized admin MAC addresses, admin IP
+addresses, and nonempty IB IP addresses must be unique. Admin IP addresses must
+be valid and belong to a subnet defined in `network_spec.yml`.
 
 ## Usage example
 

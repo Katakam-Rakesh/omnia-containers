@@ -25,8 +25,10 @@ each domain owns and exposes its cleanup workflow.
 
 - Log in to the OIM as a user with the privileges required by the selected
   cleanup workflows.
-- Use the same `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` that were used for
-  deployment.
+- Use the same project name and resolved domain data paths that were used for
+  deployment. In particular, preserve `ORCHESTRATOR_DATA_PATH` when
+  Orchestrator was deployed from a custom root; when it is unset,
+  Orchestrator uses `<OMNIA_DATA_PATH>/orchestrator`.
 - Stop or drain workloads that use the services being removed.
 - Back up project inputs, credentials, repository content, images, telemetry
   data, databases, and shared-storage data that must be retained.

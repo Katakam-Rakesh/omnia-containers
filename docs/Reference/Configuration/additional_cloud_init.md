@@ -5,14 +5,10 @@ This file provides additional cloud-init configuration for stateless node
 provisioning. It allows writing files and running commands on nodes during
 the cloud-init final stage.
 
-!!! warning "Current implementation limitation"
-
-    The current Orchestrator setup validates a non-empty
-    `additional_cloud_init_config_file` path, but does not publish that value
-    to the OpenCHAMI runtime role. Consequently, this file is not loaded or
-    applied during provisioning in the current release. The schema below
-    documents the retained input contract; do not rely on it until the runtime
-    publication issue is fixed.
+Set `additional_cloud_init_config_file` in `orchestrator_config.yml` to the
+absolute path of this file. Orchestrator validates the file and publishes its
+common and per-functional-group directives through the OpenCHAMI provisioning
+workflow. Leave the setting empty to disable additional cloud-init.
 
 ## Parameter Reference
 
@@ -47,9 +43,7 @@ groups:
 
     The following keys are platform-managed and must **not** be used in this file:
     `bootcmd`, `network`, `network-config`, `packages`.
-    Initial input validation does not currently reject every unsupported key;
-    review the file before provisioning because unsupported content can fail
-    later or produce an unintended merge.
+    Orchestrator input validation rejects these keys before provisioning.
 
 !!! note
 
@@ -60,11 +54,18 @@ groups:
       `pxe_mapping_file.csv`; copy the value from the active project rather
       than deriving or shortening it.
 
+## Validation
+
+The Orchestrator `validate` phase checks that the configured file exists, is
+readable YAML, and contains only `common` and `groups` at the top level. It
+validates `write_files` entries, `runcmd` strings, permissions, encodings,
+boolean `append` values, prohibited keys, and functional-group names against
+the active PXE mapping file.
+
 !!! info
 
     - This file is optional and can be used to add custom cloud-init configuration to the platform.
     - Refer official cloud-init documentation for [`write_files`](https://docs.cloud-init.io/en/latest/reference/modules.html#write-files) and [`runcmd`](https://docs.cloud-init.io/en/latest/reference/modules.html#runcmd) for more details.
-
 
 
 

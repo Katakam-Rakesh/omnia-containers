@@ -190,20 +190,30 @@ node.
     wget https://raw.githubusercontent.com/dell/csi-powerscale/refs/heads/release/v2.17.0/samples/secret/secret.yaml
     ```
 
-    Update the following parameters (keep the rest as defaults):
+    Keep `isilonClusters` as a non-empty list of mappings. Every entry must
+    define `clusterName` and `endpoint` as non-empty strings, `username` and
+    `password` as strings, and `isDefault` as a Boolean. Exactly one entry must
+    set `isDefault: true`. The validator also checks the optional fields shown
+    below when they are present:
 
-    | Parameter       | Value                                  |
-    |-----------------|----------------------------------------|
-    | `clusterName`   | Your desired cluster name              |
-    | `endpoint`      | PowerScale SmartConnect hostname or IP |
-    | `endpointPort`  | Endpoint port (default: `8080`)        |
-    | `isDefault`     | `true`                                 |
+    | Parameter | Requirement |
+    | --- | --- |
+    | `endpointPort` | Integer from 1 through 65535 |
+    | `skipCertificateValidation` | Boolean |
+    | `isiPath` | Absolute path when provided |
+    | `isiVolumePathPermissions` | Three- or four-digit octal string when provided |
 
     !!! important
         Do **not** update the `username` and `password` fields in
         `secret.yaml`. Omnia reads these from the
         `orchestrator_credentials.yml` file and automatically Base64-encodes
         and injects them during deployment.
+
+        A plaintext `secret.yaml` is accepted. If you encrypt it before
+        validation, place the matching Vault password file at
+        `.csi_powerscale_secret_vault` in the active Orchestrator project input
+        directory. An encrypted file without that exact key file, or one that
+        cannot be decrypted and parsed, fails validation.
 
     !!! note
         If SmartConnect is configured, you can use the PowerScale hostname
@@ -216,23 +226,22 @@ node.
     wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.17.0/charts/csi-isilon/values.yaml
     ```
 
-    Review the following parameters and set the site-specific values. The
-    values shown match the current Omnia v2.17.0 reference file; Omnia passes
-    the remaining Helm values to the CSI installer without changing them.
+    `values.yaml` must be a readable, non-empty, plaintext YAML mapping. The
+    validator requires the following values; an Ansible Vault-encrypted values
+    file is not accepted:
 
-    | Parameter | Current reference value | Description |
+    | Parameter | Required value or constraint | Description |
     | --- | --- | --- |
     | `controller.controllerCount` | `1` | Number of CSI controller pods |
     | `controller.replication.enabled` | `false` | Replication sidecar is disabled |
     | `controller.snapshot.enabled` | `true` | Volume snapshot sidecar is enabled |
-    | `controller.resizer.enabled` | `false` | Volume expansion sidecar is disabled |
-    | `node.dnsPolicy` | `ClusterFirstWithHostNet` | DNS policy for the node DaemonSet |
-    | `skipCertificateValidation` | `true` | OneFS API certificate verification is skipped |
-    | `isiAuthType` | `0` | Basic authentication is enabled |
-    | `endpointPort` | `8080` | OneFS API server HTTPS port |
-    | `isiAccessZone` | `System` | PowerScale access zone used by `ps01` |
-    | `isiPath` | `/ifs/data/csi` | Base path used by `ps01` for CSI volumes |
-    | `enableQuota` | `true` | Quota management is enabled and requires SmartQuotas |
+    | `controller.resizer.enabled` | Boolean | Enables or disables the volume expansion sidecar |
+    | `skipCertificateValidation` | Boolean | Controls OneFS API certificate verification |
+    | `isiAuthType` | `0` or `1` | Authentication type accepted by the driver |
+    | `endpointPort` | Integer from 1 through 65535 | OneFS API server port |
+    | `isiAccessZone` | Non-empty string | PowerScale access zone used by `ps01` |
+    | `isiPath` | Absolute path | Base path used by `ps01` for CSI volumes |
+    | `isiVolumePathPermissions` | Three- or four-digit octal string | Permissions for created volume paths |
 
     !!! caution
         The top-level `isiPath` and `isiAccessZone` keys are required because
@@ -240,6 +249,15 @@ node.
         `isiPath` directory exists on the PowerScale cluster before
         deployment. Omnia also reads the `endpoint` from the first
         `isilonClusters` entry in `secret.yaml`.
+
+    !!! warning "Protect staged credentials"
+        Ansible Vault protects `orchestrator_credentials.yml`, but Base64 in
+        `secret.yaml` and the Kubernetes Secret is encoding, not encryption.
+        During staging, the current workflow decrypts the configured source
+        `secret.yaml` when necessary, injects the encoded credentials, and
+        copies it with mode `0600`; it does not re-encrypt that source file
+        afterward. Restrict access to the project input directory and the
+        Kubernetes NFS staging share.
 
     !!! warning
         Omnia does not reconcile `values.yaml` changes into an existing CSI
@@ -288,6 +306,7 @@ node.
     service_k8s_cluster:
       - cluster_name: service_cluster
         deployment: true
+        etcd_on_local_disk: false
         enable_powerscale_csi: true
         k8s_cni: "calico"
         pod_external_ip_range: "172.16.107.170-172.16.107.200"
@@ -666,4 +685,3 @@ state. Check the pod status and logs:
 ```bash title="Run on: kube_control_plane"
 kubectl logs -n isilon deployment/isilon-controller --all-containers
 ```
-

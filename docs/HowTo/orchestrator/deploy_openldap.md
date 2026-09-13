@@ -7,8 +7,9 @@ selected deployment catalog contains an OpenLDAP group. The source derives the
 LDAP search base from `SYSTEM_DOMAIN_NAME`, uses `SYSTEM_ADMIN_NIC_IPV4` as the
 LDAP server address, collects the OpenLDAP database username and password in
 an Ansible Vault file, generates TLS material, and configures LDAP clients
-during Slurm provisioning. The standard Kubernetes bolt-on list does not
-configure an OpenLDAP client.
+during Slurm provisioning. The default Kubernetes bolt-on list does not
+configure an OpenLDAP client, but it can be enabled with the supported
+`orchestrator.bolt_ons.kubernetes` override in `omnia_config.yml`.
 
 OpenLDAP selection is catalog-driven. There is no `ldap_enabled` input and no
 `deploy_openldap` top-level tag.
@@ -42,6 +43,21 @@ OpenLDAP selection is catalog-driven. There is no `ldap_enabled` input and no
     ldap_connection_type: "TLS"
     ```
 
+   To configure Kubernetes nodes as OpenLDAP clients as well, replace the
+   Kubernetes bolt-on list in `omnia_config.yml` and include `openldap`:
+
+    ```yaml title="omnia_config.yml"
+    orchestrator:
+      bolt_ons:
+        kubernetes:
+          - mount_config
+          - k8s_config
+          - openldap
+    ```
+
+   The override replaces the Kubernetes default list. OpenLDAP client
+   configuration still runs only when the catalog enables OpenLDAP.
+
 3. Run the precheck. When OpenLDAP is enabled and its credential file
    is absent, the precheck reports that the credentials will be collected in
    the prepare phase.
@@ -61,12 +77,12 @@ OpenLDAP selection is catalog-driven. There is no `ldap_enabled` input and no
     ./omnia.sh --run orchestrator --tags prepare
     ```
 
-   Credential collection prompts only for values that are empty. Provisioning
-   password and BMC username/password are always required; Slurm, OpenLDAP,
-   and PowerScale CSI credentials are added when those features are selected.
-   Every password prompt requires confirmation. Existing non-empty values are
-   retained, so rotate one by editing the Vault-encrypted file with its matching
-   key rather than expecting `prepare` to prompt again.
+   Credential collection prompts for values that are empty or that fail the
+   current credential rules. Provisioning password and BMC username/password
+   are always required; Slurm, OpenLDAP, and PowerScale CSI credentials are
+   added when those features are selected. Every password prompt requires
+   confirmation. Valid stored values are retained; use the approved encrypted-
+   file update procedure when intentionally rotating a still-valid value.
 
    The phase creates `$OMNIA_DATA_PATH/auth/config`, `tls_certs`, `data`, and
    `init`; generates `slapd.conf`, `bootstrap.ldif`, and a certificate; creates
@@ -93,8 +109,9 @@ state is `running`.
 - Continue with [Provision Nodes](provision_nodes.md). The default Slurm
   provisioning path runs the OpenLDAP client configuration when the catalog
   enables OpenLDAP. Kubernetes does not include OpenLDAP in its default
-  bolt-on list; the standard input template does not expose a supported
-  Kubernetes OpenLDAP override.
+  bolt-on list; add `openldap` to the supported
+  `orchestrator.bolt_ons.kubernetes` override when Kubernetes nodes must be
+  configured as LDAP clients.
 - Use [Deploy Slurm](deploy_slurm.md) or
   [Deploy Kubernetes](deploy_kubernetes.md) for service-specific inputs.
 

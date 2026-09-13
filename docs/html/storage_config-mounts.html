@@ -172,7 +172,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Named profile key from mount_params section. Must reference an existing profile defined in mount_params.</p>
+                            <p>Named profile key from the <code class="docutils literal notranslate"><span class="pre">mount_params</span></code> section. Use an existing profile. The current runtime does not reject an unknown name and instead falls back to <code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">defaults</span></code>, <code class="docutils literal notranslate"><span class="pre">0</span></code>, and <code class="docutils literal notranslate"><span class="pre">0</span></code> for the filesystem, mount options, dump frequency, and fsck pass.</p>
                         </div>
                     </td>
                 </tr>
@@ -281,7 +281,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Directory ownership and mode applied to mount_point after mount (chown + chmod via runcmd)</p>
+                            <p>Directory ownership and mode commands generated for <code class="docutils literal notranslate"><span class="pre">mount_point</span></code>. The current command order applies them before <code class="docutils literal notranslate"><span class="pre">mount -av</span></code>, so they affect the underlying local directory rather than guaranteeing permissions on the mounted filesystem.</p>
                         </div>
                     </td>
                 </tr>

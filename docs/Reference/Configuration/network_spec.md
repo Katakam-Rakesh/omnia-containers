@@ -27,6 +27,11 @@ the remaining network fields from its own copy.
 `network_spec.yml` contains a single top-level key, `Networks`, which is a
 YAML list of network definitions.
 
+Define exactly one `admin_network` entry and no more than one `ib_network`
+entry. Although the schema represents these definitions as list items, the
+runtime combines them into one network mapping; a later duplicate network type
+would replace the earlier definition.
+
 ```yaml title="File: $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml"
 Networks:
   - admin_network:
@@ -45,6 +50,15 @@ Networks:
 Omit the `ib_network` list item when InfiniBand is not used. When it is present,
 both `subnet` and `netmask_bits` must contain valid values; an empty
 `ib_network` object does not satisfy the schema.
+
+Every subnet must be its canonical IPv4 network address. Each router and DHCP
+range must belong to its declared admin subnet, and ranges must be ordered.
+Primary and additional admin subnets must be pairwise non-overlapping and must
+not overlap the optional InfiniBand subnet. Configured DHCP ranges must also be
+pairwise non-overlapping. The OIM admin address must be inside its primary
+admin subnet and outside its DHCP range. A non-empty OIM BMC address must
+differ from every OIM admin address and remain outside every configured DHCP
+range.
 
 ## Admin Network Configuration Parameters
 --8<-- "html/network_spec-admin_network.html"
@@ -97,11 +111,9 @@ Networks:
       does not supply this value when it is omitted.
     - Every primary and additional `dynamic_range` must be contained within its
       subnet, must not overlap another configured DHCP range, and must not
-      contain the OIM admin address or any static `ADMIN_IP` assigned in the PXE
-      mapping file. Orchestrator validates the subnet, range overlap, and OIM
-      address relationships, but it does not currently cross-check DHCP pools
-      against `ADMIN_IP` values in the PXE mapping file. The administrator must
-      reserve those static addresses outside the pools.
+      contain the OIM admin or BMC address. Orchestrator does not currently
+      cross-check these DHCP pools against static `ADMIN_IP` values in the PXE
+      mapping file, so reserve those addresses outside the pools.
     - When `ib_network` is configured, its `netmask_bits` must equal the primary
       admin-network `netmask_bits` because node InfiniBand configuration uses
       the shared prefix length. The current precheck does not enforce this
@@ -112,9 +124,6 @@ Networks:
     - [Network Topologies](../SupportMatrix/network_topologies.md) -- How topologies
       affect NIC and VLAN assignments.
     - [Nics](../SupportMatrix/nics.md) -- Supported NIC models.
-
-
-
 
 
 

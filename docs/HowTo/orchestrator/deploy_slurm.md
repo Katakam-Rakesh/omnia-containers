@@ -55,9 +55,10 @@ Pulp certificate. The optional `vast_storage_name` mount supplies the
     login_compiler_node_rhel_10_0_aarch64
     ```
 
-   Populate the complete CSV row for every server, including its group,
-   service tag, hostname, admin MAC and IP, and BMC data. Configure optional
-   InfiniBand fields when used.
+   Retain the complete CSV row for every server, including the `SERVICE_TAG`
+   column. The service-tag value may be empty; every nonempty value must be
+   unique. Provide the group, hostname, admin MAC and IP, and BMC data, and
+   configure the optional InfiniBand values when used.
 
 2. Configure the first `slurm_cluster` entry in `omnia_config.yml`. The source
    reads the first cluster entry during provisioning.

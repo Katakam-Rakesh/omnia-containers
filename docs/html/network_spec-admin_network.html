@@ -42,7 +42,7 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
                     <p>The name of the interface on the OIM server associated with the admin network.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">eno1</span></code></p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">eno1</span></code></p>
                 </div>
             </td>
         </tr>
@@ -60,8 +60,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The subnet address for the admin network.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.0.0</span></code></p>
+                    <p>The canonical IPv4 network address for the admin network. It must not overlap another primary or additional admin subnet, or the optional InfiniBand subnet.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.0</span></code></p>
                 </div>
             </td>
         </tr>
@@ -80,7 +80,7 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
                     <p>The number of bits in the subnet mask.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">24</span></code></p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">24</span></code></p>
                 </div>
             </td>
         </tr>
@@ -98,8 +98,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The admin IP address of the OIM server which is configured.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.254</span></code></p>
+                    <p>The OIM admin IPv4 address. It must belong to the primary admin subnet and remain outside that subnet's dynamic range.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.254</span></code></p>
                 </div>
             </td>
         </tr>
@@ -117,8 +117,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The OIM BMC/iDRAC IP address. Specify an IPv4 address to include the OIM in the generated BMC group data consumed by iDRAC telemetry. Set the value to an empty string to exclude the OIM.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">""</span></code></p>
+                    <p>The OIM BMC/iDRAC IP address. Specify an IPv4 address to include the OIM in the generated BMC group data consumed by iDRAC telemetry. Set the value to an empty string to exclude the OIM. A non-empty value must differ from every OIM admin address and remain outside every configured DHCP range.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">""</span></code></p>
                 </div>
             </td>
         </tr>
@@ -136,8 +136,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>In connected deployments, the router field should typically be set to the external rack gateway, such as a SONiC switch, which provides connectivity beyond the rack network. In air-gapped deployments, the router field can be set to the OIM’s IP address if the OIM is acting as the rack gateway. If another dedicated router or gateway is available, its IP address should be specified instead. The configured value is advertised to nodes via DHCP as their default gateway.</p>
-                    <p><b>Default value: </b> <code class="docutils literal notranslate"><span class="pre">172.16.107.254</span></code></p>
+                    <p>In connected deployments, the router field should typically be set to the external rack gateway, such as a SONiC switch, which provides connectivity beyond the rack network. In air-gapped deployments, the router field can be set to the OIM’s IP address if the OIM is acting as the rack gateway. If another dedicated router or gateway is available, its IP address should be specified instead. The configured value must belong to this subnet and is advertised to nodes via DHCP as their default gateway.</p>
+                    <p><b>Example value: </b> <code class="docutils literal notranslate"><span class="pre">172.16.107.254</span></code></p>
                 </div>
             </td>
         </tr>
@@ -155,8 +155,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The range of dynamic IP addresses available on the admin network. It must be contained by this subnet and must not include the OIM admin address or any static ADMIN_IP in the PXE mapping file. The current precheck does not cross-check the pool against PXE mapping addresses; reserve those addresses outside the pool.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.201-172.16.107.250</span></code></p>
+                    <p>An ordered start-end IPv4 range contained by this subnet. It must not contain the OIM admin or BMC address and must not overlap another configured DHCP range. The current precheck does not cross-check the pool against PXE mapping addresses; reserve static node addresses outside the pool.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.201-172.16.107.250</span></code></p>
                 </div>
             </td>
         </tr>
@@ -175,7 +175,7 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
                     <p>The list of external DNS server IP addresses for the admin network.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
                 </div>
             </td>
         </tr>
@@ -194,7 +194,7 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
                     <p>The list of NTP servers for the admin network. Each NTP server entry should include address (IP address or hostname) and type (server or pool).</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
                 </div>
             </td>
         </tr>

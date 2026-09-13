@@ -67,9 +67,12 @@ This page lists the minimum number of servers required for each Omnia deployment
 | Login Node | `login_node_<os>_<version>_<architecture>` | Interactive SSH access for users to submit jobs. Runs `slurmd`. |
 | Login Compiler Node | `login_compiler_node_<os>_<version>_<architecture>` | Login node with compiler toolchain. |
 
-Use the exact functional-layer name from the selected catalog. For example,
-the default catalog uses `service_kube_control_plane_rhel_10_0_x86_64` and
-`slurm_node_rhel_10_0_aarch64`.
+The PXE mapping accepts Discovery-style role-and-architecture names, such as
+`service_kube_control_plane_x86_64` and `slurm_node_aarch64`, and matching
+catalog-qualified names such as
+`service_kube_control_plane_rhel_10_0_x86_64` and
+`slurm_node_rhel_10_0_aarch64`. If a name includes an OS/version segment, it
+must match the selected catalog.
 
 !!! note
 
@@ -80,7 +83,6 @@ the default catalog uses `service_kube_control_plane_rhel_10_0_x86_64` and
     - [Disk Space](disk_space.md) -- Disk and memory requirements per node role.
     - [Ports](../../SecurityConfigurationGuide/network_security.md#firewall-settings) -- Network ports required per role.
     - [HA Config](../Configuration/high_availability_config.md) -- Kubernetes HA settings.
-
 
 
 

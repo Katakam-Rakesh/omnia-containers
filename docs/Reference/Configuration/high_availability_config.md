@@ -3,11 +3,12 @@
 This file configures Kubernetes control plane high availability (HA) using a
 virtual IP address and load-balanced API servers.
 
-The current provisioning path consumes the first entry in
-`service_k8s_cluster_ha`; it does not select an entry by `cluster_name`. It also
-uses `virtual_ip_address` to generate kube-vip and Kubernetes API configuration
-regardless of the `enable_k8s_ha` value. Keep the intended entry first, set
-`enable_k8s_ha: true`, and provide a valid VIP.
+Configure exactly one entry in `service_k8s_cluster_ha`. Its `cluster_name`
+must match the single `service_k8s_cluster` entry selected with
+`deployment: true` in `omnia_config.yml`. The provisioning path uses
+`virtual_ip_address` to generate kube-vip and Kubernetes API configuration
+regardless of the `enable_k8s_ha` value, so set `enable_k8s_ha: true` for the
+supported configuration.
 
 ## Parameter Reference
 
@@ -18,9 +19,11 @@ regardless of the `enable_k8s_ha` value. Keep the intended entry first, set
 - Add the matching service Kubernetes cluster to `omnia_config.yml`.
 - The `virtual_ip_address` must be a free IP on the admin network subnet --
   it must not be assigned to any physical server or DHCP range.
-- Verify the cluster-name relationship, control-plane count, VIP subnet, and
-  address conflicts manually. The current input validator does not perform
-  these HA-specific cross-checks.
+- Define at least three control-plane nodes for the supported HA topology. The
+  validator checks the cluster-name relationship, VIP subnet, shared
+  control-plane subnet, complete `pod_external_ip_range` placement, and
+  configured-address conflicts; it does not enforce the control-plane node
+  count or detect addresses used by external devices.
 
 ## Usage example
 
@@ -38,8 +41,6 @@ service_k8s_cluster_ha:
     - [Minimum Nodes](../ClusterRequirements/minimum_nodes.md) -- Minimum node counts for HA deployments.
     - [Ports](../../SecurityConfigurationGuide/network_security.md#kubernetes-port-requirements) -- Kubernetes ports including
       the API server.
-
-
 
 
 

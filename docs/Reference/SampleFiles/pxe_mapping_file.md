@@ -25,9 +25,9 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 
 | Column | Required | Description |
 | --- | --- | --- |
-| `FUNCTIONAL_GROUP_NAME` | Yes | Functional-layer identity used by Orchestrator. Use an exact `catalog.functionallayer[].name` value from the selected catalog. |
+| `FUNCTIONAL_GROUP_NAME` | Yes | Supported role name ending in `_x86_64` or `_aarch64`. Discovery-style and matching version-qualified catalog names are accepted. |
 | `GROUP_NAME` | Yes | Scalable Unit or logical group identifier. |
-| `SERVICE_TAG` | Yes | Unique Dell server service tag. |
+| `SERVICE_TAG` | No | Dell server service tag. A nonempty value must be alphanumeric and unique. |
 | `PARENT_SERVICE_TAG` | No | For Slurm compute-node roles, the service tag of the service Kubernetes worker in the same group. Leave empty for other roles. |
 | `HOSTNAME` | Yes | Unique lowercase hostname without a domain suffix. |
 | `ADMIN_MAC` | Yes | Unique MAC address of the admin/PXE NIC. |
@@ -37,8 +37,9 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 | `IB_NIC_NAME` | No | InfiniBand NIC FQDD, such as `InfiniBand.Slot.7-1` or `NIC.InfiniBand.1-3`. |
 | `IB_IP` | No | InfiniBand IPv4 address. |
 
-With the default RHEL 10.0 catalog installed by Main, use these
-case-sensitive mapping names:
+Discovery-style names such as `service_kube_node_x86_64` and
+`slurm_node_aarch64` are valid. With the default RHEL 10.0 catalog, the
+corresponding case-sensitive version-qualified names include:
 
 - `os_rhel_10_0_x86_64`
 - `slurm_control_node_rhel_10_0_x86_64`
@@ -49,14 +50,14 @@ case-sensitive mapping names:
 - `slurm_node_rhel_10_0_aarch64`
 - `login_compiler_node_rhel_10_0_aarch64`
 
-Other catalog variants can define different functional layers. Use the exact
-`catalog.functionallayer[].name` value from the selected catalog. During
-validation and provisioning, Orchestrator promotes the first name beginning
-with `service_kube_control_plane_` to an internal
+Other catalog variants can define different functional layers. Orchestrator
+matches catalog-managed names by role and architecture; an explicit OS/version
+segment must match the selected catalog. During validation and provisioning,
+Orchestrator promotes the first name beginning with
+`service_kube_control_plane_` to an internal
 `service_kube_control_plane_first_...` group. Do not put that internal name in
-the source mapping. When using a Discovery-generated mapping, review each
-`FUNCTIONAL_GROUP_NAME` and align it with the selected catalog before passing
-the file to Orchestrator.
+the source mapping. When using a Discovery-generated mapping, review each role
+and ensure that the selected catalog supplies its architecture.
 
 ## Sample file
 
@@ -80,10 +81,16 @@ tag for the Slurm compute node in that same group.
 
 The current Orchestrator input validator checks:
 
-- Presence of the nine required headers from `FUNCTIONAL_GROUP_NAME` through
-  `BMC_IP`. Keep the optional InfiniBand columns as part of the full contract.
-- Uniqueness of nonempty `SERVICE_TAG`, `HOSTNAME`, and `ADMIN_IP` values.
-- IPv4 syntax for nonempty `ADMIN_IP` values.
+- Exact presence, spelling, case, and order of all 11 canonical headers.
+- Required values for `FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `HOSTNAME`,
+  `ADMIN_MAC`, and `ADMIN_IP`; `SERVICE_TAG` may be empty.
+- Uniqueness of nonempty `SERVICE_TAG`, `HOSTNAME`, normalized `ADMIN_MAC`,
+  `ADMIN_IP`, and nonempty `IB_IP` values.
+- MAC and IPv4 syntax for the applicable required and optional fields.
+- Paired `IB_NIC_NAME` and `IB_IP` values.
+- Functional-group syntax, supported logical-group combinations,
+  Slurm/compiler architecture compatibility, and catalog-managed role
+  compatibility when the catalog is available.
 - Membership of `ADMIN_IP` values in the primary or additional admin subnets
   from the Orchestrator `network_spec.yml`.
 
