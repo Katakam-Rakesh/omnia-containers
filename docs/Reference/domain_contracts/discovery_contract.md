@@ -63,22 +63,17 @@ normally begins with `nid001`.
 Review and correct the generated values before copying the file to:
 
 ```text
-$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
+$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
 ```
 
-For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery sets
-`PARENT_SERVICE_TAG` to the service tag of a
-`service_kube_node_x86_64` in the same `GROUP_NAME`. It leaves this field empty
-for other functional groups or when a matching service Kubernetes worker is
-not present.
+`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
 
-For a deployment with N Scalable Units, provide N dedicated
-`service_kube_node_x86_64` servers, with one server in each Scalable Unit. Each
-worker and its associated Slurm compute nodes must resolve to the same
-`GROUP_NAME`. Discovery does not validate this topology. If a group contains
-multiple service Kubernetes workers, it uses the first worker in the generated
-mapping as the parent. Review every generated parent relationship before the
-mapping is handed to Orchestrator.
+For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery may populate
+optional `PARENT_SERVICE_TAG` metadata in generated rows. It otherwise leaves
+the field empty. This is Discovery generation behavior, not an Orchestrator
+input constraint. Orchestrator does not require a parent value or validate it
+against `GROUP_NAME`; review both values before handing the mapping to
+Orchestrator.
 
 ### `discovery_status.yml`
 
@@ -109,6 +104,7 @@ The operational tags are:
 | Tag | Behavior |
 |---|---|
 | *(none)* | Runs validation, credentials, and OME execution. |
+| `precheck` | Validates the resolved data path, warns if `/etc/omnia/omnia.env` is absent, and, when BMC discovery is enabled, checks TCP connectivity to the configured OME endpoint on port 443. It does not authenticate to OME or query its API. |
 | `validate` | Validates the Discovery domain settings without credential prompting. |
 | `credentials` | Creates or updates the encrypted OME credential file. |
 | `execute` | Runs the OME discovery flow. |
@@ -116,8 +112,8 @@ The operational tags are:
 | `cleanup` | Empties the current project's Discovery output directory and removes credentials by default. |
 | `cleanup_credentials` | Removes only the Discovery credential file and Vault key. |
 
-`precheck`, `prepare`, `upgrade`, and `rollback` are accepted placeholders in
-the current source. They do not perform the named lifecycle operation.
+`prepare`, `upgrade`, and `rollback` are accepted placeholders in the current
+source. They do not perform the named lifecycle operation.
 
 Full cleanup preserves the current project output directory but removes every
 entry inside it, including timestamped mappings, the latest-mapping symbolic

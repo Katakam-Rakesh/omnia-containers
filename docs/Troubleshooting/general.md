@@ -74,24 +74,33 @@ podman exec -it <container> sh -lc 'curl -I https://example.com'
 
 ??? note "Cause"
 
-    The vault password file (`.omnia_config_credentials_key`) is missing, incorrect, or inaccessible to the playbook execution context.
+    The domain credential key is missing, incorrect, or inaccessible to the
+    playbook execution context. For Orchestrator, the files are
+    `orchestrator_credentials.yml` and `.orchestrator_credentials_key` in the
+    active project input directory.
 
 ??? note "Resolution"
 
-    1. Verify the vault password file exists in the correct location.
-    2. Ensure the file has the correct permissions (readable by the user running the playbook).
-    3. Re-run the playbook with the correct vault password file:
+    1. Load the installed environment and resolve the active project path:
 
         ```bash title="Run on: OIM host"
-        ansible-playbook playbooks/omnia.yml --vault-password-file /root/.vault_pass
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        credential_dir="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
         ```
 
-    4. If the vault password is lost, recreate the credentials file:
+    2. Verify that both files exist and are readable only by the intended
+       administrator:
 
         ```bash title="Run on: OIM host"
-        cp input/credentials.yml input/credentials.yml.bak
-        ansible-vault create input/credentials.yml
+        ls -l "$credential_dir/orchestrator_credentials.yml" \
+          "$credential_dir/.orchestrator_credentials_key"
         ```
+
+    3. Rerun the Orchestrator `credentials` workflow. If the Vault key has
+       been permanently lost, the existing encrypted values cannot be
+       recovered; preserve the failed files for diagnosis, use the documented
+       credential-cleanup workflow, and enter the credentials again.
 
     For more information on managing encrypted parameters, see [Encrypted Parameters Management](../SecurityConfigurationGuide/misc_configuration.md#encrypted-parameters-management).
 
@@ -304,8 +313,9 @@ podman exec -it <container> sh -lc 'curl -I https://example.com'
     ```
 
     The deployed service set depends on the selected domains. It can include
-    Pulp and the OpenCHAMI services under `openchami.target`, such as SMD, BSS,
-    cloud-init-server, Hydra, and acme-deploy.
+    Pulp and the current Fabrica OpenCHAMI services under `openchami.target`,
+    such as SMD, boot-service, metadata-service, tokensmith, PostgreSQL,
+    HAProxy, the local CA, and CoreSMD DNS/DHCP services.
 
     List failed Omnia and OpenCHAMI-related services:
 
@@ -645,7 +655,7 @@ podman exec -it <container> sh -lc 'curl -I https://example.com'
     systemctl --failed --no-pager
     podman ps -a
     ochami smd service status
-    ochami bss service status
+    systemctl is-active boot-service metadata-service tokensmith
     ```
 
     For Kubernetes:
@@ -847,8 +857,6 @@ podman exec -it <container> sh -lc 'curl -I https://example.com'
     !!! tip
 
         Increase Ansible verbosity (`-vvv`) when re-running to capture detailed error output for root-cause analysis.
-
-
 
 
 

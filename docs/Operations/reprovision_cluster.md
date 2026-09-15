@@ -25,6 +25,18 @@ the provisioning network. PXE boot is owned by the Orchestrator domain.
 - Dell iDRAC credentials are available for physical-server PXE boot.
 - Cluster workloads are stopped or drained before nodes are restarted.
 
+Resolve the active component paths once in the maintenance shell:
+
+```bash title="Run on: OIM"
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_DATA_PATH/activate-omnia.sh"
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+discovery_path="${OMNIA_DATA_PATH}/discovery"
+orchestrator_input="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
+orchestrator_output="$orchestrator_path/output/$OMNIA_PROJECT_NAME"
+discovery_output="$discovery_path/output/$OMNIA_PROJECT_NAME"
+```
+
 ## Re-provision without modifications
 
 If the mapping, catalog, built images, and Orchestrator inputs have not
@@ -35,9 +47,10 @@ cd <OMNIA_SOURCE_PATH>/src/main
 ./omnia.sh --run orchestrator --tags pxeboot
 ```
 
-The workflow reads
-`$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`.
-It does not use the legacy Utils PXE playbook or a separate Ansible inventory.
+By default, the workflow reads `$orchestrator_input/pxe_mapping_file.csv`.
+When `pxe_mapping_file_path` is set in `orchestrator_config.yml`, it reads that
+absolute path instead. It does not use the legacy Utils PXE playbook or a
+separate Ansible inventory.
 
 To re-provision only a reviewed subset of physical nodes, provide a CSV with
 the same mapping columns:
@@ -53,8 +66,20 @@ Use the following procedure when the mapping, catalog, image configuration, or
 Orchestrator inputs have changed.
 
 1. Update the catalog and the appropriate domain project inputs. Update
-   `pxe_mapping_file.csv` directly when using mapping-file discovery, or rerun
-   Discovery when OME supplies the mapping.
+   `pxe_mapping_file.csv` directly when using a maintained mapping. When OME
+   supplies the mapping, rerun Discovery, review
+   `$discovery_output/bmc_pxe_mapping_file.csv`, and copy the approved content
+   to `$orchestrator_input/pxe_mapping_file.csv` (or to the explicit
+   `pxe_mapping_file_path`). Discovery intentionally does not overwrite the
+   Orchestrator input. Compare the files before replacing the active mapping:
+
+    ```bash title="Run on: OIM"
+    diff -u "$orchestrator_input/pxe_mapping_file.csv" \
+      "$discovery_output/bmc_pxe_mapping_file.csv"
+    ```
+
+   After review, back up the current Orchestrator mapping and copy the approved
+   Discovery CSV using the site's file-change procedure.
 
 2. If catalog packages or repositories changed, synchronize Repository
    Manager and regenerate its status:
@@ -76,15 +101,33 @@ Orchestrator inputs have changed.
    Image Build Manager builds the architectures and functional groups selected
    by the current catalog through its domain entry point.
 
-4. Validate the revised Orchestrator inputs and regenerate provisioning,
-   boot-service, metadata-service, and inventory content:
+4. Validate the revised Orchestrator inputs and run the Orchestrator
+   prechecks:
 
     ```bash title="Run on: OIM"
     ./omnia.sh --run orchestrator --tags validate
+    ./omnia.sh --run orchestrator --tags precheck
+    ```
+
+5. If OpenCHAMI or OpenLDAP was cleaned, or its deployment inputs changed,
+   run `prepare`. This phase collects required credentials, deploys the enabled
+   services, and validates their readiness:
+
+    ```bash title="Run on: OIM"
+    ./omnia.sh --run orchestrator --tags prepare
+    ```
+
+   Skip this step only when the already-deployed services remain healthy and
+   their deployment configuration is unchanged.
+
+6. Regenerate provisioning, boot-service, metadata-service, and inventory
+   content:
+
+    ```bash title="Run on: OIM"
     ./omnia.sh --run orchestrator --tags provision
     ```
 
-5. PXE boot the reviewed nodes:
+7. PXE boot the reviewed nodes:
 
     ```bash title="Run on: OIM"
     ./omnia.sh --run orchestrator --tags pxeboot
@@ -123,16 +166,17 @@ OIM cleanup does not automatically make an arbitrary NFS share safe to reuse.
    [storage_config.yml](../Reference/Configuration/storage_config.md).
 2. Reference the required storage name from the applicable cluster definition
    in [omnia_config.yml](../Reference/Configuration/omnia_config.md).
-3. Run the Orchestrator `validate`, `provision`, and `pxeboot` workflows.
+3. Run the Orchestrator `validate`, `precheck`, `provision`, and `pxeboot`
+   workflows. Run `prepare` first if OpenCHAMI or OpenLDAP must be restored.
 
 ## Verification
 
 Review the Orchestrator outputs:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/failed_nodes.json"
+cat "$orchestrator_output/orchestrator_status.yml"
+cat "$orchestrator_output/provisioning_report.yml"
+cat "$orchestrator_output/failed_nodes.json"
 ```
 
 When a custom PXE subset was supplied, also review `pxeboot_status.yml` in the

@@ -41,16 +41,12 @@ The generated OpenCHAMI Corefile:
 - generates node records using the fixed `nid` short name and a three-digit
   node identifier.
 
-During node registration, the generated `nodes.yaml` derives the numeric node
-ID from a hostname that matches `nid` followed by digits. For any other
-hostname, it uses the node's generated list position. The current executable
-source does not perform a separate `dns_enabled` validation that rejects custom
-hostnames.
-
-Consequently, administrators should use `nidNNN` hostnames when the operating
-system hostname must match the CoreDNS-generated record. With a custom hostname,
-the node can retain that hostname while its generated DNS record uses the
-corresponding `nidNNN` identifier.
+When `dns_enabled: true`, Orchestrator input validation requires every PXE
+mapping hostname to use the `nidNNN` form from `nid001` through `nid999`.
+During node registration, each generated per-category file, such as
+`nodes_slurm.yaml` or `nodes_kubernetes.yaml`, derives the numeric node ID from
+that suffix. Custom hostnames are supported only when Cluster DNS is disabled;
+in that mode, node cloud-init uses the generated `/etc/hosts` mapping instead.
 
 When Orchestrator provisions a target category with Cluster DNS enabled, it:
 
@@ -67,7 +63,9 @@ When Orchestrator provisions a target category with Cluster DNS enabled, it:
 1. Edit the staged Orchestrator configuration:
 
     ```bash title="Run on: OIM host"
-    vi <OMNIA_DATA_PATH>/orchestrator/input/<OMNIA_PROJECT_NAME>/orchestrator_config.yml
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    vi "${orchestrator_path}/input/${OMNIA_PROJECT_NAME}/orchestrator_config.yml"
     ```
 
 2. Enable the source-defined option:

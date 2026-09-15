@@ -7,8 +7,10 @@ the hostname and network identities used during provisioning.
 The default project-scoped location is:
 
 ```text
-/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
 ```
+
+`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
 
 Set `pxe_mapping_file_path` in `orchestrator_config.yml` to select another
 absolute path.
@@ -23,10 +25,10 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 
 | Column | Required | Description |
 | --- | --- | --- |
-| `FUNCTIONAL_GROUP_NAME` | Yes | Functional-layer name from the selected catalog. The value must exactly match the corresponding image name in Image Build Manager output. |
+| `FUNCTIONAL_GROUP_NAME` | Yes | Supported role name ending in `_x86_64` or `_aarch64`. Discovery-style and matching version-qualified catalog names are accepted. |
 | `GROUP_NAME` | Yes | Scalable Unit or logical group identifier. |
-| `SERVICE_TAG` | Yes | Unique Dell server service tag. |
-| `PARENT_SERVICE_TAG` | No | For Slurm compute-node roles, the service tag of the service Kubernetes worker in the same group. Leave empty for other roles. |
+| `SERVICE_TAG` | No | Dell server service tag. A nonempty value must be alphanumeric and unique. |
+| `PARENT_SERVICE_TAG` | No | Optional parent-node service tag. Orchestrator does not require this value or validate it against `GROUP_NAME`. |
 | `HOSTNAME` | Yes | Unique lowercase hostname without a domain suffix. |
 | `ADMIN_MAC` | Yes | Unique MAC address of the admin/PXE NIC. |
 | `ADMIN_IP` | Yes | Unique IPv4 address in a configured admin subnet. |
@@ -35,8 +37,9 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 | `IB_NIC_NAME` | No | InfiniBand NIC FQDD, such as `InfiniBand.Slot.7-1` or `NIC.InfiniBand.1-3`. |
 | `IB_IP` | No | InfiniBand IPv4 address. |
 
-For the default RHEL 10.0 catalog installed by Main, use these exact,
-case-sensitive functional-group names:
+Discovery-style names such as `service_kube_node_x86_64` and
+`slurm_node_aarch64` are valid. With the default RHEL 10.0 catalog, the
+corresponding case-sensitive version-qualified names include:
 
 - `os_rhel_10_0_x86_64`
 - `slurm_control_node_rhel_10_0_x86_64`
@@ -47,39 +50,49 @@ case-sensitive functional-group names:
 - `slurm_node_rhel_10_0_aarch64`
 - `login_compiler_node_rhel_10_0_aarch64`
 
-Other catalog variants can define different functional layers. Use the exact
-`catalog.functionallayer[].name` value from the selected catalog. When using a
-Discovery-generated mapping, review and update `FUNCTIONAL_GROUP_NAME` before
-passing the file to Orchestrator.
+Other catalog variants can define different functional layers. Orchestrator
+matches catalog-managed names by role and architecture; an explicit OS/version
+segment must match the selected catalog. During validation and provisioning,
+Orchestrator promotes the first name beginning with
+`service_kube_control_plane_` to an internal
+`service_kube_control_plane_first_...` group. Do not put that internal name in
+the source mapping. When using a Discovery-generated mapping, review each role
+and ensure that the selected catalog supplies its architecture.
 
 ## Sample file
+
+The sample below uses the functional layers in the default RHEL 10.0 catalog
+installed by Main.
 
 ```csv title="pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
 slurm_control_node_rhel_10_0_x86_64,grp0,ABCD12,,nid001,02:00:00:00:01:01,172.16.107.52,02:00:00:00:02:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
-service_kube_node_rhel_10_0_x86_64,grp1,ABFL82,,nid002,02:00:00:00:01:02,172.16.107.56,02:00:00:00:02:02,172.17.107.56,,
-slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,nid003,02:00:00:00:01:03,172.16.107.43,02:00:00:00:02:03,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
+service_kube_node_rhel_10_0_x86_64,grp2,ABFL82,,nid002,02:00:00:00:01:02,172.16.107.56,02:00:00:00:02:02,172.17.107.56,,
+slurm_node_rhel_10_0_aarch64,grp1,ABCD34,,nid003,02:00:00:00:01:03,172.16.107.43,02:00:00:00:02:03,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
 login_compiler_node_rhel_10_0_aarch64,grp8,ABCD78,,nid004,02:00:00:00:01:04,172.16.107.41,02:00:00:00:02:04,172.17.107.41,NIC.InfiniBand.1-1,192.168.0.103
 service_kube_control_plane_rhel_10_0_x86_64,grp3,ABFG79,,nid005,02:00:00:00:01:05,172.16.107.53,02:00:00:00:02:05,172.17.107.53,,
 os_rhel_10_0_aarch64,grp7,ABEF78,,nid006,02:00:00:00:01:06,172.16.107.61,02:00:00:00:02:06,172.17.107.61,,
 ```
 
-`ABFL82` is a service Kubernetes worker in `grp1`; it is the parent service
-tag for the Slurm compute node in that same group.
-
 ## Validation rules
 
 The current Orchestrator input validator checks:
 
-- Presence of the nine required headers from `FUNCTIONAL_GROUP_NAME` through
-  `BMC_IP`. Keep the optional InfiniBand columns as part of the full contract.
-- Uniqueness of nonempty `SERVICE_TAG`, `HOSTNAME`, and `ADMIN_IP` values.
-- IPv4 syntax for nonempty `ADMIN_IP` values.
+- Exact presence, spelling, case, and order of all 11 canonical headers.
+- Required values for `FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `HOSTNAME`,
+  `ADMIN_MAC`, and `ADMIN_IP`; `SERVICE_TAG` may be empty.
+- Uniqueness of nonempty `SERVICE_TAG`, `HOSTNAME`, normalized `ADMIN_MAC`,
+  `ADMIN_IP`, and nonempty `IB_IP` values.
+- MAC and IPv4 syntax for the applicable required and optional fields.
+- Paired `IB_NIC_NAME` and `IB_IP` values.
+- Functional-group syntax, supported logical-group combinations,
+  Slurm/compiler architecture compatibility, and catalog-managed role
+  compatibility when the catalog is available.
 - Membership of `ADMIN_IP` values in the primary or additional admin subnets
   from the Orchestrator `network_spec.yml`.
 
 Provisioning also consumes the remaining values. Verify service tags, MAC
-addresses, BMC addresses, functional groups, parent relationships, and
+addresses, BMC addresses, functional groups, optional parent metadata, and
 InfiniBand information against the physical inventory even when initial
 validation passes.
 

@@ -4,11 +4,14 @@ Update the `catalog_rhel.json` file and execute the BuildStreaM build pipeline t
 
 ## Overview
 
-The BuildStreaM build pipeline automates the creation of diskless images based on catalog specifications. The pipeline consists of three sequential stages:
+The BuildStreaM build pipeline automates the creation of diskless images based
+on catalog specifications. The pipeline consists of five sequential stages:
 
-- **parse-catalog**: Parses and validates the catalog file for build requirements
-- **create-local-repository**: Creates and configures the local repository for build artifacts
-- **build-image**: Builds the diskless images based on catalog specifications
+- **initialization**: Checks the BSM API, authenticates, and creates the pipeline job.
+- **parse-catalog**: Uploads and validates the catalog, including its image-group identifier.
+- **configure-local-repository**: Runs the Repository Manager workflow for the selected catalog.
+- **build-images**: Runs the Image Build Manager workflow for the selected architectures.
+- **summary**: Retrieves and displays the final BuildStreaM job status.
 
 The build pipeline is automatically triggered when you update the `catalog_rhel.json` file in the GitLab repository, or can be manually initiated through the GitLab interface.
 
@@ -105,7 +108,7 @@ not build the Slurm, LDMS, or VAST RPMs. For configuration details, see
 6. Monitor the pipeline progress.
 
     ![BuildStreaM Pipeline Execution](../../assets/images/buildstream-build-trigger.png)
-    
+
 ### Trigger Build Pipeline Manually
 
 1. Navigate to **Build** → **Pipelines**.
@@ -126,9 +129,11 @@ not build the Slurm, LDMS, or VAST RPMs. For configuration details, see
 
 3. Monitor each stage as it progresses:
 
-    - **parse-catalog**: Parses and validates the catalog file
-    - **create-local-repository**: Creates and configures the local repository
-    - **build-image**: Builds the diskless images
+    - **initialization**: Checks the BSM API, authenticates, and creates the job
+    - **parse-catalog**: Uploads and validates the catalog
+    - **configure-local-repository**: Configures repositories for the selected catalog
+    - **build-images**: Builds images for the selected architectures
+    - **summary**: Displays the final job status
 
 4. Review the stage status indicators:
 
@@ -171,8 +176,6 @@ After the pipeline completes:
   `repo_manager_endpoint_config.yml`.
 - **Build-Image stage failing**: Ensure the catalog has valid functional groups.
 - For additional issues, see [BuildStreaM Troubleshooting](../../Troubleshooting/build_stream/build_stream.md).
-
-
 
 
 

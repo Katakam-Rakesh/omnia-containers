@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <div class="omnia-cell">
-                            <p>List of slurm cluster configurations.</p>
+                            <p>Slurm cluster configuration list. When Slurm is enabled, supply one entry. The current implementation reads only the first entry and does not process additional entries.</p>
                         </div>
                     </td>
                 </tr>
@@ -79,7 +79,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Name of the vast storage in storage_config.yml</p>
+                            <p>Optional name of a separate Slurm VAST mount in <code class="docutils literal notranslate"><span class="pre">storage_config.yml</span></code>. Use the standard value <code class="docutils literal notranslate"><span class="pre">vast_storage</span></code>, which must exactly match the mount <code class="docutils literal notranslate"><span class="pre">name</span></code>. When omitted or empty, Orchestrator skips the standard <code class="docutils literal notranslate"><span class="pre">vast_storage</span></code> entry and reuses <code class="docutils literal notranslate"><span class="pre">nfs_storage_name</span></code> for shared-data and HPC-tools paths.</p>
                             
                         </div>
                     </td>
@@ -340,11 +340,29 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Indicates if Kubernetes will be deployed or not. Accepted values: true or false.</p>
+                            <p>Indicates if Kubernetes will be deployed or not. Accepted values: true or false. Exactly one service Kubernetes cluster entry must set this value to true.</p>
                         </div>
                     </td>
                 </tr>
                 <tr class="row-odd">
+                    <td>
+                        <div class="omnia-indent"></div>
+                        <div class="omnia-cell">
+                            <div class="ansibleOptionAnchor" id="parameter-service_k8s_cluster/enable_powerscale_csi"></div>
+                            <p class="omnia-title" id="module-parameter-service-k8s-cluster-enable-powerscale-csi">
+                                <strong>enable_powerscale_csi</strong>
+                            </p>
+                            <p class="omnia-type-line"><span class="omnia-type">boolean</span></p>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="omnia-indent-desc"></div>
+                        <div class="omnia-cell">
+                            <p>Enables PowerScale CSI on the cluster selected with deployment set to true. When enabled, both PowerScale driver file paths are required. Default: false.</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="row-even">
                     <td>
                         <div class="omnia-indent"></div>
                         <div class="omnia-cell">

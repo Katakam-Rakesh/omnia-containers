@@ -88,18 +88,20 @@ slot, port number, or MAC address. Within the same priority, the first candidate
 returned by OME is selected. Review the NIC presentation and port ordering in
 OME after changing adapter, BIOS, or iDRAC configuration.
 
-For the Admin NIC, Discovery excludes any interface whose OME `NicId` contains
-`iDRAC` or `InfiniBand`, using a case-insensitive comparison. A primary
-candidate must contain a port with at least one partition and a nonempty
+For the Admin NIC, Discovery excludes an interface whose OME `NicId` contains
+`InfiniBand`, using a case-insensitive comparison. A primary candidate must
+contain a port with at least one partition and a nonempty
 `CurrentMacAddress`; Discovery uses the first partition's current MAC address.
+Always verify that the generated `ADMIN_MAC` is the intended admin/PXE
+interface and is not a management interface before provisioning.
 
 **Admin NIC selection priority:**
 
 | Priority | Condition | Selection behavior |
 |----------|-----------|--------------------|
-| 1 | At least one usable non-iDRAC, non-InfiniBand port is reported as `Up` | Select the first `Up` candidate in OME inventory order. Earlier candidates reported as `Down`, `Unknown`, or another state are skipped. |
-| 2 | No usable candidate is reported as `Up`, but the primary inventory contains a usable candidate | Select the first usable non-iDRAC, non-InfiniBand candidate in OME inventory order, regardless of its reported state. This is the fallback when all usable candidates are `Down`, `Unknown`, or another non-`Up` state. |
-| 3 | The primary inventory contains no usable candidate | Query the OME `deviceNics` inventory and select the first non-iDRAC, non-InfiniBand entry. If neither inventory supplies a usable MAC address, leave `ADMIN_MAC` empty. The secondary inventory does not supply the selected port's link status. |
+| 1 | At least one usable candidate that passes the current `NicId` filter is reported as `Up` | Select the first `Up` candidate in OME inventory order. Earlier candidates reported as `Down`, `Unknown`, or another state are skipped. |
+| 2 | No usable candidate is reported as `Up`, but the primary inventory contains a usable candidate that passes the current `NicId` filter | Select the first such candidate in OME inventory order, regardless of its reported state. This is the fallback when all usable candidates are `Down`, `Unknown`, or another non-`Up` state. |
+| 3 | The primary inventory contains no usable candidate | Query the OME `deviceNics` inventory and select the first entry that passes the same `NicId` filter. If neither inventory supplies a usable MAC address, leave `ADMIN_MAC` empty. The secondary inventory does not supply the selected port's link status. |
 
 The selected Admin MAC is written to `ADMIN_MAC` in the PXE mapping and to
 `ETHERNET_NIC_MAC` in the discovery report. Its primary-inventory link state is
@@ -156,8 +158,8 @@ or absent in the credential file.
 
 Discovery uses the iDRAC hostname reported by OME to derive the physical
 `GROUP_NAME` written to the PXE mapping file. Configure consistent iDRAC
-hostnames before running Discovery so that servers in the same Scalable Unit
-resolve to the same group.
+hostnames before running Discovery so that generated physical-group values
+match the intended topology.
 
 Use the following complete naming convention when encoding the server's
 physical location:
@@ -206,17 +208,15 @@ validate the entire hostname or those ranges.
     OME can report an instrumentation name, a DNS name, or its device name for
     the iDRAC. Verify the value visible in OME before running Discovery. If the
     reported hostname does not contain a recognized `SU...R...` sequence,
-    Discovery uses `grp0`. An incorrect `GROUP_NAME` can also prevent or
-    misdirect `PARENT_SERVICE_TAG` assignment for Slurm compute nodes.
+    Discovery uses `grp0`. Review every generated `GROUP_NAME` before using the
+    mapping as Orchestrator input.
 
-### Plan Scalable Unit service nodes
+### Review generated parent metadata
 
-For a deployment with N Scalable Units, provide N dedicated
-`service_kube_node_x86_64` servers, with one server in each Scalable Unit. The
-service Kubernetes worker and the Slurm compute nodes associated with that
-Scalable Unit must resolve to the same `GROUP_NAME`. Discovery then uses the
-worker's service tag as `PARENT_SERVICE_TAG` for the
-`slurm_node_x86_64` and `slurm_node_aarch64` rows in that group.
+Discovery may populate optional `PARENT_SERVICE_TAG` metadata in generated
+Slurm compute rows. This is Discovery generation behavior, not an Orchestrator
+grouping requirement. Orchestrator does not require a parent value or validate
+it against `GROUP_NAME`; review, edit, or clear it as appropriate.
 
 A service Kubernetes cluster must include `service_kube_node_x86_64` in the
 mapping. The cluster-wide minimum also includes three
@@ -227,12 +227,9 @@ and [Deploy Service Kubernetes](../orchestrator/deploy_kubernetes.md).
 
 !!! warning
 
-    Discovery does not validate the number of service Kubernetes workers in
-    each Scalable Unit. If a group has no `service_kube_node_x86_64`, Discovery
-    leaves `PARENT_SERVICE_TAG` empty for its Slurm compute nodes. If a group
-    has multiple service Kubernetes workers, Discovery uses the first one in
-    the generated mapping. Review these relationships before copying the
-    mapping to the Orchestrator input directory.
+    Review every generated parent value before copying the mapping to the
+    Orchestrator input directory. Discovery-generated parent metadata does not
+    create an Orchestrator validation requirement.
 
 ### Plan OME static groups
 
@@ -292,11 +289,9 @@ A server without a static-group assignment is placed in
 group is skipped when the mapping file is generated, although it remains in
 the discovery report.
 
-For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery populates
-`PARENT_SERVICE_TAG` from a `service_kube_node_x86_64` server with the same
-derived `GROUP_NAME`. For an N-Scalable-Unit deployment, verify that each
-Scalable Unit contains its dedicated service Kubernetes worker as described in
-[Plan Scalable Unit service nodes](#plan-scalable-unit-service-nodes).
+For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery may populate
+optional `PARENT_SERVICE_TAG` metadata. Review, edit, or clear that value as
+appropriate before using the mapping as Orchestrator input.
 
 ## Procedure
 
@@ -393,7 +388,7 @@ Scalable Unit contains its dedicated service Kubernetes worker as described in
     execution flow. The `credentials` tag updates credentials without running
     discovery. Use only one tag in a command. See [Run
     Discovery](index.md#run-discovery) for the complete tag table, including
-    the supported cleanup operations and lifecycle placeholders.
+    the supported precheck, cleanup operations, and lifecycle placeholders.
 
     The supported Discovery execution flow uses OME. The playbook sets
     `discovery_mechanism` to `ome` internally; do not pass
@@ -464,7 +459,7 @@ opening the report.
 | `BMC_MAC` | MAC address from the server's OME iDRAC management record. |
 | `BMC_IP` | IP address from the server's OME iDRAC management record. |
 | `BMC_NIC_STATUS` | `Up` when Discovery finds an iDRAC management record. This value represents OME inventory availability; it is not a live reachability test from the OIM. |
-| `ETHERNET_NIC_MAC` | MAC address of the selected non-iDRAC, non-InfiniBand Ethernet interface. Discovery prefers the first usable interface reported as `Up`, then falls back to the first usable interface. |
+| `ETHERNET_NIC_MAC` | MAC address of the selected interface that passes the current `NicId` filter. Discovery excludes InfiniBand labels, prefers the first usable interface reported as `Up`, and then falls back to the first usable interface. Confirm that this is the intended admin/PXE interface and not a management interface. |
 | `ETHERNET_NIC_LINK_STATUS` | OME-reported link state of the Ethernet interface selected for `ETHERNET_NIC_MAC`. |
 | `IB_NIC_NAME` | OME identifier for the selected InfiniBand port. Empty when OME reports no InfiniBand interface. |
 | `IB_NIC_LINK_STATUS` | OME-reported link state of the selected InfiniBand port. Empty when no InfiniBand interface is selected. |
@@ -491,7 +486,8 @@ and current OME inventory.
   Ethernet port. `Down` generally indicates no active physical link.
   `Unknown` means that OME did not provide a definitive state. When no usable
   Ethernet port is reported as `Up`, Discovery records the first usable
-  non-iDRAC, non-InfiniBand port as a fallback.
+  candidate that passes the current `NicId` filter as a fallback. Confirm the
+  selected MAC is the intended admin/PXE interface.
 - **InfiniBand:** Discovery prefers a port reported as `Up`, then `Unknown`,
   then another reported state such as `Down`. An `Unknown` state can occur even
   when the fabric becomes available at the operating-system level. Confirm the
@@ -601,9 +597,9 @@ empty](#infiniband-fields-are-empty).
     | `FUNCTIONAL_GROUP_NAME` | Supported OME static-group name, or `slurm_node_aarch64` when the server has no assignment. |
     | `GROUP_NAME` | `SU` identifier derived from the iDRAC hostname, or `grp0` when no identifier is found. |
     | `SERVICE_TAG` | Service tag reported by OME. |
-    | `PARENT_SERVICE_TAG` | Service tag of a `service_kube_node_x86_64` in the same group for Slurm compute-node roles; otherwise empty. |
+    | `PARENT_SERVICE_TAG` | Optional parent-node service tag that Discovery may populate for a Slurm compute row; otherwise empty. Review this value before using the mapping. |
     | `HOSTNAME` | `nid` plus a three-digit sequence number based on discovery order. The supported range is `nid000` through `nid999`; automatic generation normally begins with `nid001`, and skipped devices can create gaps. |
-    | `ADMIN_MAC` | MAC of the first non-iDRAC, non-InfiniBand port with link status `Up`; otherwise the first usable non-iDRAC, non-InfiniBand port. |
+    | `ADMIN_MAC` | MAC of the first candidate that passes the current `NicId` filter and has link status `Up`; otherwise the first usable candidate that passes the filter. Confirm that this is the intended admin/PXE interface and not a management interface. |
     | `ADMIN_IP` | Admin subnet's first two octets combined with the BMC IP's last two octets. |
     | `BMC_MAC` | iDRAC MAC address reported by OME. |
     | `BMC_IP` | iDRAC IP address reported by OME. |
@@ -650,14 +646,17 @@ empty](#infiniband-fields-are-empty).
 
 1. Review and, where necessary, edit `HOSTNAME`, `FUNCTIONAL_GROUP_NAME`, and
    `GROUP_NAME` in the timestamped mapping file. Also confirm the generated
-   service tags, parent relationships, MAC addresses, and IP addresses.
+   service tags, optional parent metadata, MAC addresses, and IP addresses.
 
 2. Without BuildStreaM, copy the reviewed mapping to the Orchestrator input
    directory:
 
     ```bash title="Run on: OIM host"
-    cp /opt/omnia/discovery/output/project_default/bmc_pxe_mapping_file.csv \
-      /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+    source /etc/profile.d/omnia-env.sh
+    discovery_path="${OMNIA_DATA_PATH}/discovery"
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    cp "${discovery_path}/output/${OMNIA_PROJECT_NAME}/bmc_pxe_mapping_file.csv" \
+      "${orchestrator_path}/input/${OMNIA_PROJECT_NAME}/pxe_mapping_file.csv"
     ```
 
 3. With BuildStreaM enabled, build the images through the build pipeline first.
@@ -754,12 +753,13 @@ discovery report if OME supplied its service tag.
    its `ETHERNET_NIC_MAC` and `ETHERNET_NIC_LINK_STATUS` values.
 2. In OME, inspect the server network-interface inventory. Verify the NIC
    ordering, the port state, and the current MAC address reported for each
-   Ethernet interface. Discovery excludes iDRAC and InfiniBand interfaces and
-   selects the first usable Ethernet port reported as `Up`.
+   Ethernet interface. Discovery excludes InfiniBand-labelled interfaces and
+   selects the first usable candidate reported as `Up`. Confirm the selected
+   MAC is the intended admin/PXE interface and not a management interface.
 3. If the intended port is `Down` or `Unknown`, check its cable, switch port,
    and server BIOS/iDRAC NIC settings. If no usable Ethernet port is `Up`,
-   Discovery falls back to the first usable non-iDRAC, non-InfiniBand port in
-   the OME inventory.
+   Discovery falls back to the first usable candidate that passes the current
+   `NicId` filter in the OME inventory.
 4. Refresh the server inventory in OME, verify that the updated port order,
    link state, and MAC address are visible, and rerun Discovery.
 
@@ -789,13 +789,10 @@ iDRAC hostname reported by OME only to derive `GROUP_NAME`.
 3. Correct the iDRAC hostname, refresh the server inventory in OME, and rerun
    Discovery. See [Plan iDRAC hostnames](#plan-idrac-hostnames) for the complete
    convention.
-4. For a Slurm compute-node role, ensure that one
-   `service_kube_node_x86_64` server resolves to the same `GROUP_NAME`.
-   Otherwise, `PARENT_SERVICE_TAG` remains empty or can identify the wrong
-   service node.
-5. Review and, if necessary, edit the generated `HOSTNAME`, `GROUP_NAME`, and
+4. Review and, if necessary, edit the generated `HOSTNAME`, `GROUP_NAME`, and
    `PARENT_SERVICE_TAG` before copying the mapping to the Orchestrator input
-   directory.
+   directory. Orchestrator does not require `PARENT_SERVICE_TAG` or validate it
+   against `GROUP_NAME`.
 
 ### OME discovery execution fails
 

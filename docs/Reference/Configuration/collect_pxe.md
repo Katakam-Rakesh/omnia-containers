@@ -22,7 +22,7 @@ source recognizes these groups:
 
 ## Usage example
 
-```yaml title="File: /opt/omnia/utils/input/project_default/collect_pxe.yml"
+```yaml title="File: $OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/collect_pxe.yml"
 service_kube_control_plane_x86_64:
   - 192.168.1.10
 

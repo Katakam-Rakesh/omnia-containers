@@ -11,8 +11,8 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
 ## Prerequisites
 
 - Omnia is deployed on the OIM node with OpenCHAMI services running.
-- `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml`
-  exists and is validated.
+- The active project's Orchestrator `orchestrator_config.yml` exists and is
+  validated.
 - The OIM node is accessible on the admin network.
 
 
@@ -23,12 +23,15 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
 1. Edit the Orchestrator configuration file on the OIM:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml"
     ```
 
 2. Set the `dns_enabled` parameter to `true`:
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml"
+    ```yaml title="File: orchestrator_config.yml"
     dns_enabled: true
     ```
 
@@ -57,16 +60,20 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
     ./omnia.sh --run orchestrator --tags provision
     ```
 
-5. Reprovision (reboot) all compute nodes to apply the new cloud-init configuration.
+5. PXE boot or otherwise reprovision every affected Slurm and service
+   Kubernetes node to apply the new cloud-init configuration.
 
     !!! important
-        Nodes must be reprovisioned after setting `dns_enabled: true` for the change to take effect. Existing nodes retain their previous configuration until reprovisioned.
+        Nodes must be reprovisioned after setting `dns_enabled: true` for the
+        change to take effect. A normal operating-system reboot does not apply
+        newly generated cloud-init metadata; existing nodes retain their
+        previous resolver configuration until they are reprovisioned.
 
 ### Disable Cluster DNS (Revert to /etc/hosts)
 
 1. Edit `orchestrator_config.yml` and set `dns_enabled` to `false`:
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml"
+    ```yaml title="File: orchestrator_config.yml"
     dns_enabled: false
     ```
 
@@ -77,7 +84,8 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
     ./omnia.sh --run orchestrator --tags provision
     ```
 
-3. Reprovision (reboot) all compute nodes to apply the new cloud-init configuration.
+3. PXE boot or otherwise reprovision every affected Slurm and service
+   Kubernetes node to apply the new cloud-init configuration.
 
     !!! note
         No coresmd or OpenCHAMI changes are needed for this configuration
@@ -89,9 +97,9 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
 
 ## Verification
 
-1. **Verify the compute node resolver configuration**:
+1. **Verify the Slurm-node resolver configuration**:
 
-    ```bash title="Run on: compute node"
+    ```bash title="Run on: Slurm controller, compute, or login node"
     cat /etc/resolv.conf
     ```
 
@@ -101,17 +109,24 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
     options timeout:1 attempts:2
     ```
 
-    Orchestrator prepends the cluster search domain and OIM nameserver to the
-    existing resolver content. Existing search domains, nameservers, and
-    options are preserved. On the OIM, the generated resolver file is marked
-    immutable; account for that protection before making later manual resolver
-    changes.
+    Slurm controller, compute, and login-node cloud-init replaces the resolver
+    content with the three entries shown above and marks the file immutable.
+    Kubernetes-node cloud-init instead preserves the existing search line and
+    resolver entries, adds the configured upstream nameservers, removes exact
+    duplicate lines, and then marks the file immutable. On the OIM,
+    Orchestrator prepends the cluster search domain and OIM nameserver while
+    preserving the other resolver entries, then marks the file immutable.
+    Account for this protection before making later manual resolver changes.
 
-2. **Verify no peer entries exist in `/etc/hosts`** (only localhost entries should be present):
+2. **Verify that Orchestrator did not add peer mappings to `/etc/hosts`**:
 
     ```bash title="Run on: compute node"
     cat /etc/hosts
     ```
+
+    Base-image or operator-managed entries may remain. With Cluster DNS
+    enabled, Orchestrator omits its generated cluster peer mappings rather than
+    replacing or sanitizing the file.
 
 3. **Verify forward DNS resolution** for a cluster hostname:
 
@@ -153,7 +168,7 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
 
 7. **Verify Slurm and MPI functionality**:
 
-    ```bash title="Run on: OIM host"
+    ```bash title="Run on: Slurm controller or login node"
     sinfo
     srun -N <N> hostname
     mpirun -np 4 -host <host1>,<host2> hostname
@@ -186,13 +201,10 @@ Cluster DNS replaces per-node `/etc/hosts` synchronization with coresmd, a CoreD
 
 **Custom hostnames not resolving**
 
-Custom hostnames from the PXE mapping file resolve via `/etc/hosts`, not CoreDNS. If a custom hostname does not resolve, check that it is present in `/etc/hosts`:
-
-```bash title="Run on: compute node"
-grep <hostname> /etc/hosts
-```
-
-If missing, rerun the Orchestrator `provision` tag to repopulate `/etc/hosts`.
+Custom hostnames are not supported while `dns_enabled: true`; coresmd is
+configured for the `nid` prefix and three-digit suffix. Use hostnames such as
+`nid001`, or disable Cluster DNS and reprovision the nodes to use
+Orchestrator-managed `/etc/hosts` entries.
 
 **Mixed-state cluster**
 

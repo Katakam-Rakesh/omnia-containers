@@ -112,6 +112,22 @@ the Kubernetes cluster and Telemetry deployment.
     individual initialization scripts again unless a module was skipped or
     setup used `--deps-only`.
 
+3. Load the installed environment and activate the shared virtual environment
+   in the current shell:
+
+    ```bash title="Run on: OIM host"
+    source /etc/profile.d/omnia-env.sh
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
+    image_build_manager_path="${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}"
+    discovery_path="${OMNIA_DATA_PATH}/discovery"
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    telemetry_path="${TELEMETRY_DATA_PATH:-${OMNIA_DATA_PATH}/telemetry}"
+    ```
+
+    Run these commands in each new shell before using the paths based on
+    environment variables in this guide.
+
 For all environment and setup options, see
 [Configure the environment](../HowTo/main/configure_environment.md) and
 [Set up the OIM](../HowTo/main/setup_oim.md).
@@ -120,8 +136,8 @@ For all environment and setup options, see
 
 1. Review these staged inputs:
 
-    - `<OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/repo_manager_config.yml`
-    - `<OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/repo_manager_endpoint_config.yml`
+    - `$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`
+    - `$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_endpoint_config.yml`
     - The catalog JSON identified by `CATALOG_FILE_PATH`
 
     Ensure the selected catalog includes the service Kubernetes functional
@@ -138,7 +154,7 @@ For all environment and setup options, see
     credentials, deploys Pulp, synchronizes the selected content, and writes:
 
     ```text
-    <OMNIA_DATA_PATH>/repo_manager/output/<OMNIA_PROJECT_NAME>/repo_status.yml
+    $repo_manager_path/output/$OMNIA_PROJECT_NAME/repo_status.yml
     ```
 
     Do not continue until `overall_status` is `success`.
@@ -151,7 +167,7 @@ For the configuration and credential procedure, see
 1. Review the staged `image_build_config.yml` under:
 
     ```text
-    <OMNIA_DATA_PATH>/image_build_manager/input/<OMNIA_PROJECT_NAME>/
+    $image_build_manager_path/input/$OMNIA_PROJECT_NAME/
     ```
 
     Its `repo_manager_output_path` must identify the successful
@@ -172,7 +188,7 @@ For the configuration and credential procedure, see
     registry, builds the selected functional-group images, and writes:
 
     ```text
-    <OMNIA_DATA_PATH>/image_build_manager/output/<OMNIA_PROJECT_NAME>/build_status.yml
+    $image_build_manager_path/output/$OMNIA_PROJECT_NAME/build_status.yml
     ```
 
     Confirm that `overall_status` is `success` and that every service
@@ -185,12 +201,12 @@ For configuration, build modes, and direct playbook alternatives, see
 ### 4. Provide the PXE mapping
 
 Choose one method. Orchestrator consumes the reviewed file as
-`<OMNIA_DATA_PATH>/orchestrator/input/<OMNIA_PROJECT_NAME>/pxe_mapping_file.csv`.
+`$orchestrator_path/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`.
 
 === "Discover nodes through OME"
 
     1. Configure `discovery_config.yml` and `network_spec.yml` under
-       `<OMNIA_DATA_PATH>/discovery/input/<OMNIA_PROJECT_NAME>/`. Set
+       `$discovery_path/input/$OMNIA_PROJECT_NAME/`. Set
        `enable_bmc_discovery: true` and provide `ome_ip`.
 
     2. Run Discovery:
@@ -201,13 +217,13 @@ Choose one method. Orchestrator consumes the reviewed file as
         ```
 
     3. Review the timestamped mapping and discovery report under
-       `<OMNIA_DATA_PATH>/discovery/output/<OMNIA_PROJECT_NAME>/`. Then copy the
-       latest mapping to the Orchestrator input directory. With the standard
-       environment defaults, run:
+       `$discovery_path/output/$OMNIA_PROJECT_NAME/`. Then copy the
+       latest mapping to the Orchestrator input directory. With the installed
+       environment active, run:
 
         ```bash title="Run on: OIM host"
-        cp /opt/omnia/discovery/output/project_default/bmc_pxe_mapping_file.csv \
-          /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+        cp "$discovery_path/output/$OMNIA_PROJECT_NAME/bmc_pxe_mapping_file.csv" \
+          "$orchestrator_path/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
         ```
 
     Discovery intentionally leaves this handoff to the operator so that node
@@ -219,7 +235,7 @@ Choose one method. Orchestrator consumes the reviewed file as
     Edit the staged Orchestrator mapping directly:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+    vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
     ```
 
     Preserve the source-defined header:
@@ -239,13 +255,13 @@ For the complete mapping schema and OME procedure, see
 ### 5. Configure and run Orchestrator
 
 1. Review the staged files under
-   `<OMNIA_DATA_PATH>/orchestrator/input/<OMNIA_PROJECT_NAME>/`:
+   `$orchestrator_path/input/$OMNIA_PROJECT_NAME/`:
 
     | Input | Kubernetes requirement |
     |---|---|
     | `orchestrator_config.yml` | Confirm the mapping, Repo Manager, Image Build Manager, catalog, and PXE-boot settings. |
     | `network_spec.yml` | Configure the OIM interface, admin subnet, DHCP range, router, and any optional additional network. |
-    | `omnia_config.yml` | Select exactly one `service_k8s_cluster` entry with `deployment: true`; configure its cluster networks, CNI, storage name, and optional CSI paths. |
+    | `omnia_config.yml` | Select exactly one `service_k8s_cluster` entry with `deployment: true`; configure its cluster networks, CNI, and storage name. Set `enable_powerscale_csi: true` only when CSI is required; both CSI file paths then become mandatory. |
     | `high_availability_config.yml` | Provide a `service_k8s_cluster_ha` entry whose `cluster_name` matches the selected Kubernetes cluster. |
     | `storage_config.yml` | Define the NFS mount named by `nfs_storage_name` and make it writable from the OIM where configured. |
     | `pxe_mapping_file.csv` | Assign the intended nodes to service Kubernetes functional groups and ensure corresponding images exist in `build_status.yml`. |
@@ -270,7 +286,7 @@ For the complete mapping schema and OME procedure, see
 3. Confirm that Orchestrator generated the inventory Telemetry consumes:
 
     ```text
-    <OMNIA_DATA_PATH>/orchestrator/output/<OMNIA_PROJECT_NAME>/orchestrator_inventory.yaml
+    $orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml
     ```
 
     The file must contain `kube_vip_group` and populated functional groups
@@ -285,7 +301,7 @@ For the detailed Kubernetes and provisioning settings, see
 ### 6. Configure and run Telemetry
 
 1. Review all three staged files under
-   `<OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/`:
+   `$telemetry_path/input/$OMNIA_PROJECT_NAME/`:
 
     | Input | Kubernetes-only requirement |
     |---|---|
@@ -293,14 +309,18 @@ For the detailed Kubernetes and provisioning settings, see
     | `telemetry_storage_config.yml` | Size the replicas, CPU, memory, and persistent storage for the selected sinks, sources, and bridges. |
     | `telemetry_packages.yml` | Select `online` or `offline`, configure the repository URL when offline, confirm `k8s_cluster_mount`, and review package and image references. |
 
-2. In `telemetry_config.yml`, use the generated Orchestrator inventory. With
-   the standard environment defaults, set:
+2. In `telemetry_config.yml`, use the generated Orchestrator inventory. Resolve
+   its absolute path for the active project:
 
-    ```yaml title="telemetry_config.yml"
-    cluster_inventory: "/opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yaml"
+    ```bash title="Run on: OIM host"
+    printf '%s\n' "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
     ```
 
-    Adjust the path when `OMNIA_DATA_PATH` or `OMNIA_PROJECT_NAME` differs.
+    Copy the printed path into the configuration:
+
+    ```yaml title="telemetry_config.yml"
+    cluster_inventory: "<absolute path printed above>"
+    ```
 
 3. Disable LDMS and its Vector bridge because this path has no Slurm nodes:
 
@@ -321,11 +341,11 @@ For the detailed Kubernetes and provisioning settings, see
 
 4. Complete the values required by each enabled source. In particular, when
    iDRAC is enabled, set `idrac_telemetry_configurations.bmc_group_data_path`
-   to the `bmc_group_data.csv` produced by Orchestrator. With the standard
-   defaults, the path is:
+   to the `bmc_group_data.csv` produced by Orchestrator. Resolve the path for
+   the active project and copy the printed value into that field:
 
-    ```text
-    /opt/omnia/orchestrator/output/project_default/bmc_group_data.csv
+    ```bash title="Run on: OIM host"
+    printf '%s\n' "$orchestrator_path/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
     ```
 
     The Telemetry credential role creates encrypted
@@ -359,7 +379,7 @@ For the detailed Kubernetes and provisioning settings, see
     source and bridge, checks pod state, and writes:
 
     ```text
-    <OMNIA_DATA_PATH>/telemetry/output/<OMNIA_PROJECT_NAME>/telemetry_status.yml
+    $telemetry_path/output/$OMNIA_PROJECT_NAME/telemetry_status.yml
     ```
 
 For source-specific configuration and verification guides, see the
@@ -370,20 +390,17 @@ For source-specific configuration and verification guides, see the
 1. Confirm that all four module contracts report success:
 
     ```bash title="Run on: OIM host"
-    grep '^overall_status:' /opt/omnia/repo_manager/output/project_default/repo_status.yml
-    grep '^overall_status:' /opt/omnia/image_build_manager/output/project_default/build_status.yml
-    grep '^overall_status:' /opt/omnia/orchestrator/output/project_default/orchestrator_status.yml
-    grep '^overall_status:' /opt/omnia/telemetry/output/project_default/telemetry_status.yml
+    grep '^overall_status:' "$repo_manager_path/output/$OMNIA_PROJECT_NAME/repo_status.yml"
+    grep '^overall_status:' "$image_build_manager_path/output/$OMNIA_PROJECT_NAME/build_status.yml"
+    grep '^overall_status:' "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+    grep '^overall_status:' "$telemetry_path/output/$OMNIA_PROJECT_NAME/telemetry_status.yml"
     ```
-
-    If you changed `OMNIA_DATA_PATH` or `OMNIA_PROJECT_NAME`, use the configured
-    paths instead of the standard defaults shown above.
 
 2. Review the provisioning summary and generated inventory:
 
     ```bash title="Run on: OIM host"
-    cat /opt/omnia/orchestrator/output/project_default/provisioning_report.yml
-    cat /opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yaml
+    cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
+    cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
     ```
 
 3. On the first Kubernetes control-plane node, confirm node and workload state:
@@ -417,7 +434,10 @@ For source-specific configuration and verification guides, see the
   or [VictoriaLogs connection details](../HowTo/Telemetry/configure_external_victoria_logs.md)
   for external queries and integrations.
 - [Deploy the PowerScale CSI driver](../HowTo/orchestrator/deploy_powerscale_csi.md)
-  when it is selected by the catalog and its input files have been prepared.
+  when `enable_powerscale_csi: true` is set on the deployed
+  `service_k8s_cluster` entry in `omnia_config.yml` and its input files have
+  been prepared. The catalog supplies the required artifacts but does not
+  enable the driver.
 - Use [Add Nodes](../Operations/add_nodes.md) for supported Kubernetes
   node additions with matching source templates and image artifacts.
 - Follow [Full Deployment](full_deployment.md) when adding a Slurm cluster and

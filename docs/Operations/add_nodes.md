@@ -27,31 +27,50 @@ configured bolt-ons, and regenerates reports and inventories.
 
 ## Procedure
 
-1. Append the new rows to the mapping configured by
-   `pxe_mapping_file_path`. Preserve the case-sensitive header and all existing
-   rows.
+1. Resolve the active project paths:
+
+    ```bash title="Run on: OIM"
+    source /etc/profile.d/omnia-env.sh
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    discovery_path="${OMNIA_DATA_PATH}/discovery"
+    orchestrator_input="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
+    orchestrator_output="$orchestrator_path/output/$OMNIA_PROJECT_NAME"
+    discovery_output="$discovery_path/output/$OMNIA_PROJECT_NAME"
+    ```
+
+2. Append the new rows to the mapping configured by
+   `pxe_mapping_file_path`. When that value is empty, the mapping is
+   `$orchestrator_input/pxe_mapping_file.csv`. Preserve the case-sensitive
+   header and all existing rows.
 
     ```text title="Required CSV header"
     FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
     ```
 
-2. Create a second CSV containing the same header but only the new physical
+   If Discovery produced the new hardware mapping, review
+   `$discovery_output/bmc_pxe_mapping_file.csv` and merge the approved new rows
+   into the Orchestrator mapping. Discovery does not update the Orchestrator
+   input automatically; do not replace retained rows without reviewing the
+   difference.
+
+3. Create a second CSV containing the same header but only the new physical
    nodes. This subset is used only for the PXE-boot phase; the primary mapping
    remains the complete desired inventory.
 
-3. Validate the updated primary mapping and run provisioning:
+4. Validate the updated primary mapping, run prechecks, and run provisioning:
 
     ```bash title="Run on: OIM"
-    cd /omnia/src/orchestrator
-    ansible-playbook playbooks/orchestrator.yml --tags validate
-    ansible-playbook playbooks/orchestrator.yml --tags precheck
-    ansible-playbook playbooks/orchestrator.yml --tags provision
+    cd <OMNIA_SOURCE_PATH>/src/main
+    ./omnia.sh --run orchestrator --tags validate
+    ./omnia.sh --run orchestrator --tags precheck
+    ./omnia.sh --run orchestrator --tags provision
     ```
 
-4. PXE boot only the new nodes by supplying the subset CSV:
+5. PXE boot only the new nodes by supplying the subset CSV:
 
     ```bash title="Run on: OIM"
-    ansible-playbook playbooks/orchestrator.yml --tags pxeboot \
+    ./omnia.sh --run orchestrator --tags pxeboot \
       -e pxeboot_inventory=/absolute/path/to/new_nodes.csv
     ```
 
@@ -68,9 +87,9 @@ configured bolt-ons, and regenerates reports and inventories.
 Check the full provisioning result and the new-node PXE result separately:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/pxeboot_status.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/failed_nodes.json"
+cat "$orchestrator_output/provisioning_report.yml"
+cat "$orchestrator_output/pxeboot_status.yml"
+cat "$orchestrator_output/failed_nodes.json"
 ```
 
 With a custom PXE inventory, `pxeboot_status.yml` reports only that subset and

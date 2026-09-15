@@ -589,16 +589,28 @@ state problems, job submission errors, and GPU detection.
 
 ??? note "Cause"
 
-    - `dcgm.metrics_enabled` is set to `false` under `telemetry_sources`
-      in `telemetry_config.yml`, so Omnia intentionally skips DCGM
-      installation during Slurm node cloud-init.
+    - `dcgm_enabled` is set to `false` in the active Orchestrator project's
+      `orchestrator_config.yml`, so Orchestrator intentionally omits the DCGM
+      installation command from Slurm-node cloud-init.
+    - The affected node was provisioned before `dcgm_enabled` was enabled and
+      has not been re-provisioned with the revised metadata.
 
 ??? note "Resolution"
 
-    1. Set `dcgm.metrics_enabled: true` under `telemetry_sources` in
-       `input/telemetry_config.yml`.
+    1. Resolve and edit the active Orchestrator configuration:
 
-    2. Re-run provisioning for affected Slurm nodes.
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml"
+        ```
+
+       Set `dcgm_enabled: true`.
+
+    2. From `<OMNIA_SOURCE_PATH>/src/main`, run the Orchestrator `validate` and
+       `precheck` phases, then follow the re-provision procedure for affected
+       Slurm nodes. Changing the YAML alone does not modify an already booted
+       node.
 
     3. Validate:
 
@@ -702,19 +714,27 @@ state problems, job submission errors, and GPU detection.
 
 ??? note "Resolution"
 
-    1. Verify Munge is running on all nodes:
+    1. Resolve the generated Orchestrator inventory, then verify Munge on all
+       Slurm and login functional groups:
 
         ```bash title="Run on: OIM host"
-        ansible slurm_cluster -m shell -a "systemctl status munge"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        inventory="$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
+        ansible -i "$inventory" \
+          'slurm_*:login_node_*:login_compiler_node_*' \
+          -m ansible.builtin.command -a "systemctl is-active munge"
         ```
 
     2. Verify the Munge key is identical across all nodes:
 
         ```bash title="Run on: OIM host"
-        ansible slurm_cluster -m shell -a "md5sum /etc/munge/munge.key"
+        ansible -i "$inventory" \
+          'slurm_*:login_node_*:login_compiler_node_*' \
+          -m ansible.builtin.command -a "sha256sum /etc/munge/munge.key"
         ```
 
-       All nodes should report the same MD5 hash.
+       All nodes should report the same SHA-256 hash.
 
     3. If keys differ, redistribute the key from the controller node and
        restart Munge on all affected nodes:

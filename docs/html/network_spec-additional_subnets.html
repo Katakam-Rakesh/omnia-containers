@@ -97,7 +97,7 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The DHCP IP pool range in "start_ip-end_ip" format. Must fall within the subnet.</p>
+                    <p>The DHCP IP pool range in "start_ip-end_ip" format. It must fall within this subnet, must not overlap another configured DHCP range, and must not contain a static ADMIN_IP in the PXE mapping file. The current precheck does not cross-check the pool against PXE mapping addresses; reserve those addresses outside the pool.</p>
                 </div>
             </td>
         </tr>

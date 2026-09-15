@@ -15,9 +15,9 @@ the following components:
 - **OpenTelemetry Collector** -- Receives metrics from CSM Metrics and exposes
   a Prometheus endpoint for scraping.
 - **vmagent** -- Scrapes the OpenTelemetry Collector Prometheus endpoint over
-  TLS and forwards metrics to VictoriaMetrics.
-- **VLAgent** -- Receives PowerScale syslog events and forwards them to
-  VictoriaLogs.
+  plain HTTP and forwards metrics to VictoriaMetrics.
+- **VLAgent** -- Receives plaintext PowerScale syslog events on TCP or UDP port
+  514 and forwards them to VictoriaLogs.
 - **CSI Driver for Dell PowerScale** -- Required for Omnia-orchestrated
   deployment mode.
 - **cert-manager** -- Required for TLS certificate management in
@@ -98,13 +98,30 @@ Aggregate summary:
 - `powerscale_total_capacity_bytes` -- Total capacity of all PowerScale PVs in
   bytes.
 
-### TLS and authentication
+### Transport security and authentication
 
-All metric scraping between the OpenTelemetry Collector and VictoriaMetrics
-uses TLS encryption. Authentication uses Kubernetes service-account tokens.
-Mutual TLS is not required because the PowerScale-side endpoint does not
-validate client identity through certificate exchange. TLS is enforced for all
-off-cluster communications.
+Security is configured independently for each hop:
+
+- **PowerScale OneFS API to CSM Metrics:** CSM Metrics reads the endpoint and
+  credentials from the copied `isilon-creds` Secret. OneFS server-certificate
+  verification is controlled by
+  `karaviMetricsPowerscale.isiClientOptions.isiSkipCertificateValidation` in
+  the supplied CSM Observability values file. When Karavi Authorization is
+  enabled, its proxy certificate and token Secrets are also copied from the
+  `isilon` namespace.
+- **OpenTelemetry Collector to vmagent:** The generated `VMServiceScrape`
+  selects the collector's `prometheus` service port (8889) and `/metrics`
+  path. It does not set `scheme: https`, a bearer token, `basicAuth`, or a TLS
+  configuration, so this in-cluster scrape uses unauthenticated HTTP.
+- **vmagent to VictoriaMetrics:** In cluster mode, the generated VMAgent remote
+  write uses HTTPS and verifies the CA from the `victoria-tls-certs` Secret.
+  This setting secures the sink hop; it does not make the collector scrape
+  HTTPS.
+- **PowerScale to VLAgent:** The exported target is the VLAgent LoadBalancer on
+  plaintext syslog TCP or UDP port 514. The current manifest does not expose a
+  TLS syslog listener on port 6514.
+- **VLAgent to VictoriaLogs:** The generated VLAgent uses HTTPS with the
+  Victoria CA when VictoriaLogs TLS is enabled, and HTTP otherwise.
 
 ## Prerequisites
 

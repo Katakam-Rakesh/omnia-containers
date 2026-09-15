@@ -27,12 +27,15 @@ interfaces or BMC networks.
 1. Edit the shared network specification:
 
     ```bash title="Run on: OIM"
-    vi /opt/omnia/orchestrator/input/project_default/network_spec.yml
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/network_spec.yml"
     ```
 
 2. Add each routed subnet beneath `admin_network.additional_subnets`:
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/network_spec.yml"
+    ```yaml title="File: network_spec.yml"
     Networks:
       - admin_network:
           primary_oim_admin_ip: "10.40.1.111"
@@ -53,13 +56,11 @@ interfaces or BMC networks.
               netmask_bits: "24"
               router: "10.40.3.1"
               dynamic_range: "10.40.3.190-10.40.3.200"
-      - ib_network:
-          subnet: ""
-          netmask_bits: ""
-          dns: []
     ```
 
-    Use `additional_subnets: []` when no relay-served subnet is required.
+    Use `additional_subnets: []` when no relay-served subnet is required. Omit
+    the `ib_network` list item when InfiniBand is unused; if it is present, its
+    `subnet` and `netmask_bits` values cannot be empty.
 
 3. Validate the Orchestrator inputs:
 

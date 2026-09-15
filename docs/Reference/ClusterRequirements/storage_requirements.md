@@ -74,20 +74,25 @@ For details on how Slurm uses these mounts, see [Slurm Storage Architecture](../
 
 ## PowerScale S3 Storage
 
-- PowerScale cluster must be deployed within the admin subnet and should be accessible from all cluster nodes.
-- Omnia uses HTTP access only when connecting to PowerScale, using the default port 9020.
-- Ensure both S3 and HTTP services are enabled in the S3 bucket configuration.
-- Ensure that valid S3 Access Key ID and S3 Secret Access Key are provided for authentication when accessing the PowerScale S3 service.
-- S3 Access Key ID and S3 Secret Access Key are tightly associated with the S3 buckets. You need S3 Access Key ID and S3 Secret Access Key to access the S3 buckets created using the key.
-- For detailed configuration instructions, see [Configure PowerScale as S3 storage](../../HowTo/main/setup_oim.md).
+- PowerScale can be selected as the external S3 backend in Image Build Manager.
+  Its endpoint must be reachable from the OIM and from target nodes while they
+  download boot artifacts during PXE boot.
+- The configured `endpoint_url` can use HTTP or HTTPS. Ensure the endpoint's
+  actual port and certificate trust configuration match the site deployment.
+- Provide the S3 access ID and secret key through the Image Build Manager
+  credentials flow. These values are stored in its Vault-encrypted credential
+  file rather than `storage_config.yml`.
+- Configure `s3_configurations.provider: "powerscale"` and the endpoint in
+  `image_build_config.yml`. For appliance-side setup, see
+  [Configure PowerScale as S3 storage](../../HowTo/main/setup_oim.md).
 
 
 !!! info
 
-    - [Storage Config](../Configuration/storage_config.md) -- NFS Mount and S3 configuration.
-
-
-
+    - [Storage Config](../Configuration/storage_config.md) -- NFS, PowerVault,
+      swap, and mount configuration.
+    - [Image Build Config](../Configuration/image_build_manager_config.md) -- S3
+      provider and endpoint configuration.
 
 
 

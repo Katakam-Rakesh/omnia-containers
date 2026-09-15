@@ -21,59 +21,80 @@ and execution commands.
 
 ## OpenCHAMI
 
-**OpenCHAMI** (Composable Hierarchical Automated Management Infrastructure) is the provisioning engine at the core of Omnia's bare-metal lifecycle management. OpenCHAMI provides an API-driven approach to discovering, inventorying, and provisioning servers.
+**OpenCHAMI** (Open Composable Heterogeneous Adaptable Management
+Infrastructure) is the provisioning engine at the core of Omnia's bare-metal
+lifecycle management. OpenCHAMI provides an API-driven approach to discovering,
+inventorying, and provisioning servers.
 
 OpenCHAMI runs as a set of Podman containers on the OIM. The Orchestrator
 `prepare` phase deploys and validates the OpenCHAMI services.
 
-### State Manager Daemon (SMD)
+### State Management Database (SMD)
 
-SMD is the inventory and state-tracking service within OpenCHAMI. It maintains a real-time view of every node in the cluster, including:
+SMD is the inventory and state-tracking service within OpenCHAMI. Orchestrator
+registers nodes and functional groups from the validated PXE mapping so that
+the other provisioning services can resolve node identity and state. SMD
+tracks information such as:
 
-- **Hardware inventory** -- CPU model, core count, memory capacity, GPU presence, NIC details, and storage devices.
-- **Node state** -- Whether a node is powered on, provisioning, ready, or in an error state.
-- **Component hierarchy** -- Relationships between chassis, blades, nodes, and their BMC endpoints.
+- **Node identity** -- xname, service tag, BMC address, and network identifiers.
+- **Node state** -- The current state recorded for a managed node.
+- **Group membership** -- The functional groups used to select boot and
+  metadata configuration.
 
-SMD populates its inventory by querying each node's **iDRAC** via the Redfish API during the discovery phase. Administrators can also query inventory via the `ochami` CLI or the SMD REST API.
+Administrators can query the registered inventory through the `ochami` CLI or
+the SMD REST API exposed by the OpenCHAMI gateway.
 
-### Boot Script Service (BSS)
+### Boot service
 
-BSS dynamically generates boot scripts for each node based on its hardware profile and the role assigned to it in the PXE mapping file. When a node PXE-boots, the following sequence occurs:
+`boot-service` stores the kernel, initrd, root-image, and kernel-parameter
+configuration generated for each functional group. When a node PXE-boots, the
+following sequence occurs:
 
 1. The node's NIC sends a DHCP request; **CoreDHCP** responds with an IP address and the location of the iPXE binary.
-2. The node loads **iPXE** over TFTP and chains to the BSS endpoint.
-3. BSS looks up the node's MAC address or service tag in SMD, determines the correct OS image and kernel parameters, and returns a customized boot script.
-4. The node boots the assigned OS image with cloud-init configuration.
+2. The node loads **iPXE** over TFTP and requests the boot script through the
+   HAProxy HTTP endpoint on port 8081.
+3. `boot-service` matches the node to its registered boot configuration and
+   returns the corresponding image locations and kernel parameters.
+4. The node boots the assigned OS image and requests its first-boot data from
+   `metadata-service`.
 
-### Cloud-Init Server
+### Metadata service
 
-The cloud-init server generates per-node cloud-init payloads that configure networking, hostname, SSH keys, package repositories, and other node-specific settings during the first boot.
+`metadata-service` serves the NoCloud-compatible metadata and cloud-init
+payloads that Orchestrator registers for common settings, functional groups,
+and individual nodes. These payloads configure networking, hostnames, SSH
+keys, package repositories, and other node-specific settings during first
+boot.
 
 ### CoreDHCP and CoreDNS
 
 - **CoreDHCP** (`coresmd-coredhcp`) -- Lightweight DHCP server for assigning IP addresses during PXE boot.
-- **CoreDNS** (`coresmd-coredns`) -- DNS server that queries SMD every 30 seconds and automatically generates forward A records for all inventoried nodes, providing dynamic hostname resolution when `dns_enabled` is `true` (default for fresh installations).
+- **CoreDNS** (`coresmd-coredns`) -- DNS server that queries SMD every 30 seconds and automatically generates forward A records for all inventoried nodes, providing dynamic hostname resolution when `dns_enabled` is `true`. The source default is `false`.
 
 ### ochami CLI
 
 `ochami` is the command-line interface for interacting with OpenCHAMI services. It provides commands for:
 
 - Listing and inspecting node inventory from SMD.
-- Managing boot configurations in BSS.
+- Managing `boot-service` configurations through the compatibility
+  `ochami bss` command namespace.
 - Querying node state and health.
 
 ### Supporting OpenCHAMI Services
 
 | Service | Description |
 | --- | --- |
-| **HAProxy** | Reverse proxy and TLS termination for OpenCHAMI API endpoints (port 8443). |
-| **step-ca** | Internal certificate authority for issuing TLS certificates to OpenCHAMI services. |
-| **Hydra** | OAuth 2.0 and OpenID Connect (OIDC) provider for token-based authentication between services. |
-| **opaal** | Authentication and identity provider for OpenCHAMI API access. |
-| **PostgreSQL** | Database backend for SMD, BSS, and Hydra. |
-| **MinIO** | S3-compatible object storage for OS images and boot artifacts. |
-| **Container Registry** | Local OCI container registry for storing container images used during provisioning. |
-| **iPXE** | Network bootloader that enables HTTP-based boot and flexible boot script generation via BSS. |
+| **HAProxy** | Routes host-facing HTTP and HTTPS requests to the internal OpenCHAMI services. |
+| **TokenSmith** | Issues and validates tokens used for authenticated OpenCHAMI API operations. |
+| **step-ca and ACME services** | Issue and deploy TLS certificates for the OpenCHAMI gateway. |
+| **PostgreSQL** | Persistent database backend for SMD. |
+| **boot-service** | Stores boot configurations and serves node boot scripts; it listens on port 8081 inside the Podman network. |
+| **metadata-service** | Serves cloud-init data; it listens on port 8080 inside the Podman network. |
+| **iPXE** | Network bootloader that retrieves its boot script through the HAProxy endpoint. |
+
+MinIO and the local OCI registry are deployed by Image Build Manager rather
+than as OpenCHAMI services. Orchestrator consumes the Image Build Manager S3
+contract when it creates OpenCHAMI boot configurations.
 
 ## Pulp
 
@@ -109,10 +130,16 @@ cluster using **OpenLDAP**. When OpenLDAP support is enabled, the Orchestrator
 
 **What Omnia Auth provides**
 
-- **User directory** -- A central LDAP directory where user accounts, groups, and SSH public keys are stored. All cluster nodes authenticate against this single directory.
-- **Consistent UIDs/GIDs** -- LDAP ensures that user and group IDs are identical across all nodes, which is critical for NFS file permissions and Slurm job accounting.
+- **User directory** -- A central LDAP directory for site-managed user and
+  group entries. Omnia deploys the directory service but does not create users
+  or groups.
+- **Consistent UIDs/GIDs** -- LDAP provides consistent user and group IDs on
+  configured clients, which is critical for NFS permissions and Slurm job
+  accounting.
 - **TLS encryption** -- LDAP communication is secured with TLS certificates.
-- **SSSD integration** -- Omnia configures SSSD (System Security Services Daemon) on every managed node to cache LDAP credentials locally, ensuring that users can still log in if the LDAP server is temporarily unreachable.
+- **SSSD integration** -- Omnia configures SSSD on the supported Slurm control,
+  compute, and login functional groups. The current Kubernetes provisioning
+  path does not configure an OpenLDAP client.
 
 Centralized authentication is configured via `security_config.yml`.
 
@@ -141,13 +168,6 @@ playbook execution pipeline for catalog-driven deployments. When enabled
 !!! info "Related Pages"
 
     - [Architecture](architecture.md) -- Visual diagram of how components are deployed across the OIM and cluster nodes.
-
-
-
-
-
-
-
 
 
 

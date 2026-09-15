@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <div class="omnia-cell">
-                            <p>Cloud-init compatible mount configurations. Source must be known at boot time.</p>
+                            <p>Cloud-init compatible mount configurations. Source must be known at boot time. Each entry must define exactly one targeting field: <code class="docutils literal notranslate"><span class="pre">functional_group_prefix</span></code> or <code class="docutils literal notranslate"><span class="pre">groups</span></code>.</p>
                         </div>
                     </td>
                 </tr>
@@ -172,11 +172,11 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Named profile key from mount_params section. Must reference an existing profile defined in mount_params.</p>
+                            <p>Named profile key from the <code class="docutils literal notranslate"><span class="pre">mount_params</span></code> section. Use an existing profile. The current runtime does not reject an unknown name and instead falls back to <code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">defaults</span></code>, <code class="docutils literal notranslate"><span class="pre">0</span></code>, and <code class="docutils literal notranslate"><span class="pre">0</span></code> for the filesystem, mount options, dump frequency, and fsck pass.</p>
                         </div>
                     </td>
                 </tr>
-                <tr class="row-even">
+                <tr class="row-odd">
                     <td>
                         <div class="omnia-indent"></div>
                         <div class="omnia-cell">
@@ -209,8 +209,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Per-node subdirectory isolation variable. Optional<br  >Allowed values:<br>  - <code class="docutils literal notranslate"><span class="pre">local_hostname</span></code> - hostname of the node<br>  - <code class="docutils literal notranslate"><span class="pre">local_ipv4</span></code> - IPv4 address of the node<br>  - <code class="docutils literal notranslate"><span class="pre">instance_id</span></code> - instance ID of the node from cloud-init<br>When set, <code class="docutils literal notranslate"><span class="pre">node_mount_point</span></code> is MANDATORY<br>Generates bind mounts: &lt;mount_point&gt;/&lt;node_key_value&gt;/&lt;target&gt; -> &lt;target&gt;</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">local_hostname</span></code>.</p>
+                            <p>Per-node subdirectory isolation variable. Optional and disabled when omitted.<br  >Allowed values:<br>  - <code class="docutils literal notranslate"><span class="pre">local_hostname</span></code> - hostname of the node<br>  - <code class="docutils literal notranslate"><span class="pre">local_ipv4</span></code> - IPv4 address of the node<br>  - <code class="docutils literal notranslate"><span class="pre">instance_id</span></code> - instance ID of the node from cloud-init<br>When set, <code class="docutils literal notranslate"><span class="pre">node_mount_point</span></code> is required.<br>Generates bind mounts: &lt;mount_point&gt;/&lt;node_key_value&gt;/&lt;target&gt; -&gt; &lt;target&gt;</p>
                         </div>
                     </td>
                 </tr>
@@ -246,7 +245,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>List of oChaMI functional group prefixes to apply this mount to. Mutually exclusive with <code class="docutils literal notranslate"><span class="pre">groups</span></code>.</p>
+                            <p>List of OpenCHAMI functional group prefixes to apply this mount to. Exactly one of <code class="docutils literal notranslate"><span class="pre">functional_group_prefix</span></code> or <code class="docutils literal notranslate"><span class="pre">groups</span></code> is required.</p>
                         </div>
                     </td>
                 </tr>
@@ -264,7 +263,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>List of GROUP_NAME values from pxe_mapping_file.csv. Mutually exclusive with <code class="docutils literal notranslate"><span class="pre">functional_group_prefix</span></code>.</p>
+                            <p>List of <code class="docutils literal notranslate"><span class="pre">GROUP_NAME</span></code> values from <code class="docutils literal notranslate"><span class="pre">pxe_mapping_file.csv</span></code>. Exactly one of <code class="docutils literal notranslate"><span class="pre">groups</span></code> or <code class="docutils literal notranslate"><span class="pre">functional_group_prefix</span></code> is required.</p>
                         </div>
                     </td>
                 </tr>
@@ -282,7 +281,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Directory ownership and mode applied to mount_point after mount (chown + chmod via runcmd)</p>
+                            <p>Directory ownership and mode commands generated for <code class="docutils literal notranslate"><span class="pre">mount_point</span></code>. The current command order applies them before <code class="docutils literal notranslate"><span class="pre">mount -av</span></code>, so they affect the underlying local directory rather than guaranteeing permissions on the mounted filesystem.</p>
                         </div>
                     </td>
                 </tr>
@@ -345,10 +344,9 @@
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
                             <p>Octal permission mode (e.g., 0755, 1777)</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0755</span></code>.</p>
+                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0644</span></code>.</p>
                         </div>
                     </td>
                 </tr>
     </tbody>
 </table>
-

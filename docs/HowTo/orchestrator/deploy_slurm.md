@@ -29,6 +29,9 @@ configured with a `deploy_slurm` boolean.
 - If you configure a separate `vast_storage_name`, it must also match a mount
   entry. When it is omitted, the source uses the Slurm NFS storage for the HPC
   tools path.
+- If you configure VAST storage, select a with-VAST catalog that supplies the
+  `vastnfs` package for every targeted architecture. The shipped default
+  catalog is a no-VAST catalog.
 - If the catalog enables OpenLDAP, complete its credential and deployment
   preparation before provisioning.
 
@@ -42,8 +45,8 @@ Pulp certificate. The optional `vast_storage_name` mount supplies the
 ## Procedure
 
 1. Add the Slurm nodes to `pxe_mapping_file.csv` using functional-group names
-   supported by the source templates. OS and version segments may appear before
-   the architecture suffix, as in the staged sample.
+   supported by both the source templates and the active catalog. OS and
+   version segments may appear before the architecture suffix.
 
     ```text title="pxe_mapping_file.csv — functional-group examples"
     slurm_control_node_rhel_10_0_x86_64
@@ -55,9 +58,16 @@ Pulp certificate. The optional `vast_storage_name` mount supplies the
     login_compiler_node_rhel_10_0_aarch64
     ```
 
-   Populate the complete CSV row for every server, including its group,
-   service tag, hostname, admin MAC and IP, and BMC data. Configure optional
-   InfiniBand fields when used.
+   The source has templates for all seven combinations shown above, but the
+   shipped default RHEL 10.0 catalog supplies only the x86_64 Slurm controller
+   and login roles plus the aarch64 Slurm compute and compiler-login roles.
+   Select another supplied catalog when the mapping requires a different
+   role-and-architecture combination.
+
+   Retain the complete CSV row for every server, including the `SERVICE_TAG`
+   column. The service-tag value may be empty; every nonempty value must be
+   unique. Provide the group, hostname, admin MAC and IP, and BMC data, and
+   configure the optional InfiniBand values when used.
 
 2. Configure the first `slurm_cluster` entry in `omnia_config.yml`. The source
    reads the first cluster entry during provisioning.
@@ -78,8 +88,9 @@ Pulp certificate. The optional `vast_storage_name` mount supplies the
    To customize Slurm configuration, add `config_sources` as mappings or
    absolute file paths. The supported configuration names are `slurm`,
    `slurmdbd`, `cgroup`, `gres`, `acct_gather`, `helpers`, `job_container`,
-   `mpi`, `oci`, `topology`, and `burst_buffer`. Set `skip_merge: true` only
-   when the supplied configuration must be used without merging.
+   `mpi`, `oci`, `topology`, and `burst_buffer`. Set `skip_merge: true` when a
+   file-path configuration must replace the generated defaults. Inline
+   mappings continue to merge with defaults.
 
 3. Create matching mounts in `storage_config.yml`. This structure follows the
    staged source input; replace its addresses and exports with your environment.
@@ -102,8 +113,12 @@ Pulp certificate. The optional `vast_storage_name` mount supplies the
         functional_group_prefix: ["slurm_node", "login"]
     ```
 
-   Omit both `vast_storage_name` and its mount when separate VAST storage is not
-   used.
+   Use the standard `name: "vast_storage"` for the optional VAST entry. Set
+   `vast_storage_name: vast_storage` to enable it. If `vast_storage_name` is
+   empty or omitted, Orchestrator excludes the standard `vast_storage` entry
+   and reuses `nfs_storage_name`; therefore an unused VAST endpoint is not
+   contacted during precheck or provisioning. When enabled, the VAST mount
+   must exist and be reachable or validation fails.
 
 4. Validate and provision. The `provision` tag processes all functional-group
    categories in the mapping, not only Slurm.
@@ -128,8 +143,10 @@ First confirm that Orchestrator registered all expected nodes and configured
 all functional groups:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+source /etc/profile.d/omnia-env.sh
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
 ```
 
 After the nodes complete cloud-init, check Slurm from a controller:

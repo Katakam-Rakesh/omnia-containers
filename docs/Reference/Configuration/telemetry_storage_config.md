@@ -213,4 +213,3 @@ kafka_storage:
 
     - [Telemetry Configuration](telemetry_config.md) -- Telemetry sources, bridges, sinks, and component-specific settings.
     - [Telemetry Packages](telemetry_packages.md) -- Package sources, images, charts, repositories, and Python modules.
-

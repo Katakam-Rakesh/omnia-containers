@@ -15,7 +15,9 @@ This section outlines the key software and repository requirements for the compo
 - Ensure that RHEL has an **active subscription** or is configured to access **local repositories**.
 - Verify that all **repository URLs** for the software packages are **accessible** -- downloads will fail for inaccessible packages.
 - For RHEL systems without a subscription, configure non-empty URLs for `baseos`, `appstream`, and `codeready-builder` under each required RHEL 10.0 architecture in `repo_manager_config.yml`.
-- Docker credentials are a mandatory requirement to pull in the essential packages during local repository deployment.
+- Docker Hub credentials are optional. Configure them through the Repository
+  Manager credentials flow when authenticated pulls are required or anonymous
+  pull limits affect synchronization.
 - If the Slurm RPMs are already available, configure the hosted repository under `repositories."10.0".<architecture>.user_repos.slurm_custom` in `$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml` for each required architecture.
 - In a mixed architecture environment where the Slurm control node and compute nodes use different architectures (for example, control node with x86_64 and compute nodes with aarch64), ensure that compatible Slurm packages for both architectures are available in the user repository.
 - Ensure that the selected catalog references `slurm_custom` and that its Slurm package names match the hosted RPMs.

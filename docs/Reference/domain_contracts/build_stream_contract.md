@@ -13,8 +13,12 @@ administrator and staged in the managed GitLab project.
 **Producer location**:
 `$OMNIA_DATA_PATH/discovery/output/$OMNIA_PROJECT_NAME/bmc_pxe_mapping_file.csv`
 
-**Orchestrator staging location**:
+**BuildStreaM-required staging location**:
 `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
+
+BuildStreaM currently reads this location under `OMNIA_DATA_PATH` directly; it
+does not apply an `ORCHESTRATOR_DATA_PATH` override when locating the staged
+mapping file.
 
 #### Structure
 

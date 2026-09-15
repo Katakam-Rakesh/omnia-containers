@@ -1,155 +1,127 @@
-
-# Apptainer
-
-
-Apptainer pulls the container images from configured container registries on
-all cluster nodes. The method used to retrieve an image depends on the system
-registry configuration and image availability.
+# Use Apptainer
 
 ## Overview
 
+Provisioned Slurm nodes receive
+`/etc/containers/registries.conf.d/apptainer_mirror.conf`. The file defines the
+OIM Pulp registry as a mirror for supported upstream registries, including
+Docker Hub, GHCR, Quay, `registry.k8s.io`, NVCR, ECR Public, and GCR.
 
-Always start with the standard Apptainer pull command. Additional methods
-should only be used when required.
-
-The general Apptainer pull command is the default command to pull container
-images:
-
-```bash title="Run on: compute node"
-apptainer pull \
-  --name <image_name>.sif \
-  --dir <image_directory> \
-  --tmpdir <temporary_directory> \
-  docker://<registry>/<repository>:<tag>
-```
-
-!!! note
-
-    - `--dir` specifies the output directory for the final `.sif` image.
-    - `--tmpdir` specifies the temporary working directory used during the pull.
-    - Both directories should be located on an **NFS-backed filesystem** to avoid
-      failures due to limited local disk space.
-
+An ordinary `apptainer pull docker://...` therefore uses the system registry
+configuration. The shared benchmark helper is different: it rewrites every
+entry to the OIM Pulp endpoint and never falls back to the internet.
 
 ## Prerequisites
 
-
-- Apptainer is installed on compute nodes.
-- NFS shared storage is configured (see [Configure Mounts](configure_storage.md)).
-- Verify Apptainer is installed:
-
-   ```bash title="Run on: compute node"
-   apptainer --version
-   ```
+- Provision a Slurm functional layer whose catalog includes the `apptainer`
+  RPM.
+- To pull synchronized content from Pulp, complete Repo Manager and confirm
+  that `repo_status.yml` reports `overall_status: success`.
+- Select output and temporary directories with enough free space. Use shared
+  storage for images needed by multiple nodes; the temporary directory may be
+  local or shared.
+- For the `/hpc_tools` examples, configure `slurm_cluster.nfs_storage_name`.
+  Optionally set `vast_storage_name` to select a separate VAST mount; when it
+  is omitted or empty, Orchestrator uses the `nfs_storage_name` entry for
+  `/hpc_tools`.
+- Run the `/hpc_tools` write operations as `root`, or have an administrator
+  grant the calling user write access to the chosen shared directories.
 
 ## Procedure
-### Method 1: Standard Image Pull (Pulp-Integrated and Preferred)
 
+### Pull through the configured registry mirror
 
-1. **Create the directory** used for both image storage and temporary files.
-   This directory must be on an NFS-backed filesystem:
+1. Verify Apptainer and the generated mirror configuration:
 
-    ```bash title="Run on: compute node"
-    mkdir -p /hpc_tools/container_images
+    ```bash title="Run on: Slurm node"
+    apptainer --version
+    cat /etc/containers/registries.conf.d/apptainer_mirror.conf
     ```
 
+2. Create shared image and temporary directories:
 
-2. **Pull the image** using the standard Apptainer workflow. This method
-   automatically leverages Pulp when available and requires no changes to
-   user behavior:
-
-    ```bash title="Run on: compute node"
-    apptainer pull \
-    --name ubuntu_22.04.sif \
-    --dir /hpc_tools/container_images \
-    --tmpdir /hpc_tools/container_images \
-    docker://docker.io/library/ubuntu:22.04
+    ```bash title="Run on: Slurm node"
+    mkdir -p /hpc_tools/container_images /hpc_tools/apptainer_tmp
     ```
 
+3. Pull an image by its normal upstream name:
 
-   **Behavior:** Registry mirror behavior is controlled by configuration files
-   under `/etc/containers/registries.conf.d/`. When a Pulp registry mirror is
-   configured and the image is present, the pull is transparently served from
-   Pulp.
-
-   In environments where Pulp usage is required and the image is known to
-   exist, the Pulp registry may be specified explicitly:
-
-   ```
-   docker://<pulp-registry>/<namespace>/ubuntu:22.04
-   ```
-
-   Replace `<pulp-registry>` and `<namespace>` with site-specific values.
-
-
-### Method 2: Pulling an Image Directly from the Internet (Exception Only)
-
-
-!!! warning
-
-    - Use this method only if: A Pulp registry mirror is configured, and The image is not available in Pulp or the mirror is unavailable.
-    - Administrative privileges are required. Do not delete the configuration — disable it temporarily.
-
-
-1. **Temporarily disable** the container registry configuration that enforces
-   mirroring to Pulp. This configuration is typically located under:
-
-    ```
-    /etc/containers/registries.conf.d/
-    ```
-
-
-2. **Pull the image** directly from the public registry. Use the same
-   NFS-backed directory for both image storage and temporary files:
-
-    ```bash title="Run on: compute node"
+    ```bash title="Run on: Slurm node"
     apptainer pull --disable-cache \
-    --name ubuntu_22.04.sif \
-    --dir /hpc_tools/container_images \
-    --tmpdir /hpc_tools/container_images \
-    docker://docker.io/library/ubuntu:22.04
-   ```
+      --name ubuntu_22.04.sif \
+      --dir /hpc_tools/container_images \
+      --tmpdir /hpc_tools/apptainer_tmp \
+      docker://docker.io/library/ubuntu:22.04
+    ```
 
+    Apptainer consults the generated registry configuration and tries the Pulp
+    mirror. Because the configuration also retains each upstream registry as
+    its primary location, an ordinary pull can reach the upstream registry
+    when the mirror does not satisfy it and the node has external network
+    access.
+
+### Require the Pulp copy
+
+Specify Pulp explicitly when the operation must not use an upstream registry.
+Pulp stores the image path without the original registry prefix:
+
+```bash title="Run on: Slurm node"
+apptainer pull --disable-cache \
+  --name ubuntu_22.04.sif \
+  --dir /hpc_tools/container_images \
+  --tmpdir /hpc_tools/apptainer_tmp \
+  docker://<oim-admin-ip>:<pulp-port>/library/ubuntu:22.04
+```
+
+The image and tag must already be synchronized. Use the OIM admin address and
+Pulp container-registry port recorded by Repo Manager.
+
+### Pull the catalog-selected benchmark images
+
+Slurm provisioning writes
+`/hpc_tools/scripts/download_container_image.sh` and
+`/hpc_tools/scripts/container_image.list`. The generated list contains
+`nvcr.io/nvidia/hpc-benchmarks:25.09` by default.
+
+```bash title="Run on: Slurm login or compiler node"
+/hpc_tools/scripts/download_container_image.sh
+```
+
+The helper is Pulp-only, uses the OIM admin address on port `2225`, stores SIF
+files under `/hpc_tools/container_images`, and uses the same directory for
+temporary data. It imposes a 30-minute timeout per image. Run it as `root`
+because it writes `/var/log/container_image_download.log` and
+`/var/log/apptainer_pull.log`.
 
 ## Verification
 
-
-1. **Verify the SIF image** was downloaded successfully:
-
-    ```bash title="Run on: compute node"
-    ls -lh /hpc_tools/container_images/ubuntu_22.04.sif
-    apptainer inspect /hpc_tools/container_images/ubuntu_22.04.sif
-    ```
-
-
-!!! note
-
-    After pulling directly from the internet, restore the registry mirror configuration so that future pulls again route through Pulp.
-
-    For detailed guidance on using Apptainer and NVIDIA HPC Benchmarks, refer to the [Apptainer User Documentation](https://apptainer.org/docs/user/main/).
-
+```bash title="Run on: Slurm node"
+ls -lh /hpc_tools/container_images/ubuntu_22.04.sif
+apptainer inspect /hpc_tools/container_images/ubuntu_22.04.sif
+apptainer exec /hpc_tools/container_images/ubuntu_22.04.sif \
+  cat /etc/os-release
+```
 
 ## Next steps
 
-- [Configure Catalog Content](../repo_manager/adding_additional_packages.md)
-  -- Add software or container content to the synchronized catalog.
+- [Run HPC benchmarks](run_hpc_benchmarks.md) with the generated Pulp-only
+  helper.
+- [Configure catalog content and add packages](../repo_manager/adding_additional_packages.md)
+  to synchronize another image before requiring a Pulp-only pull.
 
 ## Troubleshooting
 
-- **Apptainer command not found**: Verify that the selected catalog includes
-  the `apptainer` package and that Repo Manager, Image Build Manager, and
-  Orchestrator provisioning completed successfully.
-- **Container image pull fails**: Confirm network connectivity and that the container registry is accessible from the compute node.
-
-
-
-
-
-
-
-
-
-
-
-
-
+- **`apptainer` is not found**: Confirm that the applicable catalog functional
+  layer includes `apptainer`, then rerun Repo Manager, Image Build Manager, and
+  Orchestrator provisioning.
+- **An explicit Pulp pull fails**: Confirm the exact repository path and tag in
+  Pulp. The Pulp path omits the original registry host.
+- **The helper fails but an ordinary pull works**: The helper has no internet
+  fallback. Synchronize the image into Pulp and confirm that the OIM registry
+  is reachable on port `2225`. The generated helper currently hard-codes that
+  port; use a manual explicit Pulp pull if Repo Manager uses another port.
+- **A direct registry pull fails**: Confirm network and DNS connectivity from
+  the compute node and verify that the requested registry is reachable.
+- **A pull runs out of space**: Choose a larger `--tmpdir`. For the supplied
+  helper, free space under `/hpc_tools/container_images` or edit a local copy
+  of the script to use another temporary directory.

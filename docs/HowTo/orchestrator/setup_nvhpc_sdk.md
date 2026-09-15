@@ -5,25 +5,28 @@ GPU-accelerated HPC application development.
 
 ## Overview
 
-Omnia pre-deploys an NVIDIA HPC SDK setup script
-(`/usr/local/bin/setup_nvhpc_sdk.sh`) to all Slurm nodes during
-provisioning. The setup follows a two-step manual workflow:
+Omnia places an NVIDIA HPC SDK setup script
+(`/usr/local/bin/setup_nvhpc_sdk.sh`) on login-compiler and Slurm compute
+nodes during provisioning. The setup follows a two-step manual workflow:
 
-1. Run `--install` on the compiler node to install via DNF and publish
-   to shared NFS.
-2. Run the script (without arguments) on each compute node to mount
-   from NFS.
+1. Run `--install` on one login-compiler node for each architecture to install
+   via DNF and publish to shared storage.
+2. Run the script without arguments on each compute node to bind-mount the
+   matching architecture from shared storage.
 
 ### Architecture Support
 
 The script detects the node architecture automatically:
 
-| Architecture | NFS Subdirectory |
+| Architecture | Shared-storage subdirectory |
 |---|---|
 | `x86_64` | `Linux_x86_64` |
 | `aarch64` | `Linux_aarch64` |
 
-No separate configuration is required for mixed-architecture clusters.
+Both architecture subdirectories can coexist on the share. In a
+mixed-architecture cluster, however, complete the install step once on an
+x86_64 login-compiler node and once on an aarch64 login-compiler node before
+setting up the respective compute nodes.
 
 !!! info
 
@@ -33,11 +36,17 @@ No separate configuration is required for mixed-architecture clusters.
 
 ## Prerequisites
 
-- Slurm compiler node and compute nodes are provisioned and running.
-- Shared NFS storage is mounted and the path `/hpc_tools/nvidia_sdk`
-  is accessible on the compiler node before running the install step.
-- NVIDIA package repositories are configured automatically during
-  cloud-init. No manual repository setup is required.
+- A catalog-defined login-compiler node and the target compute nodes are
+  provisioned and running.
+- The selected catalog contains the `nvhpc` RPM for every target architecture,
+  and Repo Manager synchronized the `nvidia-hpc-sdk` repository.
+- `slurm_cluster.nfs_storage_name` references shared storage defined in
+  `storage_config.yml`. The optional `vast_storage_name` can select a separate
+  VAST mount for `/hpc_tools`; when it is omitted or empty, provisioning uses
+  the `nfs_storage_name` entry. `/hpc_tools/nvidia_sdk` must be writable on the
+  login-compiler node before the install step.
+- Run the script as `root`; it installs RPMs and writes `/etc/fstab`,
+  `/etc/profile.d/nvhpc.sh`, and `/var/log/nvhpc_sdk_setup.log`.
 
 !!! note
     The `nvidia-hpc-sdk` repository is included in the default
@@ -48,9 +57,9 @@ No separate configuration is required for mixed-architecture clusters.
 
 ### Step 1 -- Install on the Compiler Node
 
-On the designated compiler/login node, run:
+On one login-compiler node for the architecture being published, run:
 
-```bash title="Run on: compiler/login node"
+```bash title="Run on: login-compiler node"
 /usr/local/bin/setup_nvhpc_sdk.sh --install
 ```
 
@@ -61,22 +70,29 @@ This performs the following actions in sequence:
 
 1. Installs the `nvhpc` package via DNF from the pre-configured NVIDIA
    repository.
-2. Copies the installed SDK from `/opt/nvidia/hpc_sdk` to the shared
-   NFS path `/hpc_tools/nvidia_sdk/nvhpc`.
+2. Copies the installed SDK from `/opt/nvidia/hpc_sdk` to the shared path
+   `/hpc_tools/nvidia_sdk/nvhpc`.
 3. Sets up a local bind mount:
    `/hpc_tools/nvidia_sdk/nvhpc` → `/opt/nvidia/nvhpc`.
 4. Writes environment configuration to `/etc/profile.d/nvhpc.sh`.
 
-To force a reinstall when the SDK is already present on NFS:
+To force the script to republish the locally installed SDK when the SDK is
+already present on shared storage:
 
-```bash title="Run on: compiler/login node"
+```bash title="Run on: login-compiler node"
 /usr/local/bin/setup_nvhpc_sdk.sh --install --force
 ```
 
 !!! note
-    If NVHPC is already present on NFS, the script skips the DNF
-    install and proceeds directly to the bind mount and environment
-    setup, unless `--force` is specified.
+    If NVHPC is already present on shared storage, the script skips the DNF
+    check and copy, then proceeds directly to the bind mount and environment
+    setup. `--force` repeats the local-package check and copies the local SDK
+    to shared storage again; it does not reinstall an RPM that is already
+    installed locally.
+
+For a mixed-architecture cluster, repeat this step on a login-compiler node of
+the other architecture. The script merges that architecture's
+`Linux_<architecture>` directory into the same shared SDK root.
 
 ### Step 2 -- Set Up on Compute Nodes
 
@@ -88,16 +104,17 @@ On each Slurm compute node, run:
 
 This performs the following actions:
 
-1. Validates that the NVHPC SDK exists on NFS at
+1. Validates that the NVHPC SDK exists on shared storage at
    `/hpc_tools/nvidia_sdk/nvhpc`.
 2. Sets up a local bind mount:
    `/hpc_tools/nvidia_sdk/nvhpc` → `/opt/nvidia/nvhpc`.
 3. Writes environment configuration to `/etc/profile.d/nvhpc.sh`.
 
 !!! important
-    Step 2 must be run after Step 1 is complete on the compiler node.
-    If the SDK is not found on NFS, the script exits with an actionable
-    error message.
+
+    Step 2 must be run after Step 1 is complete for that compute node's
+    architecture. If the matching `Linux_x86_64` or `Linux_aarch64` directory
+    is not found on shared storage, the script exits with an error.
 
 ### Environment Variables Configured
 
@@ -127,9 +144,8 @@ nvfortran --version
 
 ### Logs
 
-Setup output and errors are written to
-`/var/log/nvhpc_sdk_setup.log` on each node. Check this file if the
-setup script fails:
+Setup output and errors are appended to `/var/log/nvhpc_sdk_setup.log` on each
+node. Check this file if the setup script fails:
 
 ```bash title="Run on: affected node"
 cat /var/log/nvhpc_sdk_setup.log
@@ -143,10 +159,14 @@ cat /var/log/nvhpc_sdk_setup.log
 ## Troubleshooting
 
 - **NVHPC compilers not found after setup**: Verify that `/etc/profile.d/nvhpc.sh` exists and source it manually with `source /etc/profile.d/nvhpc.sh`.
-- **NFS mount path not accessible**: Confirm that the NFS share is mounted at `/hpc_tools/nvidia_sdk` on the compiler node and that the path is writable.
-
-
-
+- **Shared path not accessible**: Confirm that `/hpc_tools` is a mount point
+  and `/hpc_tools/nvidia_sdk` is writable on the login-compiler node. Verify
+  the required `nfs_storage_name`; if `vast_storage_name` is set, verify that
+  it selects the intended separate VAST entry. An empty `vast_storage_name`
+  intentionally reuses `nfs_storage_name`.
+- **Architecture is missing on a compute node**: Run `--install` on a
+  login-compiler node with the same architecture, then rerun setup on the
+  compute node.
 
 
 

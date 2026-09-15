@@ -114,8 +114,27 @@ building and node provisioning occur when you run the corresponding pipeline.
     standard environment, BuildStreaM stages its configuration at:
 
     ```text
-    /opt/omnia/build_stream/input/project_default/build_stream_config.yml
+    <OMNIA_DATA_PATH>/build_stream/input/<OMNIA_PROJECT_NAME>/build_stream_config.yml
     ```
+
+    The current BuildStreaM runtime derives its data directory directly from
+    `OMNIA_DATA_PATH`; it does not consume a separate
+    `BUILD_STREAM_DATA_PATH` override.
+
+3. Load the installed environment and activate the shared virtual environment
+   in the current shell:
+
+    ```bash title="Run on: OIM host"
+    source /etc/profile.d/omnia-env.sh
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    build_stream_path="${OMNIA_DATA_PATH}/build_stream"
+    repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
+    image_build_manager_path="${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}"
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    ```
+
+    This workflow currently requires `OMNIA_PROJECT_NAME=project_default`, but
+    using the loaded variables keeps the data root portable.
 
 For all environment and setup options, see
 [Configure the environment](../HowTo/main/configure_environment.md) and
@@ -152,8 +171,8 @@ module services and inputs.
     be running. It also checks for:
 
     ```text
-    <OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/repo_manager_config_credentials.yml
-    <OMNIA_DATA_PATH>/image_build_manager/input/<OMNIA_PROJECT_NAME>/image_build_credentials.yml
+    $repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config_credentials.yml
+    $image_build_manager_path/input/$OMNIA_PROJECT_NAME/image_build_credentials.yml
     ```
 
 ### 3. Configure BuildStreaM
@@ -161,7 +180,7 @@ module services and inputs.
 1. Edit the staged consolidated configuration:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/build_stream/input/project_default/build_stream_config.yml
+    vi "$build_stream_path/input/$OMNIA_PROJECT_NAME/build_stream_config.yml"
     ```
 
 2. Set `enable_build_stream: true` and provide `build_stream_host_ip` and
@@ -217,7 +236,7 @@ For the complete input and credential contract, see
 3. Confirm that preparation wrote:
 
     ```text
-    /opt/omnia/build_stream/output/project_default/build_stream_status.yml
+    $build_stream_path/output/$OMNIA_PROJECT_NAME/build_stream_status.yml
     ```
 
     The current writer records `overall_status: prepared`. GitLab deployment
@@ -317,7 +336,7 @@ For the complete procedure, see
 1. Inspect the BuildStreaM output contract on the OIM:
 
     ```bash title="Run on: OIM host"
-    cat /opt/omnia/build_stream/output/project_default/build_stream_status.yml
+    cat "$build_stream_path/output/$OMNIA_PROJECT_NAME/build_stream_status.yml"
     ```
 
     Confirm `overall_status: prepared` and verify that `gitlab_url` and
@@ -334,7 +353,7 @@ For the complete procedure, see
 3. Verify the BSM health endpoint with its generated certificate:
 
     ```bash title="Run on: OIM host"
-    curl --cacert /opt/omnia/build_stream_ssl/ssl/bs_cert.pem \
+    curl --cacert "$OMNIA_DATA_PATH/build_stream_ssl/ssl/bs_cert.pem" \
       https://<build_stream_host_ip>:<build_stream_port>/health
     ```
 
@@ -349,16 +368,16 @@ For the complete procedure, see
    inspect the module outputs generated for `project_default`:
 
     ```bash title="Run on: OIM host"
-    grep '^overall_status:' /opt/omnia/repo_manager/output/project_default/repo_status.yml
-    grep '^overall_status:' /opt/omnia/image_build_manager/output/project_default/build_status.yml
+    grep '^overall_status:' "$repo_manager_path/output/$OMNIA_PROJECT_NAME/repo_status.yml"
+    grep '^overall_status:' "$image_build_manager_path/output/$OMNIA_PROJECT_NAME/build_status.yml"
     ```
 
 6. After a deploy pipeline, confirm its child-pipeline summary and BSM job
    state, then inspect Orchestrator's output:
 
     ```bash title="Run on: OIM host"
-    grep '^overall_status:' /opt/omnia/orchestrator/output/project_default/orchestrator_status.yml
-    cat /opt/omnia/orchestrator/output/project_default/provisioning_report.yml
+    grep '^overall_status:' "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+    cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
     ```
 
 BuildStreaM does not write `pipeline_status.yml` or `catalog_manifest.yml` to

@@ -1,332 +1,189 @@
-# Authentication Issues
+# Authentication issues
 
-Issues related to LDAP authentication, user login, OpenLDAP service, and TLS certificate errors.
+Omnia runs OpenLDAP in the OIM-hosted `omnia_auth` Podman container and
+configures SSSD on supported Slurm and login nodes. The LDAP search base is
+derived from `SYSTEM_DOMAIN_NAME`; it is not a fixed `dc=omnia,dc=local`
+value.
 
-## LDAP Login Fails After User Creation
+## Establish a baseline
+
+Check the server on the OIM:
+
+```bash title="Run on: OIM"
+source /etc/profile.d/omnia-env.sh
+systemctl status omnia_auth --no-pager
+podman ps -a --filter name=omnia_auth
+podman logs --tail 100 omnia_auth
+podman exec omnia_auth ldapsearch -x -H ldap://127.0.0.1 \
+  -b '' -s base namingContexts
+```
+
+The final command mirrors Orchestrator's local container health check. It
+proves that the LDAP endpoint responds inside the container; verify the
+configured StartTLS or LDAPS path separately from a provisioned client.
+
+Check a provisioned client:
+
+```bash title="Run on: affected Slurm or login node"
+systemctl status sssd --no-pager
+authselect current
+grep -E 'ldap_uri|ldap_search_base|ldap_id_use_start_tls|ldap_tls_cacert' \
+  /etc/sssd/sssd.conf
+getent passwd <ldap-user>
+```
+
+Do not check the host `slapd` service on the OIM. OpenLDAP is owned by the
+`omnia_auth` Quadlet service in this release.
+
+## `omnia_auth` is not running
 
 ???+ note "Symptom"
 
-    After creating a user via LDIF import or Omnia's user management, SSH login fails:
-
-    ```bash title="Run on: compute node"
-    ssh newuser@compute-01
-    # Output: Permission denied (publickey,gssapi-keyex,gssapi-with-mic)
-    # Or: su: user newuser does not exist
-    id newuser
-    # Output: id: 'newuser': no such user
-    ```
-
-??? note "Cause"
-
-    LDAP login failures have multiple common causes:
-
-    - Whitespace or encoding in LDIF: Invisible trailing spaces/tabs in LDIF file corrupt attribute values
-    - Missing POSIX attributes: User entry lacks required uidNumber, gidNumber, homeDirectory, or loginShell
-    - Wrong objectClass: User created with inetOrgPerson but missing posixAccount objectClass
-    - SSSD cache stale: SSSD on compute nodes has cached the "user not found" response
-    - Incorrect base DN: User created in wrong OU/tree — not under the search base configured in SSSD
+    `systemctl status omnia_auth` is failed or inactive, the container is
+    absent, or clients cannot contact the port selected by
+    `ldap_connection_type` (TCP 389 for `TLS` or TCP 636 for `SSL`).
 
 ??? note "Resolution"
 
-    **Diagnostic Steps**
+    1. Inspect the service and container logs:
 
-    1. Verify user exists in LDAP:
-
-        ```bash title="Run on: auth server"
-        ldapsearch -x -H ldap://localhost -b "dc=omnia,dc=local" "(uid=newuser)"
+        ```bash title="Run on: OIM"
+        systemctl status omnia_auth --no-pager
+        journalctl -u omnia_auth -b -n 200 --no-pager
+        podman logs --tail 200 omnia_auth
         ```
 
-    2. Check for whitespace in LDIF:
+    2. Confirm that the selected catalog enables OpenLDAP and that the active
+       Orchestrator credential file contains the configured OpenLDAP username
+       and password. Do not print the decrypted password into a terminal log.
+    3. Rerun the supported preparation and validation flows:
 
-        ```bash title="Run on: auth server"
-        cat -vet /path/to/user.ldif | grep -E '\s$'
+        ```bash title="Run from: <omnia-repository>/src/main"
+        ./omnia.sh --run orchestrator --tags prepare
+        ./omnia.sh --run orchestrator --tags validate-deployment
         ```
 
-    3. Verify POSIX attributes:
+## LDAP user is not found on a node
 
-        ```bash title="Run on: auth server"
-        ldapsearch -x -H ldap://localhost -b "dc=omnia,dc=local" "(uid=newuser)" \
+???+ note "Symptom"
+
+    `id <ldap-user>` or `getent passwd <ldap-user>` reports no entry even
+    though the user exists in LDAP.
+
+??? note "Cause"
+
+    The user may be outside the configured search base, may lack POSIX
+    attributes, or SSSD may have stale cached data or an incorrect generated
+    configuration.
+
+??? note "Resolution"
+
+    1. Read the actual search base from the node and query that base on the
+       OIM. Replace placeholders with the values from the active environment:
+
+        ```bash title="Run on: affected node"
+        grep '^ldap_search_base' /etc/sssd/sssd.conf
+        getent passwd <ldap-user>
+        sssctl user-show <ldap-user>
+        ```
+
+        ```bash title="Run on: OIM"
+        podman exec omnia_auth ldapsearch -x -H ldap://127.0.0.1 \
+          -b '<configured-search-base>' '(uid=<ldap-user>)' \
           objectClass uidNumber gidNumber homeDirectory loginShell
         ```
 
-    4. Check SSSD cache on compute node:
-
-        ```bash title="Run on: compute node"
-        sssctl user-show newuser
-        ```
-
-    5. Verify base DN matches SSSD config:
-
-        ```bash title="Run on: compute node"
-        grep ldap_search_base /etc/sssd/sssd.conf
-        ```
-
-    **Fix by Cause**
-
-    **1. Whitespace in LDIF**
-
-    ```bash title="Run on: auth server"
-    sed -i 's/[[:space:]]*$//' /path/to/user.ldif
-    ldapmodify -x -H ldap://localhost -D "cn=admin,dc=omnia,dc=local" -W -f /path/to/user.ldif
-    ```
-
-    **2. Missing POSIX attributes**
-
-    ```bash title="Run on: auth server"
-    ldapmodify -x -H ldap://localhost -D "cn=admin,dc=omnia,dc=local" -W <<EOF
-    dn: uid=newuser,ou=People,dc=omnia,dc=local
-    changetype: modify
-    add: objectClass posixAccount
-    add: uidNumber 10001
-    add: gidNumber 10001
-    add: homeDirectory /home/newuser
-    add: loginShell /bin/bash
-    EOF
-    ```
-
-    **3. SSSD cache stale**
-
-    ```bash title="Run on: compute node"
-    sssctl cache-remove
-    systemctl restart sssd
-    ```
-
-    **4. Wrong objectClass or base DN**: Re-create user with correct attributes in proper OU under the LDAP search base.
-
-## OpenLDAP Login Fails
-
-???+ note "Symptom"
-
-    OpenLDAP login fails.
-
-??? note "Cause"
-
-    Stale SSH key.
-
-??? note "Resolution"
-
-    ```bash title="Run on: OIM host"
-    ssh-keygen -R <hostname>
-    ```
-
-## User Login Fails on Cluster Nodes
-
-???+ note "Symptom"
-
-    Users cannot log in to Slurm compute nodes or login nodes via SSH. Login attempts fail with `Permission denied, please try again.` even though the user exists in LDAP and can authenticate on the auth server directly.
-
-??? note "Cause"
-
-    - The LDAP client (`sssd` or `nslcd`) is not running on the target node.
-    - The LDAP client is configured with the wrong server URI or search base.
-    - NSS (Name Service Switch) is not configured to use LDAP.
-    - The user's home directory does not exist on the target node.
-
-??? note "Resolution"
-
-    1. Check SSSD status on the target node:
-
-        ```bash title="Run on: compute node"
-        systemctl status sssd
-        ```
-
-        If not running:
-
-        ```bash title="Run on: compute node"
-        systemctl start sssd
-        ```
-
-    2. Verify SSSD configuration:
-
-        ```bash title="Run on: compute node"
-        cat /etc/sssd/sssd.conf | grep -E 'ldap_uri|ldap_search_base'
-        ```
-
-    3. Test user lookup via NSS:
-
-        ```bash title="Run on: compute node"
-        getent passwd <username>
-        ```
-
-        If the user does not appear, SSSD or NSS is misconfigured.
-
-    4. Check if the home directory exists:
-
-        ```bash title="Run on: compute node"
-        ls -la /home/<username>
-        ```
-
-        If it does not exist, enable automatic home directory creation:
-
-        ```bash title="Run on: compute node"
-        authconfig --enablemkhomedir --update
-        ```
-
-    5. Clear the SSSD cache and restart:
-
-        ```bash title="Run on: compute node"
-        sss_cache -E
-        systemctl restart sssd
-        ```
-
-## User Login Through OpenLDAP Fails
-
-???+ note "Symptom"
-
-    User login through OpenLDAP fails on cluster nodes. Commands such as `ssh ldapuser@node`, `su - ldapuser`, or `id ldapuser` return no user or authentication errors.
-
-??? note "Cause"
-
-    Possible causes include:
-
-    - OpenLDAP container is not running
-    - SSSD is not running or is misconfigured
-    - TLS/SSL certificate issue
-    - Incorrect LDAP connection type configured
-    - Network connectivity issue to LDAP server
-    - Stale SSH host key when connecting to OIM or container
-
-??? note "Resolution"
-
-    1. Check if the OpenLDAP container is running:
-
-        ```bash title="Run on: OIM host"
-        podman ps -a | grep omnia_auth
-        ```
-
-        If the container is not running, start it:
-
-        ```bash title="Run on: OIM host"
-        systemctl start omnia_auth.service
-        ```
-
-        Alternatively, select a catalog that includes `openldap_group` and
-        rerun Orchestrator.
-
-    2. Verify SSSD status and configuration on the login or compute node:
-
-        ```bash title="Run on: compute node"
-        systemctl status sssd
-        ```
-
-        If SSSD is not running or misconfigured, restart it:
-
-        ```bash title="Run on: compute node"
-        systemctl restart sssd
-        ```
-
-        Verify that `/etc/sssd/sssd.conf` has the correct settings for `ldap_uri`, `ldap_search_base`, `ldap_default_bind_dn`, and `ldap_default_authtok`.
-
-    3. Check for TLS/SSL certificate issues:
-
-        Verify that the certificate file exists:
-
-        ```bash title="Run on: compute node"
-        ls -la /etc/openldap/certs/ldapserver.crt
-        ```
-
-        Ensure the certificate matches the one used by the omnia_auth container. If there is a mismatch, re-copy certificates from the shared NFS path (`/opt/omnia/omnia/openldap/certs` or the configured `nfs_server_share_path`) and restart SSSD:
-
-        ```bash title="Run on: compute node"
-        systemctl restart sssd
-        ```
-
-    4. Verify LDAP connection type consistency:
-
-        The default connection type is TLS on port 389. If security_config.yml sets `ldap_connection_type: SSL`, SSSD expects `ldaps://<ldap_server_ip>:636`. Verify that security_config.yml and sssd.conf are consistent regarding the connection type and port.
-
-    5. Test network connectivity to the LDAP server:
-
-        ```bash title="Run on: compute node"
-        ping <ldap_server_ip>
-        ldapsearch -x -H ldap://<ldap_server_ip> -b <ldap_search_base>
-        ```
-
-        If connectivity fails, verify firewall rules and ensure the LDAP server IP is reachable from the affected node.
-
-    6. Check for stale SSH host keys:
-
-        If the actual failure is an SSH connection to the OIM (not an OpenLDAP
-        bind), the error may indicate a stale SSH host key:
-
-        ```text title="Expected output"
-        WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!
-        ```
-
-        This occurs when the OIM was reprovisioned, leaving a stale entry in
-        `~/.ssh/known_hosts`. Remove the stale key:
-
-        ```bash title="Run on: compute node"
-        ssh-keygen -R <hostname>
-        ```
-
-        Or for a specific port:
-
-        ```bash title="Run on: compute node"
-        ssh-keygen -R "[localhost]:<port>"
-        ```
-
-        Then re-scan the host key:
-
-        ```bash title="Run on: compute node"
-        ssh-keyscan <hostname> >> ~/.ssh/known_hosts
-        ```
-
-        ![User Login Error](../../assets/images/UserLoginError.png)
-    
-
-## Certificate Errors
-
-???+ note "Symptom"
-
-    LDAP or other services fail with TLS certificate errors:
-
-    ```text title="Expected output"
-    TLS: peer cert untrusted or revoked
-    SSL routines:ssl3_get_server_certificate:certificate verify failed
-    ```
-
-??? note "Cause"
-
-    - The Orchestrator-generated `ldapserver.crt` is missing from the client.
-    - The `omnia_auth` service is not running on the OIM.
-    - `ldap_connection_type` does not match the URI and port in the generated
-      SSSD configuration.
-
-??? note "Resolution"
-
-    1. Verify the generated certificate and `omnia_auth` service on the OIM:
-
-        ```bash title="Run on: OIM host"
-        openssl x509 \
-          -in "$OMNIA_DATA_PATH/auth/tls_certs/ldapserver.crt" \
-          -noout -dates -ext subjectAltName
-        systemctl status omnia_auth
-        ```
-
-    2. Verify the certificate copied to the affected Slurm or login node:
+    2. Ensure the entry has the `posixAccount` attributes required by the
+       cluster. Use the site's approved LDAP administration workflow to repair
+       the entry; do not copy a fixed administrator DN from an example.
+    3. If the server entry is correct, clear only SSSD's cached entry and
+       restart SSSD:
 
         ```bash title="Run on: affected node"
-        ls -l /etc/openldap/certs/ldapserver.crt
-        grep -E 'ldap_uri|ldap_chpass_uri|ldap_tls_cacert' /etc/sssd/sssd.conf
-        ```
-
-    3. Confirm that `security_config.yml` uses `TLS` for port 389 or `SSL` for
-       port 636, then rerun Orchestrator provisioning to regenerate the node
-       configuration when it is inconsistent:
-
-        ```yaml title="security_config.yml"
-        ldap_connection_type: "TLS"
-        ```
-
-    4. Restart SSSD after the generated certificate and configuration are
-       present:
-
-        ```bash title="Run on: compute node"
+        sss_cache -u <ldap-user>
         systemctl restart sssd
+        getent passwd <ldap-user>
         ```
 
-!!! info
+## User authentication fails on a cluster node
 
-    - [Deploy OpenLDAP](../../HowTo/orchestrator/deploy_openldap.md) -- Deploy
-      and validate the OIM-hosted `omnia_auth` service.
+???+ note "Symptom"
+
+    The LDAP identity resolves, but SSH, `su`, or PAM authentication fails.
+
+??? note "Resolution"
+
+    1. Verify SSSD and the active authselect profile:
+
+        ```bash title="Run on: affected node"
+        systemctl status sssd --no-pager
+        authselect current
+        journalctl -u sssd -b -n 200 --no-pager
+        ```
+
+    2. Confirm the node can reach the URI and port in `/etc/sssd/sssd.conf`.
+       `TLS` in `security_config.yml` uses StartTLS on port 389; `SSL` uses
+       LDAPS on port 636.
+    3. Confirm the generated profile enables SSSD and home-directory creation:
+
+        ```bash title="Run on: affected node"
+        authselect select sssd with-mkhomedir --force
+        systemctl enable --now sssd
+        ```
+
+       `authconfig` and `nslcd` are legacy mechanisms and are not used by the
+       current Orchestrator templates.
+    4. When generated settings are wrong, correct the Orchestrator input and
+       rerun `precheck` and `provision`. Avoid maintaining a manual SSSD
+       configuration that the next provisioning run will replace.
+
+## LDAP TLS certificate error
+
+???+ note "Symptom"
+
+    SSSD or `ldapsearch` reports an untrusted, expired, or mismatched
+    certificate.
+
+??? note "Resolution"
+
+    1. Inspect the certificate generated for `omnia_auth` on the OIM:
+
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        openssl x509 -in "$OMNIA_DATA_PATH/auth/tls_certs/ldapserver.crt" \
+          -noout -subject -issuer -dates -ext subjectAltName
+        ```
+
+    2. Inspect the provisioned client copy and SSSD reference:
+
+        ```bash title="Run on: affected node"
+        openssl x509 -in /etc/openldap/certs/ldapserver.crt \
+          -noout -subject -issuer -dates -ext subjectAltName
+        grep -E 'ldap_uri|ldap_tls_cacert|ldap_tls_reqcert' /etc/sssd/sssd.conf
+        ```
+
+    3. If the client copy differs, rerun Orchestrator provisioning so the
+       generated metadata copies the current certificate and configuration.
+       Do not use the obsolete `/opt/omnia/omnia/openldap/certs` path.
+    4. Restart SSSD and verify identity lookup:
+
+        ```bash title="Run on: affected node"
+        systemctl restart sssd
+        getent passwd <ldap-user>
+        ```
+
+## SSH reports a changed host key
+
+This is an SSH trust failure, not an LDAP authentication failure. Confirm that
+the host was intentionally reprovisioned before removing its old key:
+
+```bash title="Run on: SSH client"
+ssh-keygen -R <node-hostname-or-IP>
+ssh-keyscan <node-hostname-or-IP> | ssh-keygen -lf -
+```
+
+Verify the displayed fingerprint through the site's trusted inventory before
+adding it to `known_hosts`.
+
+See [Deploy OpenLDAP](../../HowTo/orchestrator/deploy_openldap.md) for the
+supported configuration and deployment workflow.

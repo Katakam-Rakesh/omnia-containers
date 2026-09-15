@@ -1,6 +1,8 @@
 # Provisioning Issues
 
-Issues related to PXE booting, node discovery, cloud-init configuration, and the `discovery.yml` playbook.
+Issues related to Orchestrator PXE booting, node registration, and cloud-init
+configuration. Discovery produces a candidate mapping CSV; it does not run the
+Orchestrator provisioning or PXE workflows.
 
 ## PXE Boot Failures
 
@@ -64,8 +66,10 @@ Issues related to PXE booting, node discovery, cloud-init configuration, and the
 
     1. Log in to iDRAC and check console output.
     2. Clear errors or disable POST prompts.
-    3. Hard reboot the server.
-    4. Disable PXE temporarily if needed to bypass boot loops.
+    3. Preserve the console and Lifecycle Controller evidence, then use the
+       site's approved iDRAC power-control procedure to restart the server.
+    4. If a boot loop persists, stop repeated restarts and verify the selected
+       boot configuration, image, and PXE mapping before trying again.
 
 ### Root Login Fails After Provisioning
 
@@ -98,20 +102,31 @@ Issues related to PXE booting, node discovery, cloud-init configuration, and the
 
     Unable to issue OpenCHAMI commands. Error includes:
 
-    - `Environment variable OIM_ACCESS_TOKEN unset for reading token for cluster "oim"`
-    
+    - `Environment variable <UPPERCASE_OIM_HOSTNAME>_ACCESS_TOKEN unset`
+
 ??? note "Cause"
 
-    - `OIM_ACCESS_TOKEN` environment variable has not been set.
+    - The hostname-derived access-token environment variable has not been set.
 
 ??? note "Resolution"
 
-    1. Set the `OIM_ACCESS_TOKEN`:
+    1. Generate an access token without printing it:
 
-        ```export OIM_ACCESS_TOKEN=$(sudo bash -lc 'gen_access_token')
+        ```bash title="Run on: OIM host"
+        source /etc/profile.d/omnia-env.sh
+        oim_name="${SYSTEM_HOSTNAME:-$(hostname -s)}"
+        token_name="${oim_name^^}_ACCESS_TOKEN"
+        token_value="$(sudo bash -lc 'gen_access_token')"
+        export "$token_name=$token_value"
+        unset token_value
         ```
 
-    2. Retry the OpenCHAMI command.
+    2. Retry the OpenCHAMI command in the same shell. Unset the variable when
+       direct diagnostics are complete:
+
+        ```bash title="Run on: OIM host"
+        unset "$token_name"
+        ```
 
 ## Cloud-Init Issues
 
@@ -140,13 +155,25 @@ Issues related to PXE booting, node discovery, cloud-init configuration, and the
         cat /var/log/cloud-init-output.log
         ```
 
-    3. If cloud-init was disabled, re-enable it:
+    3. Check whether cloud-init is installed and enabled:
 
         ```bash title="Run on: compute node"
-        systemctl enable cloud-init
-        cloud-init clean
-        reboot
+        rpm -q cloud-init
+        systemctl is-enabled cloud-init.service
+        systemctl status cloud-init.service --no-pager
         ```
+
+    4. If cloud-init is absent from the image or its generated metadata is
+       incorrect, correct the image or Orchestrator input, rebuild the affected
+       image when needed, and follow the
+       [Re-provision Cluster Nodes](../../Operations/reprovision_cluster.md)
+       procedure.
+
+    !!! warning
+
+        Do not run `cloud-init clean` followed by a reboot as a generic repair.
+        It resets cloud-init instance state and can rerun first-boot actions on
+        a configured Slurm or Kubernetes node.
 
 ## Boot Issues on Provisioned Nodes
 
@@ -178,15 +205,14 @@ Issues related to PXE booting, node discovery, cloud-init configuration, and the
         cat /var/log/omnia/orchestrator/orchestrator.log
         ```
 
-    3. If cloud-init completed with errors, rerun
-       `./omnia.sh --run orchestrator --tags provision` after
-       fixing the root cause.
+    3. Correct the source input, generated metadata, image, network, or storage
+       problem identified in the logs. Running `provision` updates OpenCHAMI
+       configuration but does not rerun cloud-init on an already booted node.
 
-    4. If the hostname or root password is not configured because cloud-init
-       was not loaded in time, wait 5 minutes and retry provisioning the
-       node. If the issue persists, follow the
+    4. Follow the
        [Re-provision Cluster Nodes](../../Operations/reprovision_cluster.md)
-       procedure.
+       procedure when the corrected first-boot configuration must be applied
+       to the node.
 
 
 ## IP Route Conflict After Provisioning

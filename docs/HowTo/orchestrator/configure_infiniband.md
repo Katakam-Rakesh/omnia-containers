@@ -45,14 +45,14 @@ via cloud-init:
 
 ### Step 1: Configure the IB network in network_spec.yml
 
-Edit `/opt/omnia/orchestrator/input/project_default/network_spec.yml` and configure the
-`ib_network` section under `Networks`:
+Edit `network_spec.yml` in the active project's Orchestrator input directory
+and configure the `ib_network` section under `Networks`:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/network_spec.yml"
+```yaml title="File: network_spec.yml"
 Networks:
 - admin_network:
     oim_nic_name: "eno1"
-    subnet: "172.16.0.0"
+    subnet: "172.16.107.0"
     netmask_bits: "24"
     primary_oim_admin_ip: "172.16.107.254"
     primary_oim_bmc_ip: ""
@@ -71,24 +71,26 @@ Networks:
 | Parameter      | Description                                                  |
 |----------------|--------------------------------------------------------------|
 | `subnet`       | Network address for the IB subnet (e.g., `192.168.0.0`)     |
-| `netmask_bits` | CIDR prefix length for the IB network. It can differ from the admin-network prefix length. |
+| `netmask_bits` | CIDR prefix length for the IB network. It can differ from the primary admin-network prefix length. |
 | `dns`          | List of DNS server IPs to configure on the IB interface      |
 
 !!! caution
-    The IB subnet must not overlap with the admin network range. The two
-    networks do not need to use the same CIDR prefix length.
+    The IB subnet must not overlap an admin network range. Orchestrator applies
+    the IB-specific `netmask_bits` value to node InfiniBand interfaces, so the
+    IB and admin networks may use different prefix lengths. Keep each `IB_IP`
+    inside the configured IB subnet.
 
 ### Step 2: Add IB columns to the PXE mapping file
 
-Edit `/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv` and add the
+Edit `pxe_mapping_file.csv` in the same project input directory and add the
 `IB_NIC_NAME` and `IB_IP` columns for each node that requires InfiniBand.
 
-```csv title="/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv"
+```csv title="File: pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
-slurm_control_node_x86_64,grp0,ABCD12,,ctrl-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
-slurm_node_aarch64,grp1,ABCD34,ABFL82,compute-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
-slurm_node_aarch64,grp2,ABFG34,ABKD88,compute-node2,aa:bb:cc:dd:ee:ff,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,NIC.InfiniBand.1-3,192.168.0.102
-service_kube_node_x86_64,grp5,ABFL82,,k8s-node1,aa:bb:cc:dd:ee:jj,172.16.107.56,xx:yy:zz:aa:bb:jj,172.17.107.56,,
+slurm_control_node_rhel_10_0_x86_64,grp0,ABCD12,,ctrl-node1,02:00:00:00:01:01,172.16.107.52,02:00:00:00:02:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
+slurm_node_rhel_10_0_aarch64,grp1,ABCD34,,compute-node1,02:00:00:00:01:02,172.16.107.43,02:00:00:00:02:02,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
+slurm_node_rhel_10_0_aarch64,grp2,ABFG34,,compute-node2,02:00:00:00:01:03,172.16.107.44,02:00:00:00:02:03,172.17.107.44,NIC.InfiniBand.1-3,192.168.0.102
+service_kube_node_rhel_10_0_x86_64,grp5,ABFL82,,k8s-node1,02:00:00:00:01:04,172.16.107.56,02:00:00:00:02:04,172.17.107.56,,
 ```
 
 **`IB_NIC_NAME`** identifies the InfiniBand HCA slot and port on the server.
@@ -301,13 +303,6 @@ Only devices with `Link layer: InfiniBand` are used by Omnia.
     ```bash title="Run on: compute node"
     perfquery
     ```
-
-
-
-
-
-
-
 
 
 

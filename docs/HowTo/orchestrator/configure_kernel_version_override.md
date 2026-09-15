@@ -20,8 +20,8 @@ not install a kernel package or create a new image.
   kernel packages required by the selected catalog or package groups.
 - Complete [Image Build Manager](../image_build_manager/build_images.md) and
   confirm that its `build_status.yml` reports `overall_status: success`.
-- Place `orchestrator_config.yml` under
-  `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`.
+- Place `orchestrator_config.yml` in the active project's Orchestrator input
+  directory.
 - Know the exact kernel version contained in the required S3 kernel artifact.
 
 ## Procedure
@@ -34,13 +34,16 @@ not install a kernel package or create a new image.
 2. Edit the Orchestrator configuration:
 
     ```bash title="Run on: OIM"
-    vi /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml"
     ```
 
 3. Set the exact version string. The accepted format begins with three numeric
    components followed by a hyphen and release suffix:
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml"
+    ```yaml title="File: orchestrator_config.yml"
     kernel_version_override: "6.12.0-55.76.1.el10_0"
     ```
 
@@ -73,9 +76,9 @@ On each provisioned node, verify the running kernel:
 uname -r
 ```
 
-The result must match `kernel_version_override`. Also confirm that
-`$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml`
-reports a successful provisioning run.
+The result must match `kernel_version_override`. Also confirm that the active
+project's Orchestrator `orchestrator_status.yml` reports a successful
+provisioning run.
 
 ## Next steps
 

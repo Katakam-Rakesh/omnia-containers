@@ -279,7 +279,7 @@ directory contains the connection details and the `ca.crt`, `user.crt`, and
 `user.key` TLS files:
 
 ```text
-$OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_kafka/
+<TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/external_kafka/
 ```
 
 The utility fails if the Kafka pods, native Kafka endpoint, HTTP Bridge
@@ -323,7 +323,7 @@ LDMS metrics are routed to VictoriaMetrics through the Vector-LDMS bridge.
 5. Read `victoria_metrics.endpoints.vmselect.ui_url` from:
 
     ```text
-    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    <TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/external_victoria/external_victoria_connect_details.yml
     ```
 
 6. Access that URL in a web browser and query for LDMS metrics:

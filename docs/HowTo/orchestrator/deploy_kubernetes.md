@@ -10,31 +10,38 @@ configures the Kubernetes software and mounts selected by the Kubernetes
 bolt-on list.
 
 The default Kubernetes bolt-ons are `mount_config`, `k8s_config`, and
-`telemetry`. The current Kubernetes provisioning playbook implements the first
-two. It does not run a Telemetry role, and its default list does not include
-OpenLDAP. Deploy Telemetry through the Telemetry domain after Kubernetes is
-available. Do not assume that selecting OpenLDAP in the catalog configures an
-OpenLDAP client on Kubernetes nodes.
+`telemetry`. The current Kubernetes provisioning playbook implements
+`mount_config` and `k8s_config`; deploy Telemetry through the Telemetry domain
+after Kubernetes is available. An optional `orchestrator.bolt_ons.kubernetes`
+override in `omnia_config.yml` can include `openldap`. That role runs only when
+the selected catalog also enables OpenLDAP support.
 
 The source provides x86_64 templates for the first control-plane node,
-additional control-plane nodes, and worker nodes. During functional-group
-generation, the first `service_kube_control_plane_x86_64` group is converted to
-`service_kube_control_plane_first_x86_64`.
+additional control-plane nodes, and worker nodes. The PXE mapping accepts the
+Discovery-style names `service_kube_control_plane_x86_64` and
+`service_kube_node_x86_64`, or their catalog-qualified forms. For the bundled
+RHEL 10.0 x86_64 catalog, the qualified names are
+`service_kube_control_plane_rhel_10_0_x86_64` and
+`service_kube_node_rhel_10_0_x86_64`. When an OS/version segment is supplied,
+it must match the selected catalog. Orchestrator promotes the first mapped
+control-plane occurrence to the corresponding internal `_first` group.
 
 ## Prerequisites
 
 - Complete Repo Manager and Image Build Manager with Kubernetes content and an
   image for each `service_kube_` functional group.
-- Add the Kubernetes nodes to the PXE mapping with their service tags,
-  lowercase hostnames, admin network data, and BMC data for physical nodes.
+- Add the Kubernetes nodes to the PXE mapping with lowercase hostnames, admin
+  network data, and BMC data for physical nodes. Retain the `SERVICE_TAG`
+  column; its value may be empty, but every nonempty value must be unique.
 - Configure the OIM admin network and any additional node subnets in
   `network_spec.yml`. The Kubernetes role derives the node-network CIDRs from
   the mapped control-plane and worker admin IPs.
 - Provide an NFS mount whose `name` matches `nfs_storage_name` in
   `omnia_config.yml`. The OIM must be able to mount it and create the Kubernetes
   configuration directories.
-- Configure `high_availability_config.yml`; its `cluster_name` must match the
-  Kubernetes entry selected for deployment.
+- Configure exactly one entry in `high_availability_config.yml`. Its
+  `cluster_name` must match the single Kubernetes cluster selected with
+  `deployment: true` in `omnia_config.yml`.
 - To deploy PowerScale CSI, set `enable_powerscale_csi: true` on the deployed
   `service_k8s_cluster` and provide its secret and values file paths.
 
@@ -54,15 +61,18 @@ etcd data.
     ```text title="pxe_mapping_file.csv — functional-group examples"
     service_kube_control_plane_x86_64
     service_kube_node_x86_64
+
+    # Equivalent catalog-qualified forms for the bundled RHEL 10.0 catalog:
+    service_kube_control_plane_rhel_10_0_x86_64
+    service_kube_node_rhel_10_0_x86_64
     ```
 
-   The source classification accepts the `service_kube_` prefix. When the
-   canonical control-plane name shown above is used, functional-group
-   generation marks the first occurrence as
-   `service_kube_control_plane_first_x86_64`.
+   Do not add the internal `_first` marker to the source mapping. The source
+   currently has no aarch64 Kubernetes metadata-service templates.
 
-2. Configure the Kubernetes cluster in `omnia_config.yml`. Exactly one source
-   template entry is marked `deployment: true`.
+2. Configure the Kubernetes cluster in `omnia_config.yml`. Mark exactly one
+   entry with `deployment: true`. Input validation rejects configurations with
+   no selected cluster or with multiple entries marked `true`.
 
     ```yaml title="omnia_config.yml"
     service_k8s_cluster:
@@ -71,7 +81,7 @@ etcd data.
         enable_powerscale_csi: false
         etcd_on_local_disk: false
         k8s_cni: "calico"
-        pod_external_ip_range: "<external-ip-range-or-cidr>"
+        pod_external_ip_range: "172.16.107.170-172.16.107.200"
         k8s_service_addresses: "10.233.0.0/18"
         k8s_pod_network_cidr: "10.233.64.0/18"
         nfs_storage_name: "nfs_k8s"
@@ -80,9 +90,13 @@ etcd data.
         csi_powerscale_driver_values_file_path: ""
     ```
 
-   The source input supports `calico` or `flannel`; it directs RoCE deployments
-   to use `flannel`. Keep the external IP range unused by cluster nodes and
-   keep the service and pod networks unused in the surrounding infrastructure.
+   Set `k8s_cni` to `calico`. The current provisioning path stages and applies
+   Calico and does not select a Flannel manifest from this value. Supply
+   canonical service and pod CIDRs and an ordered external address range. The
+   three ranges must not overlap each other. Service and pod CIDRs must not
+   overlap the primary or additional admin networks or the InfiniBand network.
+   The external pool must exclude OIM addresses, mapped `ADMIN_IP`, `BMC_IP`,
+   and `IB_IP` values, and every configured DHCP range.
 
 3. Configure the matching HA entry:
 
@@ -129,8 +143,16 @@ etcd data.
 Confirm the Orchestrator view first:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+source /etc/profile.d/omnia-env.sh
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+```
+
+If the `pxeboot` phase in step 6 ran, inspect its per-node report separately:
+
+```bash title="Run on: OIM"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/pxeboot_status.yml"
 ```
 
 After cloud-init completes, use the commands embedded in the source templates

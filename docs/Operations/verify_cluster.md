@@ -56,8 +56,10 @@ After booting the nodes, verify the following:
 
 !!! note
 
-    - The CUDA installation path on the OIM and nodes must be `{client_share_path}/slurm/cuda`.
-    - The `client_share_path` is the same as mentioned in `storage_config.yml` for `nfs_slurm`.
+    Orchestrator publishes the shared CUDA toolkit below the selected Slurm
+    storage at `slurm/hpc_tools/cuda`. Provisioned nodes expose that content as
+    `/hpc_tools/cuda` and bind it at `/usr/local/cuda`. Verify both mounts when
+    `nvcc` or CUDA libraries are unavailable.
 
 ### Verify PAM Feature for Slurm
 
@@ -111,7 +113,6 @@ Slurm PAM restricts SSH access to compute nodes for non-root users. You can log 
 - **Slurm services not running**: Check the Slurm controller logs at `/var/log/slurm/slurmctld.log` and verify that munge keys are synchronized across all nodes.
 - **Slurm nodes in `down` state**: Run `scontrol update nodename=<node> state=idle` after verifying the node is reachable and `slurmd` is running.
 - **Kubernetes pods not in Running state**: Run `kubectl describe pod <pod_name> -n <namespace>` to identify the root cause of the failure.
-
 
 
 
