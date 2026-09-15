@@ -227,7 +227,7 @@ nav:
       - External Kafka: HowTo/Telemetry/configure_external_kafka.md
       - External VictoriaMetrics: HowTo/Telemetry/configure_external_victoria.md
       - External VictoriaLogs: HowTo/Telemetry/configure_external_victoria_logs.md
-      - Prepare Worker-to-BMC Network Access: HowTo/Telemetry/worker_node_vlan_configuration.md
+      - Worker Node VLAN Configuration for iDRAC Telemetry: HowTo/Telemetry/worker_node_vlan_configuration.md
     - BUILDSTREAM:
       - HowTo/build_stream/index.md
       - Execute Build Pipeline: HowTo/build_stream/execute_build_pipeline.md

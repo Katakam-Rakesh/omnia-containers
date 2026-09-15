@@ -154,37 +154,189 @@ off-cluster communications.
 3. Keep the `csm_metrics_powerscale_storage` and
    `csi_volume_exporter_storage` sections in `telemetry_storage_config.yml`.
 
-4. Run the precheck and deployment:
+4. Run the Telemetry precheck. Choose one execution method; do not run both
+   commands for the same operation.
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags precheck
-    ./omnia.sh --run telemetry --tags deploy
-    ```
+    === "Using omnia.sh (recommended)"
 
-5. When logs are enabled, export the generated VLAgent target and PowerScale
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags precheck
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags precheck
+        ```
+
+5. Validate the Telemetry inputs and collect the required credentials:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags validate
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags validate
+        ```
+
+6. Deploy the enabled Telemetry configuration:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags deploy
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags deploy
+        ```
+
+7. To run validation and deployment in one invocation, omit the tag:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml
+        ```
+
+    The untagged flow does not run the opt-in precheck. Run step 4 separately
+    when an environment precheck is required.
+
+8. When logs are enabled, export the generated VLAgent target and PowerScale
    `isi audit` commands:
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags external_victoria
-    ```
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags external_victoria
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags external_victoria
+        ```
 
     Run the commands recorded under `powerscale.isi_audit_commands` in the
-    generated connection-details file on the PowerScale system.
+    generated connection-details file on the PowerScale system:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
 
 ## Verification
 
-On the Kubernetes VIP, verify the same resources inspected by deployment:
+### Verify PowerScale Telemetry pods
 
-```bash title="Run on: Kubernetes VIP"
-kubectl get pods -n telemetry -l app.kubernetes.io/name=karavi-metrics-powerscale
-kubectl get deployment otel-collector -n telemetry
-```
+1. Verify that the VictoriaMetrics pods are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get pods -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics pods](../../assets/images/victoria_metrics_pod_cluster_mode.png)
+
+2. Verify that the VictoriaMetrics services are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics services](../../assets/images/victoria_metrics_service_cluster.png)
+
+3. Verify the PowerScale metrics and OpenTelemetry Collector resources:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get pods -n telemetry -l app.kubernetes.io/name=karavi-metrics-powerscale
+    kubectl get deployment otel-collector -n telemetry
+    ```
+
+### View PowerScale metrics in VictoriaMetrics UI
+
+1. Identify the external `vmselect` service:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep vmselect
+    ```
+
+2. Open the URL recorded in `victoria_metrics.endpoints.vmselect.ui_url` in:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+    If the connection details have not been exported, use either method in
+    procedure step 8 to generate them.
+
+3. Query PowerScale metrics in VMUI:
+
+    ```promql
+    {__name__=~"powerscale_.*"}
+    ```
+
+    ![PowerScale metrics in VMUI](../../assets/images/powerscale_metrics_vmui_cluster.png)
+
+### View PowerScale logs in VictoriaLogs
+
+Complete these steps only when PowerScale log collection is enabled.
+
+1. Verify that the VictoriaLogs pods are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get pods -n telemetry -o wide | grep vl
+    ```
+
+    ![VictoriaLogs pods](../../assets/images/victoria_logs_pod_cluster_mode.png)
+
+2. Verify that the VictoriaLogs services are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service -n telemetry -o wide | grep vl
+    ```
+
+    ![VictoriaLogs services](../../assets/images/victoria_logs_service_cluster.png)
+
+3. Open the URL recorded in `victoria_logs.endpoints.vlselect.ui_url` in:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+4. Use `*` in the VictoriaLogs query field to display all logs and confirm
+   that PowerScale log records are present.
+
+    ![PowerScale logs in VictoriaLogs](../../assets/images/powerscale_logs_vlui_cluster.png)
 
 Confirm `sources.powerscale.metrics: deployed` in `telemetry_status.yml`. When
-logs are enabled, confirm `sources.powerscale.logs: deployed` and check that the
-generated external Victoria file reports `vlagent.available: true`.
+logs are enabled, confirm `sources.powerscale.logs: deployed` and verify that
+the generated external Victoria file reports `vlagent.available: true`.
 
 The log status confirms that the shared VLAgent is available; it does not
 configure PowerScale log forwarding or prove ingestion. Run the exported
