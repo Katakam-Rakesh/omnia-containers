@@ -59,20 +59,36 @@ Ansible vault enables encryption of variables and files to protect sensitive con
 
 ## Encrypted Parameters Management
 
-To view encrypted parameters:
+Each credential-owning domain stores its Ansible Vault-encrypted credential
+file and Vault key in its project input directory:
+
+`<OMNIA_DATA_PATH>/<domain>/input/<project>/`
+
+See [Login Security Settings](product_subsystem_security.md#login-security-settings)
+for the credential file and Vault key used by each domain.
+
+Change to the applicable project input directory. To view encrypted parameters,
+run:
 
 ```bash
-ansible-vault view omnia_config_credentials.yml --vault-password-file .omnia_config_credentials_key
+ansible-vault view <credential-file> --vault-password-file <vault-key-file>
 ```
 
-To edit encrypted parameters:
+To edit encrypted parameters, run:
 
 ```bash
-ansible-vault edit omnia_config_credentials.yml --vault-password-file .omnia_config_credentials_key
+ansible-vault edit <credential-file> --vault-password-file <vault-key-file>
+```
+
+For example, to view the Orchestrator credentials:
+
+```bash
+cd "$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME"
+ansible-vault view orchestrator_credentials.yml \
+  --vault-password-file .orchestrator_credentials_key
 ```
 
 If you have any feedback about Omnia documentation, please reach out at [omnia.readme@dell.com](mailto:omnia.readme@dell.com).
-
 
 
 

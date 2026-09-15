@@ -189,7 +189,7 @@ UFM metrics and logs are controlled independently by `metrics_enabled` and
 
 ## Verification
 
-### Verify UFM Telemetry resources
+### Verify UFM Telemetry pods
 
 1. Verify that the VictoriaMetrics pods are running:
 
@@ -261,7 +261,12 @@ UFM metrics and logs are controlled independently by `metrics_enabled` and
     ```
 
 4. Query a UFM metric, such as `infiniband_CBW`, to confirm that UFM metrics
-   are reaching VictoriaMetrics.
+   are reaching VictoriaMetrics. To filter InfiniBand metrics by their source
+   labels, use:
+
+    ```promql
+    {source="ufm", subsystem="infiniband"}
+    ```
 
     ![UFM metrics in VMUI](../../assets/images/verify_umf_telemetry_5.png)
 

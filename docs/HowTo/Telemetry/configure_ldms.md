@@ -1,5 +1,8 @@
 # Configure LDMS Telemetry
 
+Configure Lightweight Distributed Metric Service (LDMS) to collect in-band
+Telemetry from Slurm clusters.
+
 ## Overview
 
 LDMS collects system metrics such as CPU, memory, network, I/O, and Slurm job
@@ -328,6 +331,8 @@ LDMS metrics are routed to VictoriaMetrics through the Vector-LDMS bridge.
     ```promql
     {__name__=~"ldms_.*"}
     ```
+
+    ![LDMS metrics in VMUI](../../assets/images/victoria_metrics_ldms_ui_login.png)
 
 ## Troubleshooting
 
