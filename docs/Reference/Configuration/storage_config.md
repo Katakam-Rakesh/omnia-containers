@@ -62,6 +62,13 @@ mount_params:
     fs_type: "nfs"
     mnt_opts: "nosuid,rw,sync,hard"
 
+  # PowerVault iSCSI storage - block device with XFS
+  powervault_iscsi:
+    fs_type: "xfs"
+    mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
+    dump_freq: "0"
+    fsck_pass: "0"
+
 powervault_config:
   - name: powervault1
     ip:
@@ -106,7 +113,6 @@ is supported or required.
     - [Storage Requirements](../../Reference/../Reference/ClusterRequirements/storage_requirements.md) -- Storage sizing and prerequisites.
     - [Storage](../SupportMatrix/storage.md) -- Supported storage platforms.
     - [Disk Space](../../Reference/../Reference/ClusterRequirements/disk_space.md) -- Disk space requirements.
-
 
 
 

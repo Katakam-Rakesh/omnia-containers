@@ -178,7 +178,9 @@ slurm_cluster:
 
 ### Merge behavior (skip_merge)
 
-By default, Omnia merges user-provided configurations with defaults to produce a complete configuration. Set `skip_merge: true` to deploy file-based configurations directly without merging:
+By default, Omnia merges user-provided configurations with defaults to produce
+a complete configuration. Set `skip_merge: true` when file-path entries in
+`config_sources` must replace the generated defaults:
 
 ```yaml title="File: omnia_config.yml"
 slurm_cluster:
@@ -196,9 +198,12 @@ slurm_cluster:
 
     When `skip_merge: true` is set:
 
-    - Only file-based `config_sources` are supported (not parameter-based).
-    - The provided configuration file must be complete and valid.
-    - Omnia does not supplement missing values from defaults.
+    - A file-path value is processed without the generated defaults. The
+      supplied file must therefore be complete and valid.
+    - Inline parameter mappings remain supported and continue to merge with
+      generated defaults.
+    - A single `config_sources` mapping may contain both forms. Use a file path
+      for each configuration that must replace its defaults.
 
 ### Configuration validation
 
@@ -236,7 +241,6 @@ Confirm that the parameter values match your custom or default configuration.
 - **Configuration validation fails**: Check that parameter names match the supported Slurm version. Review the error output for specific invalid parameters.
 - **Custom configuration not applied**: Verify the file path in
   `config_sources` is correct and accessible from the OIM.
-
 
 
 

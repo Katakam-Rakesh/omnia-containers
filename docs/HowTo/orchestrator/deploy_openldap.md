@@ -43,8 +43,8 @@ OpenLDAP selection is catalog-driven. There is no `ldap_enabled` input and no
     ldap_connection_type: "TLS"
     ```
 
-   To configure Kubernetes nodes as OpenLDAP clients as well, replace the
-   Kubernetes bolt-on list in `omnia_config.yml` and include `openldap`:
+    To configure Kubernetes nodes as OpenLDAP clients as well, replace the
+    Kubernetes bolt-on list in `omnia_config.yml` and include `openldap`:
 
     ```yaml title="omnia_config.yml"
     orchestrator:
@@ -55,8 +55,8 @@ OpenLDAP selection is catalog-driven. There is no `ldap_enabled` input and no
           - openldap
     ```
 
-   The override replaces the Kubernetes default list. OpenLDAP client
-   configuration still runs only when the catalog enables OpenLDAP.
+    The override replaces the Kubernetes default list. OpenLDAP client
+    configuration still runs only when the catalog enables OpenLDAP.
 
 3. Run the precheck. When OpenLDAP is enabled and its credential file
    is absent, the precheck reports that the credentials will be collected in

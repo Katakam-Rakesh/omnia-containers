@@ -31,7 +31,7 @@ established between the management node and the following entities:
 - `slurm_control_node`
 - `slurm_node`
 - `login_node`
-- `service_kube_control_node`
+- `service_kube_control_plane`
 - `service_kube_node`
 
 ## Authentication
@@ -95,7 +95,6 @@ Credential collection depends on the enabled service or workflow:
 Credentials with the same variable name in different domain files are separate.
 For example, the Orchestrator, Telemetry, and Utils domains maintain their own
 `bmc_username` and `bmc_password` values.
-
 
 
 

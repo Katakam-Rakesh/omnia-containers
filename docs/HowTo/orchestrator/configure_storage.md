@@ -31,18 +31,20 @@ operating-system, version, and architecture suffixes. Always copy the exact
 
 | Functional group name | Role |
 | --- | --- |
-| `slurm_control_node_rhel_10_0_x86_64` | Slurm controller (`slurmctld`, `slurmdbd`) |
-| `slurm_node_rhel_10_0_x86_64` | Slurm compute node (x86_64) |
-| `slurm_node_rhel_10_0_aarch64` | Slurm compute node (AArch64) |
-| `login_node_rhel_10_0_x86_64` | Login/SSH access node (x86_64) |
-| `login_node_rhel_10_0_aarch64` | Login/SSH access node (AArch64) |
-| `login_compiler_node_rhel_10_0_x86_64` | Login node with compiler toolchain (x86_64) |
-| `login_compiler_node_rhel_10_0_aarch64` | Login node with compiler toolchain (AArch64) |
-| `service_kube_control_plane_first_rhel_10_0_x86_64` | First Kubernetes control-plane node after Orchestrator normalization |
-| `service_kube_control_plane_rhel_10_0_x86_64` | Additional Kubernetes control-plane node |
-| `service_kube_node_rhel_10_0_x86_64` | Kubernetes worker node |
 | `os_rhel_10_0_x86_64` | Generic OS node (x86_64) |
+| `slurm_control_node_rhel_10_0_x86_64` | Slurm controller (`slurmctld`, `slurmdbd`) |
+| `login_node_rhel_10_0_x86_64` | Login/SSH access node (x86_64) |
+| `service_kube_control_plane_rhel_10_0_x86_64` | Kubernetes control-plane node |
+| `service_kube_node_rhel_10_0_x86_64` | Kubernetes worker node |
 | `os_rhel_10_0_aarch64` | Generic OS node (AArch64) |
+| `slurm_node_rhel_10_0_aarch64` | Slurm compute node (AArch64) |
+| `login_compiler_node_rhel_10_0_aarch64` | Login node with compiler toolchain (AArch64) |
+
+During provisioning, Orchestrator internally renames the first control-plane
+group to `service_kube_control_plane_first_rhel_10_0_x86_64`. That internal
+name is not a catalog entry and must not be placed in the PXE mapping file.
+Other supplied catalogs can define additional role-and-architecture
+combinations; use only names supported by the active catalog.
 
 ### Prefix matching examples
 
@@ -69,6 +71,9 @@ operating-system, version, and architecture suffixes. Always copy the exact
 - VAST storage appliance configured separately with NFS exports and access
   policies, for VAST mounts. The Telemetry VAST guide configures metrics and
   log collection; it does not configure the storage appliance.
+- For VAST mounts, select a with-VAST catalog that supplies the `vastnfs`
+  package for every targeted architecture. The shipped default catalog is a
+  no-VAST catalog and does not contain that client package.
 - iSCSI initiator setup and network connectivity to the PowerVault controllers, for PowerVault volumes.
 - Functional group names defined in the PXE mapping file, to target mounts, swap, and PowerVault entries to specific node groups. See [PXE Mapping File](../../Reference/SampleFiles/pxe_mapping_file.md).
 
@@ -415,7 +420,6 @@ swap:
     - [Configure VAST Telemetry](../Telemetry/configure_vast.md) -- Metrics
       and log collection from a configured VAST appliance.
     - [PXE Mapping File](../../Reference/SampleFiles/pxe_mapping_file.md) -- Functional groups and `GROUP_NAME` values.
-
 
 
 

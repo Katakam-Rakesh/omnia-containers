@@ -72,17 +72,19 @@ Discovery generates these role-and-architecture names:
 
 The default RHEL 10.0 catalog uses the corresponding version-qualified names:
 
+- `os_rhel_10_0_x86_64`
+- `slurm_control_node_rhel_10_0_x86_64`
+- `login_node_rhel_10_0_x86_64`
 - `service_kube_control_plane_rhel_10_0_x86_64`
 - `service_kube_node_rhel_10_0_x86_64`
-- `login_node_rhel_10_0_x86_64`
-- `login_node_rhel_10_0_aarch64`
-- `login_compiler_node_rhel_10_0_x86_64`
-- `login_compiler_node_rhel_10_0_aarch64`
-- `slurm_control_node_rhel_10_0_x86_64`
-- `slurm_node_rhel_10_0_x86_64`
-- `slurm_node_rhel_10_0_aarch64`
-- `os_rhel_10_0_x86_64`
 - `os_rhel_10_0_aarch64`
+- `slurm_node_rhel_10_0_aarch64`
+- `login_compiler_node_rhel_10_0_aarch64`
+
+The source templates also support `login_node_aarch64`,
+`login_compiler_node_x86_64`, and `slurm_node_x86_64` roles. To select one of
+those role-and-architecture combinations, use a catalog that defines it and
+build the corresponding image before provisioning.
 
 Orchestrator accepts either form for catalog-managed roles. It matches the
 role and architecture to the active catalog; when the mapping includes an
@@ -90,7 +92,12 @@ operating-system/version segment, that segment must also match. Other catalog
 variants can use different operating-system and version segments. Confirm that
 Image Build Manager produced an image for every selected role and architecture.
 
-## Sample x86_64 mapping
+## Sample x86_64 mapping for a custom catalog
+
+This sample illustrates the source-supported x86_64 roles. The active catalog
+must define every listed role-and-architecture combination; the shipped
+default catalog does not include x86_64 Slurm compute or compiler-login
+layers.
 
 ```csv title="File: <ORCHESTRATOR_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
@@ -102,20 +109,24 @@ service_kube_control_plane_x86_64,grp3,ABFG79,,nid005,02:00:00:00:01:05,172.16.1
 os_x86_64,grp6,ABEF56,,nid006,02:00:00:00:01:06,172.16.107.60,02:00:00:00:02:06,172.17.107.60,,
 ```
 
-In this example, `ABFL82` is the service Kubernetes worker in `grp1` and is
-therefore the parent service tag for the Slurm node in the same group.
+## Sample default mixed-architecture mapping
 
-## Sample mixed-architecture mapping
+The following sample uses only role-and-architecture combinations supplied by
+the default RHEL 10.0 catalog.
 
 ```csv title="File: <ORCHESTRATOR_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
-service_kube_node_x86_64,grp1,ABFL82,,nid001,02:00:00:00:11:01,172.16.107.56,02:00:00:00:12:01,172.17.107.56,,
-slurm_node_aarch64,grp1,ABCD34,ABFL82,nid002,02:00:00:00:11:02,172.16.107.43,02:00:00:00:12:02,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
-login_compiler_node_aarch64,grp8,ABCD78,,nid003,02:00:00:00:11:03,172.16.107.41,02:00:00:00:12:03,172.17.107.41,InfiniBand.PCIe.Slot.8-1,192.168.0.103
-login_node_aarch64,grp9,ABFG78,,nid004,02:00:00:00:11:04,172.16.107.42,02:00:00:00:12:04,172.17.107.42,NIC.InfiniBand.1-1,192.168.0.104
-service_kube_control_plane_x86_64,grp3,ABFG79,,nid005,02:00:00:00:11:05,172.16.107.53,02:00:00:00:12:05,172.17.107.53,,
-os_aarch64,grp7,ABEF78,,nid006,02:00:00:00:11:06,172.16.107.61,02:00:00:00:12:06,172.17.107.61,,
+slurm_control_node_x86_64,grp0,ABCD12,,nid001,02:00:00:00:11:01,172.16.107.52,02:00:00:00:12:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
+service_kube_node_x86_64,grp1,ABFL82,,nid002,02:00:00:00:11:02,172.16.107.56,02:00:00:00:12:02,172.17.107.56,,
+slurm_node_aarch64,grp1,ABCD34,ABFL82,nid003,02:00:00:00:11:03,172.16.107.43,02:00:00:00:12:03,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
+login_compiler_node_aarch64,grp8,ABCD78,,nid004,02:00:00:00:11:04,172.16.107.41,02:00:00:00:12:04,172.17.107.41,InfiniBand.PCIe.Slot.8-1,192.168.0.103
+login_node_x86_64,grp9,ABFG78,,nid005,02:00:00:00:11:05,172.16.107.42,02:00:00:00:12:05,172.17.107.42,NIC.InfiniBand.1-1,192.168.0.104
+service_kube_control_plane_x86_64,grp3,ABFG79,,nid006,02:00:00:00:11:06,172.16.107.53,02:00:00:00:12:06,172.17.107.53,,
+os_aarch64,grp7,ABEF78,,nid007,02:00:00:00:11:07,172.16.107.61,02:00:00:00:12:07,172.17.107.61,,
 ```
+
+Here, `ABFL82` is the service Kubernetes worker in `grp1` and is therefore the
+parent service tag for the Slurm compute node in the same group.
 
 ## Mapping rules
 

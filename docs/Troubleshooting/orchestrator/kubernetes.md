@@ -79,12 +79,13 @@ Issues related to the Kubernetes service cluster, including image pulls, pod sch
 
     **Validation**
 
-        ```bash title="Run on: K8s control plane"
-        kubectl get pods -n <namespace> -o wide
-        kubectl get events -n <namespace> --sort-by=.metadata.creationTimestamp
-        ```
+    ```bash title="Run on: K8s control plane"
+    kubectl get pods -n <namespace> -o wide
+    kubectl get events -n <namespace> --sort-by=.metadata.creationTimestamp
+    ```
 
-        Confirm that the pod becomes ready, restart counts stop increasing, PVCs remain Bound, and no new warning events appear.
+    Confirm that the pod becomes ready, restart counts stop increasing, PVCs
+    remain Bound, and no new warning events appear.
 
 ## Cluster Nodes Reboot
 

@@ -223,7 +223,7 @@ functional_groups:
     cluster_name: "slurm_cluster"
     group:
       - grp0
-  - name: "slurm_node_rhel_10_0_x86_64"
+  - name: "slurm_node_rhel_10_0_aarch64"
     cluster_name: "slurm_cluster"
     group:
       - grp1

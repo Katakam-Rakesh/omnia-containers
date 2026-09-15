@@ -33,8 +33,9 @@ When service Kubernetes is configured, set `deployment: true` on exactly one
 `deployment: false`, but Orchestrator deploys only the selected item. Input
 validation rejects configurations with no selected cluster or with multiple
 entries marked `true`. When the PXE mapping selects Kubernetes functional
-groups, the current precheck also requires every item retained in this list to
-define a nonempty `nfs_storage_name` that exists in `storage_config.yml`.
+groups, the item selected with `deployment: true` must define a nonempty
+`nfs_storage_name` that exists in `storage_config.yml`. Retained entries with
+`deployment: false` are not deployed and need not define that storage name.
 
 For the deployed cluster, `pod_external_ip_range`, `k8s_service_addresses`,
 and `k8s_pod_network_cidr` must be valid, mutually non-overlapping IPv4
@@ -125,7 +126,6 @@ orchestrator:
     - [HA Config](high_availability_config.md) -- Kubernetes high-availability settings.
     - [Slurm Storage Architecture](../../HowTo/orchestrator/deploy_slurm.md#slurm-storage-architecture) -- How NFS and VAST mounts are used by Slurm.
     - [K8s Storage Architecture](../../HowTo/orchestrator/deploy_kubernetes.md#k8s-storage-architecture) -- How NFS mounts are used by service K8s.
-
 
 
 

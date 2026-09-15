@@ -52,7 +52,7 @@ and configure the `ib_network` section under `Networks`:
 Networks:
 - admin_network:
     oim_nic_name: "eno1"
-    subnet: "172.16.0.0"
+    subnet: "172.16.107.0"
     netmask_bits: "24"
     primary_oim_admin_ip: "172.16.107.254"
     primary_oim_bmc_ip: ""
@@ -71,15 +71,14 @@ Networks:
 | Parameter      | Description                                                  |
 |----------------|--------------------------------------------------------------|
 | `subnet`       | Network address for the IB subnet (e.g., `192.168.0.0`)     |
-| `netmask_bits` | CIDR prefix length for the IB network. Set it to the primary admin-network prefix length because the current node configuration uses that shared value. |
+| `netmask_bits` | CIDR prefix length for the IB network. It can differ from the primary admin-network prefix length. |
 | `dns`          | List of DNS server IPs to configure on the IB interface      |
 
 !!! caution
-    The IB subnet must not overlap the admin network range. The current input
-    validator rejects overlap but does not enforce equal prefix lengths. Set
-    the IB and primary admin `netmask_bits` values to the same prefix because
-    the generated node configuration currently applies the admin prefix to the
-    IB interface.
+    The IB subnet must not overlap an admin network range. Orchestrator applies
+    the IB-specific `netmask_bits` value to node InfiniBand interfaces, so the
+    IB and admin networks may use different prefix lengths. Keep each `IB_IP`
+    inside the configured IB subnet.
 
 ### Step 2: Add IB columns to the PXE mapping file
 
@@ -304,7 +303,6 @@ Only devices with `Link layer: InfiniBand` are used by Omnia.
     ```bash title="Run on: compute node"
     perfquery
     ```
-
 
 
 
