@@ -78,11 +78,8 @@ The domain entry point exposes these lifecycle operations:
 The `upgrade` and `rollback` operations are placeholders in the current source
 and do not perform component lifecycle changes.
 
-The source-specific verification pages repeat the checks independently when a
-deployment must be inspected later: [iDRAC](verify_idrac.md),
-[LDMS](verify_ldms.md), [OME](verify_ome.md),
-[PowerScale](verify_powerscale.md), [UFM](verify_ufm.md),
-[VAST](verify_vast.md), and [Vector-LDMS](verify_vector_ldms.md).
+The source-specific guides include commands for inspecting deployed resources
+and verifying enabled data paths.
 
 ### Contract reference
 

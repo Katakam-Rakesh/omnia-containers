@@ -58,7 +58,6 @@ or unsupported results.
 ## Next steps
 
 - Complete [Configure iDRAC Telemetry](configure_idrac.md).
-- Use [Verify iDRAC Telemetry](verify_idrac.md) after deployment.
 
 ## Troubleshooting
 

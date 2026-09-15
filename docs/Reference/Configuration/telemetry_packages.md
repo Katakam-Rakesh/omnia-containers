@@ -13,15 +13,15 @@ $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/telemetry_packages.yml
 
 | Parameter | Type | Required | Default or description |
 |---|---|---|---|
-| `install_mode` | string | No | `offline` or `online`; default is `offline`. |
-| `repo_url` | string | Conditional | Pulp base URL required by runtime validation in offline mode. |
-| `k8s_cluster_mount` | absolute path | Yes | Kubernetes NFS mount where Telemetry packages are staged. |
-| `slurm_cluster_mount` | string | Yes | Slurm mount used for LDMS configuration and data. |
-| `container_registry` | string | No | Optional registry prefix override for air-gapped deployments. |
-| `images` | object | No | Image references grouped by subsystem. |
-| `helm_charts` | object | No | Chart entries containing `package`, `filename`, and `online_url`. |
-| `git_repos` | object | No | Repository entries containing `package`, `filename`, `online_url`, and `version`. |
-| `pip_modules` | object | No | Python module entries containing a `version`. |
+| `install_mode` | string | Mandatory | `offline` or `online`; default is `offline`. |
+| `repo_url` | string | Optional | Pulp base URL required by runtime validation in offline mode. |
+| `k8s_cluster_mount` | absolute path | Mandatory | Kubernetes NFS mount where Telemetry packages are staged. |
+| `slurm_cluster_mount` | string | Mandatory | Slurm mount used for LDMS configuration and data. |
+| `container_registry` | string | Optional | Optional registry prefix override for air-gapped deployments. |
+| `images` | object | Conditional | Image references grouped by subsystem. |
+| `helm_charts` | object | Conditional | Chart entries containing `package`, `filename`, and `online_url`. |
+| `git_repos` | object | Conditional | Repository entries containing `package`, `filename`, `online_url`, and `version`. |
+| `pip_modules` | object | Conditional | Python module entries containing a `version`. |
 
 For offline installation, artifact paths are derived from `repo_url` and the
 package metadata. For online installation, the source uses the configured

@@ -1,12 +1,110 @@
 # Configure PowerScale Telemetry
 
+Configure deployment of PowerScale Telemetry to collect storage performance
+metrics and logs from Dell PowerScale storage nodes.
+
 ## Overview
 
-PowerScale metrics use the existing PowerScale CSI deployment, CSM Metrics
-PowerScale, an OTEL Collector, the shared `vmagent`, and VictoriaMetrics.
-PowerScale logs use the shared VLAgent syslog endpoint and VictoriaLogs. Omnia
-installs or upgrades the `karavi-observability` Helm release; it does not deploy
-or configure the PowerScale system itself.
+PowerScale Telemetry collects storage performance metrics and logs. It includes
+the following components:
+
+### Components
+
+- **CSM Metrics for PowerScale** -- Queries the OneFS API and emits metrics to
+  an OpenTelemetry Collector.
+- **OpenTelemetry Collector** -- Receives metrics from CSM Metrics and exposes
+  a Prometheus endpoint for scraping.
+- **vmagent** -- Scrapes the OpenTelemetry Collector Prometheus endpoint over
+  TLS and forwards metrics to VictoriaMetrics.
+- **VLAgent** -- Receives PowerScale syslog events and forwards them to
+  VictoriaLogs.
+- **CSI Driver for Dell PowerScale** -- Required for Omnia-orchestrated
+  deployment mode.
+- **cert-manager** -- Required for TLS certificate management in
+  Omnia-orchestrated mode.
+
+### Data flow
+
+```text
+PowerScale nodes → CSM Metrics PowerScale → OTEL Collector → vmagent (shared) → VictoriaMetrics
+PowerScale nodes → syslog → VLAgent → VictoriaLogs
+```
+
+### Supported metrics and logs
+
+Metrics:
+
+| Category | Metrics collected |
+|---|---|
+| Performance | Protocol-level IOPS (NFS, SMB, S3), throughput (bytes/s), and read/write latency |
+| Capacity | Total cluster capacity, used capacity, available capacity, and per-node capacity |
+| Health | Node online/offline status, disk health, cluster rebalance status, and protection group status |
+| Topology | Cluster node membership, node roles, interconnect layout, and protection domain mapping |
+
+For the complete list of PowerScale Telemetry metrics, see the
+[PowerScale Metrics reference](../../Reference/Metrics/powerscale_metrics.md)
+and [Dell CSM Observability PowerScale metrics](https://dell.github.io/csm-docs/docs/concepts/observability/metrics/powerscale/).
+
+Logs:
+
+| Category | Logs collected |
+|---|---|
+| System Events | Capacity warnings, disk failures, node state changes, and protocol errors |
+| Labels | Events labeled with host or cluster, severity, and facility |
+
+### Health monitor metrics
+
+When the CSI PowerScale health monitor is enabled with
+`controller.healthMonitor.enabled: true` and `node.healthMonitor.enabled: true`
+in the CSI PowerScale `values.yaml`, Omnia collects the following additional
+health metrics.
+
+PV metrics:
+
+- `powerscale_volume_status` -- PV phase (`1=Bound`, `0=Other`), labeled by
+  `pv_name` and `phase`.
+- `powerscale_volume_count` -- Total PowerScale PVs by phase.
+- `powerscale_volume_capacity_bytes` -- PV capacity in bytes.
+- `powerscale_volume_info` -- PV metadata, including name, phase, storage
+  class, reclaim policy, access modes, volume handle, PVC name, and namespace.
+- `powerscale_volume_age_seconds` -- Seconds since PV creation.
+
+PVC metrics:
+
+- `powerscale_pvc_status_phase` -- PVC phase (`1=Bound`, `0=Other`), labeled by
+  PVC name, namespace, and phase.
+- `powerscale_pvc_requested_bytes` -- Requested PVC storage in bytes.
+- `powerscale_pvc_count` -- Total PowerScale PVCs by phase.
+
+Health event metrics:
+
+- `powerscale_volume_health_abnormal` -- Volume condition (`1=abnormal`,
+  `0=healthy`), labeled by PVC name, namespace, and PV name.
+- `powerscale_volume_abnormal_events_total` -- Total
+  `VolumeConditionAbnormal` events.
+- `powerscale_node_failure_events_total` -- Total node failure events.
+
+Node metrics:
+
+- `powerscale_node_ready` -- Node Ready condition (`1=True`, `0=False`).
+
+Storage class metrics:
+
+- `powerscale_storageclass_info` -- StorageClass metadata, including the
+  provisioner, reclaim policy, volume binding mode, and volume expansion flag.
+
+Aggregate summary:
+
+- `powerscale_total_capacity_bytes` -- Total capacity of all PowerScale PVs in
+  bytes.
+
+### TLS and authentication
+
+All metric scraping between the OpenTelemetry Collector and VictoriaMetrics
+uses TLS encryption. Authentication uses Kubernetes service-account tokens.
+Mutual TLS is not required because the PowerScale-side endpoint does not
+validate client identity through certificate exchange. TLS is enforced for all
+off-cluster communications.
 
 ## Prerequisites
 
@@ -25,7 +123,8 @@ or configure the PowerScale system itself.
 
 ## Procedure
 
-1. Configure the PowerScale source and its required metrics target:
+1. Configure the PowerScale source and its required metrics target in the
+   `telemetry_config.yml` input file:
 
     ```yaml
     telemetry_sources:
@@ -37,8 +136,15 @@ or configure the PowerScale system itself.
 
     powerscale_configurations:
       otel_collector_storage_size: "5Gi"
-      csm_observability_values_file_path: "/path/to/values.yaml"
+      csm_observability_values_file_path: ""
     ```
+
+    !!! note
+
+        The default value of `csm_observability_values_file_path` is empty.
+        When PowerScale metrics are enabled, replace it with the absolute path
+        to an existing CSM Observability `values.yaml` file before running
+        validation or deployment.
 
 2. To prepare PowerScale log ingestion as well, keep metrics enabled, set
    `logs_enabled: true`, and add `victoria_logs` to `collection_targets`.
@@ -87,8 +193,6 @@ query VictoriaMetrics to confirm that PowerScale metrics are being ingested.
 
 ## Next steps
 
-- Use [Verify PowerScale Telemetry](verify_powerscale.md) for the repeatable
-  resource checks.
 - Use [Export Victoria Connection Details](configure_external_victoria.md) to
   obtain write, query, and syslog endpoints.
 
