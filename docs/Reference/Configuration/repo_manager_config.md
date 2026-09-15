@@ -51,6 +51,9 @@ A registry requires `base_url`, `port`, and `auth`. `auth.type` is `none` or
 Manager credential file. The optional `tls` mapping supports `ca_path`,
 `client_cert_path`, `client_key_path`, and `insecure`.
 
+A catalog image source that uses the `registry` field must have a `name` that
+starts with the configured registry authority, i.e. `<host>[:<port>]/<image_path>`.
+
 ## Usage example
 
 ```yaml title="File: /opt/omnia/repo_manager/input/project_default/repo_manager_config.yml"

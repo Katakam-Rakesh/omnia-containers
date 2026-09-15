@@ -58,8 +58,10 @@ duplicate component references.
 - Set the required `SYSTEM_ADMIN_NIC_IPV4` environment variable and follow
   [Select or update the catalog](../main/update_catalog.md) to configure
   `CATALOG_FILE_PATH`.
-- Edit `repo_manager_config.yml` and `repo_manager_endpoint_config.yml` under
-  `<OMNIA_SOURCE_PATH>/src/repo_manager/input/` before staging the inputs.
+- Edit `repo_manager_config.yml` and `repo_manager_endpoint_config.yml` in
+  `$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/`
+  (default `/opt/omnia/repo_manager/input/project_default/`). If the staged
+  files do not exist, run `domain-init.sh` from `src/repo_manager/` first.
 - Identify the existing catalog functional layer and group that should own the
   package.
 - Ensure each referenced RPM repository resolves under the matching catalog
@@ -95,6 +97,7 @@ duplicate component references.
     | Content | Format |
     |---|---|
     | RPM | `key, rpm, package_name, reponame` |
+    | RPM repository | `key, rpm_repo, package_name, reponame` |
     | Tarball | `key, tarball, artifact_name, https_url` |
     | Container image | `key, image, registry/image_path, registry, tag` |
 
