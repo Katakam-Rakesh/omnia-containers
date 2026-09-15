@@ -61,11 +61,6 @@ Orchestrator input directory.
 - Plan the iDRAC hostnames and exact, case-sensitive OME static-group names.
   See [Plan iDRAC hostnames](discover_nodes.md#plan-idrac-hostnames) and
   [Plan OME static groups](discover_nodes.md#plan-ome-static-groups).
-- For predictable automatic parent-service assignment in a deployment with N
-  Scalable Units, Dell recommends planning N dedicated
-  `service_kube_node_x86_64` servers, with one server in each Scalable Unit.
-  Discovery does not enforce this topology. See [Plan Scalable Unit service
-  nodes](discover_nodes.md#plan-scalable-unit-service-nodes).
 - Make credentials for an OME administrator, or an account with equivalent
   inventory-read permissions, available through the Discovery credential
   workflow. See [Network connectivity

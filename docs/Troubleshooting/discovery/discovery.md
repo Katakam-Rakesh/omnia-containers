@@ -94,11 +94,9 @@ status file is updated, so an existing file can describe an earlier run.
     - Do not use the generated `HOSTNAME` to diagnose this value. Discovery
       generates `HOSTNAME` as an `nid` sequence and derives only `GROUP_NAME`
       from the OME-reported iDRAC hostname.
-    - For a Slurm compute node, provide a `service_kube_node_x86_64` whose
-      iDRAC hostname resolves to the same `GROUP_NAME`. Discovery uses that
-      server's service tag as `PARENT_SERVICE_TAG`.
-    - Review and correct the generated mapping before handing it to
-      Orchestrator.
+    - Review and correct optional `PARENT_SERVICE_TAG` metadata before handing
+      the generated mapping to Orchestrator. Orchestrator does not require it
+      or validate it against `GROUP_NAME`.
     - See [Plan iDRAC
       hostnames](../../HowTo/discovery/discover_nodes.md#plan-idrac-hostnames)
       for the complete naming convention.

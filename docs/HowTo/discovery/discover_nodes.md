@@ -158,8 +158,8 @@ or absent in the credential file.
 
 Discovery uses the iDRAC hostname reported by OME to derive the physical
 `GROUP_NAME` written to the PXE mapping file. Configure consistent iDRAC
-hostnames before running Discovery so that servers in the same Scalable Unit
-resolve to the same group.
+hostnames before running Discovery so that generated physical-group values
+match the intended topology.
 
 Use the following complete naming convention when encoding the server's
 physical location:
@@ -208,19 +208,15 @@ validate the entire hostname or those ranges.
     OME can report an instrumentation name, a DNS name, or its device name for
     the iDRAC. Verify the value visible in OME before running Discovery. If the
     reported hostname does not contain a recognized `SU...R...` sequence,
-    Discovery uses `grp0`. An incorrect `GROUP_NAME` can also prevent or
-    misdirect `PARENT_SERVICE_TAG` assignment for Slurm compute nodes.
+    Discovery uses `grp0`. Review every generated `GROUP_NAME` before using the
+    mapping as Orchestrator input.
 
-### Plan Scalable Unit service nodes
+### Review generated parent metadata
 
-For predictable automatic parent-service assignment in a deployment with N
-Scalable Units, Dell recommends N dedicated `service_kube_node_x86_64`
-servers, with one server in each Scalable Unit. The service Kubernetes worker
-and the Slurm compute nodes associated with that Scalable Unit should resolve
-to the same `GROUP_NAME`. Discovery then uses the worker's service tag as
-`PARENT_SERVICE_TAG` for the `slurm_node_x86_64` and
-`slurm_node_aarch64` rows in that group. Discovery does not require one worker
-per Scalable Unit.
+Discovery may populate optional `PARENT_SERVICE_TAG` metadata in generated
+Slurm compute rows. This is Discovery generation behavior, not an Orchestrator
+grouping requirement. Orchestrator does not require a parent value or validate
+it against `GROUP_NAME`; review, edit, or clear it as appropriate.
 
 A service Kubernetes cluster must include `service_kube_node_x86_64` in the
 mapping. The cluster-wide minimum also includes three
@@ -231,12 +227,9 @@ and [Deploy Service Kubernetes](../orchestrator/deploy_kubernetes.md).
 
 !!! warning
 
-    Discovery does not validate the number of service Kubernetes workers in
-    each Scalable Unit. If a group has no `service_kube_node_x86_64`, Discovery
-    leaves `PARENT_SERVICE_TAG` empty for its Slurm compute nodes. If a group
-    has multiple service Kubernetes workers, Discovery uses the first one in
-    the generated mapping. Review these relationships before copying the
-    mapping to the Orchestrator input directory.
+    Review every generated parent value before copying the mapping to the
+    Orchestrator input directory. Discovery-generated parent metadata does not
+    create an Orchestrator validation requirement.
 
 ### Plan OME static groups
 
@@ -296,11 +289,9 @@ A server without a static-group assignment is placed in
 group is skipped when the mapping file is generated, although it remains in
 the discovery report.
 
-For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery populates
-`PARENT_SERVICE_TAG` from a `service_kube_node_x86_64` server with the same
-derived `GROUP_NAME`. If you follow the recommended one-worker-per-Scalable-
-Unit topology, verify these generated relationships as described in [Plan
-Scalable Unit service nodes](#plan-scalable-unit-service-nodes).
+For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery may populate
+optional `PARENT_SERVICE_TAG` metadata. Review, edit, or clear that value as
+appropriate before using the mapping as Orchestrator input.
 
 ## Procedure
 
@@ -606,7 +597,7 @@ empty](#infiniband-fields-are-empty).
     | `FUNCTIONAL_GROUP_NAME` | Supported OME static-group name, or `slurm_node_aarch64` when the server has no assignment. |
     | `GROUP_NAME` | `SU` identifier derived from the iDRAC hostname, or `grp0` when no identifier is found. |
     | `SERVICE_TAG` | Service tag reported by OME. |
-    | `PARENT_SERVICE_TAG` | Service tag of a `service_kube_node_x86_64` in the same group for Slurm compute-node roles; otherwise empty. |
+    | `PARENT_SERVICE_TAG` | Optional parent-node service tag that Discovery may populate for a Slurm compute row; otherwise empty. Review this value before using the mapping. |
     | `HOSTNAME` | `nid` plus a three-digit sequence number based on discovery order. The supported range is `nid000` through `nid999`; automatic generation normally begins with `nid001`, and skipped devices can create gaps. |
     | `ADMIN_MAC` | MAC of the first candidate that passes the current `NicId` filter and has link status `Up`; otherwise the first usable candidate that passes the filter. Confirm that this is the intended admin/PXE interface and not a management interface. |
     | `ADMIN_IP` | Admin subnet's first two octets combined with the BMC IP's last two octets. |
@@ -655,7 +646,7 @@ empty](#infiniband-fields-are-empty).
 
 1. Review and, where necessary, edit `HOSTNAME`, `FUNCTIONAL_GROUP_NAME`, and
    `GROUP_NAME` in the timestamped mapping file. Also confirm the generated
-   service tags, parent relationships, MAC addresses, and IP addresses.
+   service tags, optional parent metadata, MAC addresses, and IP addresses.
 
 2. Without BuildStreaM, copy the reviewed mapping to the Orchestrator input
    directory:
@@ -798,14 +789,10 @@ iDRAC hostname reported by OME only to derive `GROUP_NAME`.
 3. Correct the iDRAC hostname, refresh the server inventory in OME, and rerun
    Discovery. See [Plan iDRAC hostnames](#plan-idrac-hostnames) for the complete
    convention.
-4. If automatic parent-service assignment is required for a Slurm compute-node
-   role, use the recommended topology in which one
-   `service_kube_node_x86_64` server resolves to the same `GROUP_NAME`.
-   Otherwise, `PARENT_SERVICE_TAG` remains empty or can identify the wrong
-   service node.
-5. Review and, if necessary, edit the generated `HOSTNAME`, `GROUP_NAME`, and
+4. Review and, if necessary, edit the generated `HOSTNAME`, `GROUP_NAME`, and
    `PARENT_SERVICE_TAG` before copying the mapping to the Orchestrator input
-   directory.
+   directory. Orchestrator does not require `PARENT_SERVICE_TAG` or validate it
+   against `GROUP_NAME`.
 
 ### OME discovery execution fails
 

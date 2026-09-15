@@ -88,8 +88,8 @@ Edit `pxe_mapping_file.csv` in the same project input directory and add the
 ```csv title="File: pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
 slurm_control_node_rhel_10_0_x86_64,grp0,ABCD12,,ctrl-node1,02:00:00:00:01:01,172.16.107.52,02:00:00:00:02:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
-slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,compute-node1,02:00:00:00:01:02,172.16.107.43,02:00:00:00:02:02,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
-slurm_node_rhel_10_0_aarch64,grp2,ABFG34,ABKD88,compute-node2,02:00:00:00:01:03,172.16.107.44,02:00:00:00:02:03,172.17.107.44,NIC.InfiniBand.1-3,192.168.0.102
+slurm_node_rhel_10_0_aarch64,grp1,ABCD34,,compute-node1,02:00:00:00:01:02,172.16.107.43,02:00:00:00:02:02,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
+slurm_node_rhel_10_0_aarch64,grp2,ABFG34,,compute-node2,02:00:00:00:01:03,172.16.107.44,02:00:00:00:02:03,172.17.107.44,NIC.InfiniBand.1-3,192.168.0.102
 service_kube_node_rhel_10_0_x86_64,grp5,ABFL82,,k8s-node1,02:00:00:00:01:04,172.16.107.56,02:00:00:00:02:04,172.17.107.56,,
 ```
 
@@ -303,7 +303,6 @@ Only devices with `Link layer: InfiniBand` are used by Omnia.
     ```bash title="Run on: compute node"
     perfquery
     ```
-
 
 
 

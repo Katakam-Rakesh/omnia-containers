@@ -216,7 +216,7 @@ groups:
   grp0:
     parent: ""
   grp1:
-    parent: "ABFL82"
+    parent: ""
 
 functional_groups:
   - name: "slurm_control_node_rhel_10_0_x86_64"
@@ -229,7 +229,9 @@ functional_groups:
       - grp1
 ```
 
-`groups` maps each PXE `GROUP_NAME` to its optional parent service tag.
+`groups` records each PXE `GROUP_NAME` and any optional parent metadata carried
+from the mapping. Orchestrator input validation does not require a parent value
+or verify a relationship between `PARENT_SERVICE_TAG` and `GROUP_NAME`.
 `functional_groups[].group` contains group names, not per-node inventory
 records. Node records remain in the PXE mapping and generated
 `orchestrator_inventory.yaml`.

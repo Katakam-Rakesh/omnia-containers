@@ -68,20 +68,12 @@ $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
 
 `ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
 
-For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery sets
-`PARENT_SERVICE_TAG` to the service tag of a
-`service_kube_node_x86_64` in the same `GROUP_NAME`. It leaves this field empty
-for other functional groups or when a matching service Kubernetes worker is
-not present.
-
-For predictable automatic parent-service assignment in a deployment with N
-Scalable Units, Dell recommends N dedicated `service_kube_node_x86_64`
-servers, with one server in each Scalable Unit. The worker and its associated
-Slurm compute nodes should resolve to the same `GROUP_NAME`. Discovery does not
-require or validate this topology. If a group contains multiple service
-Kubernetes workers, it uses the first worker in the generated mapping as the
-parent. Review every generated parent relationship before the mapping is
-handed to Orchestrator.
+For `slurm_node_x86_64` and `slurm_node_aarch64`, Discovery may populate
+optional `PARENT_SERVICE_TAG` metadata in generated rows. It otherwise leaves
+the field empty. This is Discovery generation behavior, not an Orchestrator
+input constraint. Orchestrator does not require a parent value or validate it
+against `GROUP_NAME`; review both values before handing the mapping to
+Orchestrator.
 
 ### `discovery_status.yml`
 

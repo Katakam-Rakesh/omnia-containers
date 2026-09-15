@@ -18,8 +18,6 @@ The mapping is an Orchestrator-owned input. Create it in either of these ways:
 - Collect the service tag, admin/PXE NIC MAC and IP, and any BMC and
   InfiniBand information required for each target node.
 - Plan the functional-group and physical-group assignments.
-- For a deployment with N Scalable Units, plan N dedicated
-  `service_kube_node_x86_64` servers, with one server in each Scalable Unit.
 - Ensure that an image exists for every functional group that Orchestrator
   will provision.
 
@@ -47,7 +45,7 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 | `FUNCTIONAL_GROUP_NAME` | Yes | Supported role name ending in `_x86_64` or `_aarch64`. Use either the Discovery-style role-and-architecture name or its version-qualified catalog form, as described below. |
 | `GROUP_NAME` | Yes | Scalable Unit or logical group identifier. |
 | `SERVICE_TAG` | No | Dell server service tag. When supplied, it must be alphanumeric and unique. Leave it empty when the inventory does not provide a service tag. |
-| `PARENT_SERVICE_TAG` | No | For a Slurm compute node paired with a service Kubernetes worker, the worker's service tag. Leave empty for other roles. |
+| `PARENT_SERVICE_TAG` | No | Optional parent-node service tag. Orchestrator does not require this value or validate it against `GROUP_NAME`. |
 | `HOSTNAME` | Yes | Unique node hostname without a domain suffix. |
 | `ADMIN_MAC` | Yes | Unique MAC address of the PXE NIC on the admin network. |
 | `ADMIN_IP` | Yes | Unique static IPv4 address in a configured admin subnet. |
@@ -102,8 +100,8 @@ layers.
 ```csv title="File: <ORCHESTRATOR_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
 slurm_control_node_x86_64,grp0,ABCD12,,nid001,02:00:00:00:01:01,172.16.107.52,02:00:00:00:02:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
-service_kube_node_x86_64,grp1,ABFL82,,nid002,02:00:00:00:01:02,172.16.107.56,02:00:00:00:02:02,172.17.107.56,,
-slurm_node_x86_64,grp1,ABCD34,ABFL82,nid003,02:00:00:00:01:03,172.16.107.43,02:00:00:00:02:03,172.17.107.43,InfiniBand.Slot.7-1,192.168.0.101
+service_kube_node_x86_64,grp2,ABFL82,,nid002,02:00:00:00:01:02,172.16.107.56,02:00:00:00:02:02,172.17.107.56,,
+slurm_node_x86_64,grp1,ABCD34,,nid003,02:00:00:00:01:03,172.16.107.43,02:00:00:00:02:03,172.17.107.43,InfiniBand.Slot.7-1,192.168.0.101
 login_compiler_node_x86_64,grp8,ABCD78,,nid004,02:00:00:00:01:04,172.16.107.41,02:00:00:00:02:04,172.17.107.41,InfiniBand.Slot.7-1,192.168.0.103
 service_kube_control_plane_x86_64,grp3,ABFG79,,nid005,02:00:00:00:01:05,172.16.107.53,02:00:00:00:02:05,172.17.107.53,,
 os_x86_64,grp6,ABEF56,,nid006,02:00:00:00:01:06,172.16.107.60,02:00:00:00:02:06,172.17.107.60,,
@@ -117,16 +115,13 @@ the default RHEL 10.0 catalog.
 ```csv title="File: <ORCHESTRATOR_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/pxe_mapping_file.csv"
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
 slurm_control_node_x86_64,grp0,ABCD12,,nid001,02:00:00:00:11:01,172.16.107.52,02:00:00:00:12:01,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
-service_kube_node_x86_64,grp1,ABFL82,,nid002,02:00:00:00:11:02,172.16.107.56,02:00:00:00:12:02,172.17.107.56,,
-slurm_node_aarch64,grp1,ABCD34,ABFL82,nid003,02:00:00:00:11:03,172.16.107.43,02:00:00:00:12:03,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
+service_kube_node_x86_64,grp2,ABFL82,,nid002,02:00:00:00:11:02,172.16.107.56,02:00:00:00:12:02,172.17.107.56,,
+slurm_node_aarch64,grp1,ABCD34,,nid003,02:00:00:00:11:03,172.16.107.43,02:00:00:00:12:03,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
 login_compiler_node_aarch64,grp8,ABCD78,,nid004,02:00:00:00:11:04,172.16.107.41,02:00:00:00:12:04,172.17.107.41,InfiniBand.PCIe.Slot.8-1,192.168.0.103
 login_node_x86_64,grp9,ABFG78,,nid005,02:00:00:00:11:05,172.16.107.42,02:00:00:00:12:05,172.17.107.42,NIC.InfiniBand.1-1,192.168.0.104
 service_kube_control_plane_x86_64,grp3,ABFG79,,nid006,02:00:00:00:11:06,172.16.107.53,02:00:00:00:12:06,172.17.107.53,,
 os_aarch64,grp7,ABEF78,,nid007,02:00:00:00:11:07,172.16.107.61,02:00:00:00:12:07,172.17.107.61,,
 ```
-
-Here, `ABFL82` is the service Kubernetes worker in `grp1` and is therefore the
-parent service tag for the Slurm compute node in the same group.
 
 ## Mapping rules
 
@@ -142,10 +137,9 @@ parent service tag for the Slurm compute node in the same group.
   empty for a row.
 - Keep every `ADMIN_IP` within the primary or additional admin subnets in the
   Orchestrator `network_spec.yml`.
-- For each Scalable Unit, assign its dedicated `service_kube_node_x86_64` and
-  associated Slurm compute nodes the same `GROUP_NAME`. Set each Slurm compute
-  node's `PARENT_SERVICE_TAG` to that worker's `SERVICE_TAG`.
-- Verify BMC addresses, service tags, parent relationships, and InfiniBand
+- Assign each node its intended `GROUP_NAME`. Populate `PARENT_SERVICE_TAG`
+  only when parent metadata is required; otherwise leave it empty.
+- Verify BMC addresses, service tags, optional parent metadata, and InfiniBand
   values manually. Validation does not prove that those values match the
   physical server.
 - Configure each target to boot from the NIC identified by `ADMIN_MAC`.
@@ -166,7 +160,7 @@ generates `nid` hostnames with three digits, and selects admin and InfiniBand
 interfaces from OME inventory.
 
 Always review the generated mapping. In particular, confirm its functional
-groups, group names, parent service tags, selected NICs, and derived IP
+groups, group names, optional parent metadata, selected NICs, and derived IP
 addresses before copying it to Orchestrator. Discovery-style role names may be
 retained; version-qualified names may also be used when they match the active
 catalog.
