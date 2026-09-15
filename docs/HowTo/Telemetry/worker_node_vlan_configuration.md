@@ -1,19 +1,58 @@
-# Prepare Worker-to-BMC Network Access
+# Worker Node VLAN Configuration for iDRAC Telemetry
 
 ## Overview
 
-When iDRAC Telemetry synchronizes its BMC inventory, it first delegates Redfish
-validation and telemetry enablement to the first service Kubernetes worker in
-the configured inventory. If that worker cannot be reached over SSH, it tries
-the second service worker when one exists, then falls back to the Kubernetes
-VIP. Each BMC must be reachable over HTTPS from the selected host.
+In multi-subnet deployments, Kubernetes control plane nodes and worker nodes
+can reside in different admin or PXE subnets. The iDRAC Telemetry service is
+deployed on Kubernetes worker nodes and collects metrics from all BMC endpoints
+in its configured `bmc_group_data.csv` runtime inventory. Use the `BMC_IP`
+column of Discovery's `bmc_pxe_mapping_file.csv` to identify the BMC networks
+that the workers must reach.
+
+The generated BMC mapping is available at:
+
+```text
+$OMNIA_DATA_PATH/discovery/output/$OMNIA_PROJECT_NAME/bmc_pxe_mapping_file.csv
+```
+
+See the [Telemetry domain contract](../../Reference/domain_contracts/telemetry_contract.md#bmc_pxe_mapping_filecsv)
+for the file contract and its relationship to `bmc_group_data.csv`.
+
+If one or more BMC networks are not directly reachable from the worker-node
+admin or PXE network, configure an additional VLAN-tagged interface and the
+required static routes on every Kubernetes worker node that can host Telemetry
+pods.
+
+When iDRAC Telemetry synchronizes its BMC inventory, it delegates Redfish
+validation and Telemetry enablement to the first reachable service Kubernetes
+worker in the configured inventory. If the first worker cannot be reached over
+SSH, it tries the second worker when one exists and then falls back to the
+Kubernetes VIP. Each BMC must be reachable over HTTPS from the selected host.
 
 The Telemetry source does not create VLAN interfaces or routes. Those settings
 must already provide the connectivity required by the iDRAC workflow.
 
+### When is this configuration required?
+
+Prepare the worker-node VLAN only when all the following conditions apply:
+
+- iDRAC Telemetry is enabled.
+- Kubernetes control plane nodes and worker nodes reside in different subnets.
+- Telemetry pods are deployed on Kubernetes worker nodes.
+- One or more BMC networks are not directly reachable from the worker-node
+  admin or PXE network.
+- VLAN tagging and static routes are required to reach the BMC endpoints.
+
+!!! note
+
+    Validate BMC reachability from every Kubernetes worker node that can host
+    Telemetry pods, not only from the control plane nodes.
+
 ## Prerequisites
 
 - Enable iDRAC Telemetry and provide a valid BMC CSV.
+- Review `bmc_pxe_mapping_file.csv` and identify every unique subnet represented
+  in its `BMC_IP` column.
 - Ensure `cluster_inventory` contains
   `service_kube_node_x86_64.hosts` entries with `ansible_host` values.
 - Provide common BMC credentials through the Telemetry credential workflow.

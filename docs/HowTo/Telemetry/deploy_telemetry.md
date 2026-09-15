@@ -129,10 +129,19 @@ their tags are selected explicitly.
     `ImagePullBackOff`, `ErrImagePull`, `InvalidImageName`, or
     `CreateContainerConfigError`.
 
+After completing steps 1 and 2, use the verification section in each enabled
+Telemetry source guide:
+
+- [Verify iDRAC Telemetry](configure_idrac.md#verification)
+- [Verify LDMS Telemetry](configure_ldms.md#verification)
+- [Verify PowerScale Telemetry](configure_powerscale.md#verification)
+- [Verify UFM Telemetry](configure_ufm.md#verification)
+- [Verify VAST Telemetry](configure_vast.md#verification)
+- [Verify OME Telemetry](telemetry_from_ome.md#verification)
+- [Verify the Vector-LDMS bridge](configure_ldms.md#view-ldms-metrics-in-the-victoriametrics-ui-vmui)
+
 ## Next steps
 
-- Use the source-specific guides from the [Telemetry landing page](index.md) to
-  configure and verify each data path.
 - Export [Kafka](configure_external_kafka.md) or
   [Victoria](configure_external_victoria.md) connection details when external
   systems must publish or query Telemetry data.
