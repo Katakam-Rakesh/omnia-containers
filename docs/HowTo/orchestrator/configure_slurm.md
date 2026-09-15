@@ -7,8 +7,8 @@ Omnia provides flexible mechanisms to manage Slurm configuration files (`slurm.c
 
 ## Prerequisites
 
-- The Orchestrator project inputs are staged under
-  `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`.
+- The Orchestrator project inputs are staged in the active project's input
+  directory.
 - The `omnia_config.yml` file is configured with the desired `slurm_cluster` settings.
 
 ## Procedure
@@ -24,8 +24,8 @@ Omnia applies a default configuration optimized for HPC clusters. These defaults
 | Setting | Default value |
 | --- | --- |
 | Partition name | `normal` (all compute nodes from PXE mapping file) |
-| Partition config | `PartitionName=normal Nodes=<compute_nodes> MaxTime=INFINITE State=UP` |
-| Node config (iDRAC unreachable) | `NodeName=<nodename> Sockets=1 CoresPerSocket=1 ThreadsPerCore=1 RealMemory=3686` |
+| Partition config | `PartitionName=normal Nodes=<compute_nodes> Default=YES MaxTime=INFINITE State=UP` |
+| Node config (iDRAC unreachable) | `NodeName=<nodename> Sockets=2 CoresPerSocket=72 ThreadsPerCore=1 RealMemory=864` |
 
 ### Default slurm.conf
 
@@ -33,7 +33,7 @@ Omnia applies a default configuration optimized for HPC clusters. These defaults
 
     The parameters `ClusterName`, `SlurmctldHost`, and `AccountingStorageHost` are auto-detected and cannot be modified.
 
-```bash title="File: /etc/slurm/slurm.conf (defaults)"
+```ini title="File: /etc/slurm/slurm.conf (defaults)"
 # Authentication and Security
 AuthType=auth/munge
 CredType=cred/munge
@@ -69,7 +69,11 @@ PrologFlags=contain
 
 # Scheduling
 SchedulerType=sched/backfill
-SelectType=select/linear
+SelectType=select/cons_tres
+SelectTypeParameters=CR_Core_Memory
+GresTypes=gpu
+SlurmdParameters=l3cache_as_socket
+MaxNodeCount=65000
 
 # Resource Tracking
 TaskPlugin=task/cgroup
@@ -84,10 +88,11 @@ MpiDefault=none
 PluginDir=/usr/lib64/slurm
 
 # Default Node Configuration
+NodeSet=normal Feature=normal
 NodeName=DEFAULT State=UNKNOWN
 
 # Default Partition Configuration
-PartitionName=DEFAULT Nodes=ALL Default=YES MaxTime=INFINITE State=UP
+PartitionName=DEFAULT Nodes=ALL MaxTime=INFINITE State=UP
 PartitionName=normal Nodes=<compute_nodes> Default=YES MaxTime=INFINITE State=UP
 ```
 
@@ -97,7 +102,7 @@ PartitionName=normal Nodes=<compute_nodes> Default=YES MaxTime=INFINITE State=UP
 
     The parameters `DbdHost` and `StorageHost` are auto-detected and cannot be modified.
 
-```bash title="File: /etc/slurm/slurmdbd.conf (defaults)"
+```ini title="File: /etc/slurm/slurmdbd.conf (defaults)"
 # Authentication
 AuthType=auth/munge
 SlurmUser=slurm
@@ -120,7 +125,7 @@ StoragePass=<storage_password>
 
 ### Default cgroup.conf
 
-```bash title="File: /etc/slurm/cgroup.conf (defaults)"
+```ini title="File: /etc/slurm/cgroup.conf (defaults)"
 CgroupPlugin=autodetect
 ConstrainCores=yes
 ConstrainDevices=yes
@@ -130,7 +135,7 @@ ConstrainSwapSpace=yes
 
 ### Default gres.conf
 
-```bash title="File: /etc/slurm/gres.conf (defaults)"
+```ini title="File: /etc/slurm/gres.conf (defaults)"
 AutoDetect=nvml
 ```
 
@@ -142,7 +147,7 @@ Custom configuration files are supplied through the `config_sources` parameter i
 
 Specify individual parameters directly. Omnia merges these values with the defaults:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+```yaml title="File: omnia_config.yml"
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
@@ -160,7 +165,7 @@ slurm_cluster:
 
 Provide complete custom configuration files:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+```yaml title="File: omnia_config.yml"
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
@@ -175,7 +180,7 @@ slurm_cluster:
 
 By default, Omnia merges user-provided configurations with defaults to produce a complete configuration. Set `skip_merge: true` to deploy file-based configurations directly without merging:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+```yaml title="File: omnia_config.yml"
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
@@ -231,10 +236,6 @@ Confirm that the parameter values match your custom or default configuration.
 - **Configuration validation fails**: Check that parameter names match the supported Slurm version. Review the error output for specific invalid parameters.
 - **Custom configuration not applied**: Verify the file path in
   `config_sources` is correct and accessible from the OIM.
-
-
-
-
 
 
 

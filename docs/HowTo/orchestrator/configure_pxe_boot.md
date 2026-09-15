@@ -18,31 +18,38 @@ override, and node-registration timing.
 
 ## Prerequisites
 
-- Complete [Provision Nodes](provision_nodes.md) so boot and cloud-init
-  configurations exist in OpenCHAMI.
-- Ensure every target row in
-  `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
-  has `HOSTNAME`, `ADMIN_IP`, and `BMC_IP` values.
+- Complete the `provision` phase in [Provision Nodes](provision_nodes.md) so
+  boot and cloud-init configurations exist in OpenCHAMI.
+- Ensure the configured Repository Manager `repo_status.yml` exists, reports
+  `overall_status: success`, and references an existing Pulp server
+  certificate. The default is the active project's Repository Manager output;
+  use `repo_manager_output_path` in `orchestrator_config.yml` when the status
+  file is stored elsewhere.
+- Ensure the active project's Orchestrator `pxe_mapping_file.csv` retains the
+  `SERVICE_TAG`, `HOSTNAME`, `ADMIN_IP`, and `BMC_IP` columns. Every PXE target
+  requires nonempty `HOSTNAME`, `ADMIN_IP`, and `BMC_IP` values;
+  `SERVICE_TAG` may be empty.
 - Configure Orchestrator credentials so the encrypted credential file contains
   `bmc_username` and `bmc_password`.
 - Ensure the OIM can reach each iDRAC address and each server can reach the OIM
   provisioning network.
-- Ensure passwordless root SSH is configured from the OIM to each target
-  node's admin IP.
-- Ensure `cloud-init` and `/proc/uptime` are available on each target node.
+- Ensure the provisioned OS image includes `cloud-init`. The `provision`
+  phase embeds the OIM public key into generated cloud-init; passwordless
+  root SSH to the node's admin IP is expected only after the node boots.
+- Ensure `/proc/uptime` is available after the target OS starts.
 - Enable PXE or UEFI HTTP boot in the server firmware and NIC firmware.
 
 ## Procedure
 
-1. Confirm that PXE boot is enabled in
-   `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml`:
+1. Confirm that PXE boot is enabled in the active project's Orchestrator
+   `orchestrator_config.yml`:
 
     ```yaml
     enable_pxe_boot: true
     ```
 
-2. Optionally edit
-   `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/set_pxe_boot_config.yml`:
+2. Optionally edit `set_pxe_boot_config.yml` in the same project input
+   directory:
 
     ```yaml
     enable_node_registration: true
@@ -57,7 +64,9 @@ override, and node-registration timing.
 
     Set `boot_source_override_target` to `uefi_http` when that is the boot
     method configured on the servers. Set `boot_source_override_enabled` to
-    `once` when the override should apply only to the next boot.
+    `once` when the override should apply only to the next boot. The source
+    default, `continuous`, keeps selecting the configured network boot target
+    on later restarts until the iDRAC override is changed.
 
     The source still accepts the legacy `enable_phone_home` and
     `phone_home_*` variable names for compatibility, but emits a deprecation
@@ -79,10 +88,18 @@ override, and node-registration timing.
 
 ## Verification
 
+- When `enable_pxe_boot: false`, a standalone `--tags pxeboot` run skips the
+  entire PXE import and does not refresh `pxeboot_status.yml`,
+  `orchestrator_status.yml`, or `failed_nodes.json`. During an untagged or
+  `execute` run, provisioning refreshes `orchestrator_status.yml` with the PXE
+  phase set to `not_run`, but it does not refresh `pxeboot_status.yml` or
+  `failed_nodes.json`. Existing PXE-specific files may therefore describe an
+  earlier run; do not use them as evidence for the skipped PXE phase.
 - Confirm that the play recap reports no failed hosts.
-- Review
-  `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/failed_nodes.json`.
-  A successful run contains an empty `failed_nodes` list.
+- Review `pxeboot_status.yml`, `orchestrator_status.yml`, and
+  `failed_nodes.json` in the active project's Orchestrator output directory.
+  `pxeboot_status.yml` contains every target node; a successful run contains
+  an empty `failed_nodes` list in `failed_nodes.json`.
 - When node-registration verification is enabled, confirm that every
   successfully restarted node is reachable through passwordless root SSH, has
   a boot time newer than the start of the PXE operation, and reports `done`

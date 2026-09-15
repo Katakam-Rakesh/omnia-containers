@@ -589,16 +589,28 @@ state problems, job submission errors, and GPU detection.
 
 ??? note "Cause"
 
-    - `dcgm.metrics_enabled` is set to `false` under `telemetry_sources`
-      in `telemetry_config.yml`, so Omnia intentionally skips DCGM
-      installation during Slurm node cloud-init.
+    - `dcgm_enabled` is set to `false` in the active Orchestrator project's
+      `orchestrator_config.yml`, so Orchestrator intentionally omits the DCGM
+      installation command from Slurm-node cloud-init.
+    - The affected node was provisioned before `dcgm_enabled` was enabled and
+      has not been re-provisioned with the revised metadata.
 
 ??? note "Resolution"
 
-    1. Set `dcgm.metrics_enabled: true` under `telemetry_sources` in
-       `input/telemetry_config.yml`.
+    1. Resolve and edit the active Orchestrator configuration:
 
-    2. Re-run provisioning for affected Slurm nodes.
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        vi "$orchestrator_path/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml"
+        ```
+
+       Set `dcgm_enabled: true`.
+
+    2. From `<OMNIA_SOURCE_PATH>/src/main`, run the Orchestrator `validate` and
+       `precheck` phases, then follow the re-provision procedure for affected
+       Slurm nodes. Changing the YAML alone does not modify an already booted
+       node.
 
     3. Validate:
 

@@ -16,8 +16,9 @@ formatting, is also its directory name under `src/` and the value accepted by
     this functionality through iDRAC.
 
 **BSS**
-:   Boot Script Service, an OpenCHAMI service that returns the boot parameters
-    assigned to a registered node.
+:   A compatibility name retained by the `ochami bss` CLI and API namespace
+    for boot-configuration operations. The current OpenCHAMI deployment runs
+    `boot-service`; it does not deploy a standalone Boot Script Service.
 
 **BuildStreaM**
 :   The deployment module identified as `build_stream`. It deploys PostgreSQL, the BuildStreaM Manager
@@ -104,10 +105,12 @@ formatting, is also its directory name under `src/` and the value accepted by
     and stages input templates unless input staging is skipped.
 
 **Functional group**
-:   A named node role selected in the catalog and PXE mapping, such as
-    `slurm_node_x86_64` or `service_kube_control_plane_x86_64`. Image Build
-    Manager builds the corresponding images and Orchestrator applies the
-    relevant boot and cluster configuration.
+:   A named node role selected in the catalog and PXE mapping. The mapping can
+    use a Discovery-style role-and-architecture name, such as
+    `slurm_node_aarch64`, or a matching catalog-qualified name, such as
+    `slurm_node_rhel_10_0_aarch64`. Image Build Manager builds the corresponding
+    images and Orchestrator applies the relevant boot and cluster configuration.
+    An explicit OS/version segment must match the active catalog.
 
 **iDRAC**
 :   Integrated Dell Remote Access Controller. Omnia uses iDRAC through Redfish

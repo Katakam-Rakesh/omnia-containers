@@ -188,8 +188,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Dump frequency (usually 0). Overrides mount_params profile when specified.</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p>
+                            <p>Accepted by the input schema, but the current PowerVault setup script writes <code class="docutils literal notranslate"><span class="pre">0</span></code> in the generated fstab entry and does not apply this value.</p>
                         </div>
                     </td>
                 </tr>
@@ -207,8 +206,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Fsck pass number (usually 0 or 2). Overrides mount_params profile when specified.</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p>
+                            <p>Accepted by the input schema, but the current PowerVault setup script writes <code class="docutils literal notranslate"><span class="pre">0</span></code> in the generated fstab entry and does not apply this value.</p>
                         </div>
                     </td>
                 </tr>
@@ -226,7 +224,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Named profile key from mount_params section. Must reference an existing profile defined in mount_params.</p>
+                            <p>Named profile key from the <code class="docutils literal notranslate"><span class="pre">mount_params</span></code> section. Use an existing profile. The current runtime does not reject an unknown name and instead falls back to <code class="docutils literal notranslate"><span class="pre">xfs</span></code> with <code class="docutils literal notranslate"><span class="pre">defaults,_netdev,noatime</span></code>.</p>
                         </div>
                     </td>
                 </tr>
@@ -244,8 +242,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>cloud_init variable for per-node bind mounts (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). When present, generates bind mounts under mount_point/&lt;node_key_value&gt;/</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">local_hostname</span></code>.</p>
+                            <p>Optional cloud-init selector for per-node bind mounts. Accepted values are <code class="docutils literal notranslate"><span class="pre">local_hostname</span></code>, <code class="docutils literal notranslate"><span class="pre">local_ipv4</span></code>, and <code class="docutils literal notranslate"><span class="pre">instance_id</span></code>. When set, <code class="docutils literal notranslate"><span class="pre">node_mount_point</span></code> is required; no value is selected by default.</p>
                         </div>
                     </td>
                 </tr>
@@ -281,7 +278,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>List of functional group prefixes for node targeting. Mutually exclusive with group.</p>
+                            <p>Required list of functional group prefixes for node targeting. PowerVault entries do not support a <code class="docutils literal notranslate"><span class="pre">groups</span></code> alternative.</p>
                         </div>
                     </td>
                 </tr>
@@ -299,7 +296,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Directory ownership and mode applied to mount_point after mount (chown + chmod via runcmd)</p>
+                            <p>Recursive ownership and mode applied to the root PowerVault <code class="docutils literal notranslate"><span class="pre">mount_point</span></code> after the per-node bind paths are created. This block runs only when <code class="docutils literal notranslate"><span class="pre">node_key</span></code> and <code class="docutils literal notranslate"><span class="pre">node_mount_point</span></code> are set; it is not limited to an individual bind path.</p>
                         </div>
                     </td>
                 </tr>
@@ -362,7 +359,7 @@
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
                             <p>Octal permission mode (e.g., 0755, 1777)</p>
-                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0644</span></code>.</p>
+                            <p>Default: <code class="docutils literal notranslate"><span class="pre">0755</span></code>.</p>
                         </div>
                     </td>
                 </tr>

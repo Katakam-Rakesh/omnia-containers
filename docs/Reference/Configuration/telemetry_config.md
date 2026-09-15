@@ -1,7 +1,10 @@
 ﻿
 # telemetry_config.yml
 
-This file configures telemetry sources (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST, OpenManage Enterprise), telemetry bridges (Vector-LDMS, Vector-OME), and telemetry sinks (VictoriaMetrics, VictoriaLogs, Kafka). It also includes component-specific configurations for each telemetry source.
+This file configures telemetry sources (iDRAC, LDMS, PowerScale, UFM, VAST,
+OpenManage Enterprise), telemetry bridges (Vector-LDMS, Vector-OME), and
+telemetry sinks (VictoriaMetrics, VictoriaLogs, Kafka). It also includes
+component-specific configurations for each telemetry source.
 
 ## Supported Telemetry Sources, Bridges and Sinks
 
@@ -14,7 +17,6 @@ This file configures telemetry sources (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST
 | [UFM](../../HowTo/Telemetry/configure_ufm.md) | NVIDIA UFM InfiniBand Fabric Manager metrics (IB port state, transmit/receive data, error counters, fabric topology) and syslog logs | VictoriaMetrics, VictoriaLogs |
 | [VAST](../../HowTo/Telemetry/configure_vast.md) | Storage performance metrics and syslog events from VAST Storage appliances | VictoriaMetrics, VictoriaLogs |
 | [OpenManage Enterprise (OME)](../../HowTo/Telemetry/telemetry_from_ome.md) | Server inventory, health, alerts, and audit logs from Dell OME via Kafka mTLS | Kafka, VictoriaMetrics, VictoriaLogs (via Vector-OME) |
-| [SFM](../../HowTo/Telemetry/configure_sfm.md) | Network telemetry metrics from Smart Fabric Manager | VictoriaMetrics |
 
 ## Parameter Reference
 ### Telemetry Configuration Parameters
@@ -39,9 +41,13 @@ conditional credentials in the encrypted project
 
 ## Usage example
 
-```yaml title="File: /opt/omnia/telemetry/input/project_default/telemetry_config.yml"
+Resolve the component paths from `/etc/omnia/omnia.env` and replace the
+angle-bracket placeholders below with absolute paths. Environment-variable
+expressions are not expanded inside this YAML file.
+
+```yaml title="File: <TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/telemetry_config.yml"
 ---
-cluster_inventory: "/opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml"
+cluster_inventory: "<ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/orchestrator_inventory.yaml"
 
 telemetry_sources:
 
@@ -55,9 +61,6 @@ telemetry_sources:
     metrics_enabled: true
     collection_targets:
       - "kafka"
-
-  dcgm:
-    metrics_enabled: true
 
   powerscale:
     metrics_enabled: true
@@ -118,7 +121,7 @@ telemetry_sinks:
       ldms: 2
 
 idrac_telemetry_configurations:
-  bmc_group_data_path: "/opt/omnia/orchestrator/output/project_default/bmc_group_data.csv"
+  bmc_group_data_path: "<ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/bmc_group_data.csv"
   mysqldb_storage: "1Gi"
   oim_bmc_ips:
     oim1: ""
@@ -183,20 +186,3 @@ vast_configuration:
     - [Ldms Metrics](../Metrics/ldms_metrics.md) -- LDMS sampler metric catalog.
     - [Ports](../../SecurityConfigurationGuide/network_security.md#telemetry-ports) -- Ports used by telemetry
       services.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

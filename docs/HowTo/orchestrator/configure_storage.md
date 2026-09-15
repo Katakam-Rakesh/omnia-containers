@@ -15,7 +15,8 @@ The `storage_config.yml` file contains four sections:
 !!! note
 
     Storage configuration is applied during node provisioning. Entries in
-    `mounts` can use `functional_group_prefix` or exact `groups` targeting.
+    `mounts` must use exactly one targeting method: `functional_group_prefix`
+    or exact `groups`.
     `powervault_config` and `swap` use `functional_group_prefix`.
 
 ### Functional group prefix
@@ -24,31 +25,36 @@ The `functional_group_prefix` parameter uses **prefix matching** against the `FU
 
 ### Available functional group names
 
+The following examples match the staged RHEL 10.0 input and include its
+operating-system, version, and architecture suffixes. Always copy the exact
+`FUNCTIONAL_GROUP_NAME` from the active project's PXE mapping file.
+
 | Functional group name | Role |
 | --- | --- |
-| `slurm_control_node_x86_64` | Slurm controller (`slurmctld`, `slurmdbd`) |
-| `slurm_node_x86_64` | Slurm compute node (x86_64) |
-| `slurm_node_aarch64` | Slurm compute node (AArch64) |
-| `login_node_x86_64` | Login/SSH access node (x86_64) |
-| `login_node_aarch64` | Login/SSH access node (AArch64) |
-| `login_compiler_node_x86_64` | Login node with compiler toolchain (x86_64) |
-| `login_compiler_node_aarch64` | Login node with compiler toolchain (AArch64) |
-| `service_kube_control_plane_x86_64` | Kubernetes control plane |
-| `service_kube_node_x86_64` | Kubernetes worker node |
-| `os_x86_64` | Generic OS node (x86_64) |
-| `os_aarch64` | Generic OS node (AArch64) |
+| `slurm_control_node_rhel_10_0_x86_64` | Slurm controller (`slurmctld`, `slurmdbd`) |
+| `slurm_node_rhel_10_0_x86_64` | Slurm compute node (x86_64) |
+| `slurm_node_rhel_10_0_aarch64` | Slurm compute node (AArch64) |
+| `login_node_rhel_10_0_x86_64` | Login/SSH access node (x86_64) |
+| `login_node_rhel_10_0_aarch64` | Login/SSH access node (AArch64) |
+| `login_compiler_node_rhel_10_0_x86_64` | Login node with compiler toolchain (x86_64) |
+| `login_compiler_node_rhel_10_0_aarch64` | Login node with compiler toolchain (AArch64) |
+| `service_kube_control_plane_first_rhel_10_0_x86_64` | First Kubernetes control-plane node after Orchestrator normalization |
+| `service_kube_control_plane_rhel_10_0_x86_64` | Additional Kubernetes control-plane node |
+| `service_kube_node_rhel_10_0_x86_64` | Kubernetes worker node |
+| `os_rhel_10_0_x86_64` | Generic OS node (x86_64) |
+| `os_rhel_10_0_aarch64` | Generic OS node (AArch64) |
 
 ### Prefix matching examples
 
 | Prefix value | Matches |
 | --- | --- |
-| `["slurm"]` | `slurm_control_node_x86_64`, `slurm_node_x86_64`, `slurm_node_aarch64` (all Slurm nodes) |
-| `["slurm_node"]` | `slurm_node_x86_64`, `slurm_node_aarch64` (compute nodes only, excludes controller) |
-| `["slurm_control_node"]` | `slurm_control_node_x86_64` (controller only) |
-| `["login"]` | `login_node_x86_64`, `login_node_aarch64`, `login_compiler_node_x86_64`, `login_compiler_node_aarch64` (all login nodes) |
-| `["service_kube"]` | `service_kube_control_plane_x86_64`, `service_kube_node_x86_64` (all Kubernetes nodes) |
-| `["service_kube_node"]` | `service_kube_node_x86_64` (Kubernetes workers only) |
-| `["os"]` | `os_x86_64`, `os_aarch64` (generic OS nodes only) |
+| `["slurm"]` | All names beginning with `slurm_`, including controller and compute groups |
+| `["slurm_node"]` | All names beginning with `slurm_node_` (compute nodes only) |
+| `["slurm_control_node"]` | All names beginning with `slurm_control_node_` (controllers only) |
+| `["login"]` | All names beginning with `login_node_` or `login_compiler_node_` |
+| `["service_kube"]` | All names beginning with `service_kube_` (control-plane and worker groups) |
+| `["service_kube_node"]` | All names beginning with `service_kube_node_` (workers only) |
+| `["os"]` | All names beginning with `os_` (generic OS nodes) |
 | `["slurm", "login"]` | All Slurm nodes **and** all login nodes |
 | `["slurm_node", "login"]` | Slurm compute nodes **and** login nodes (excludes Slurm controller) |
 
@@ -76,7 +82,7 @@ Each mount entry specifies a source, mount point, and optional filesystem parame
 
 **Example**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mounts:
   - name: "nfs_slurm"
     source: "172.16.0.254:/mnt/share/omnia"
@@ -132,7 +138,13 @@ If a VAST storage appliance is available, configure a separate mount for HPC too
 - Target compute and login nodes using `functional_group_prefix: ["slurm_node", "login"]`.
 - Set `mount_on_oim: true` so the OIM can populate HPC tools and benchmark artifacts.
 - Use the `vast_rdma` mount_params profile for RDMA transport over InfiniBand.
-- The `name` field must match the `vast_storage_name` value in `omnia_config.yml`.
+- Use the standard `name: "vast_storage"`, and set
+  `vast_storage_name: vast_storage` in `omnia_config.yml` to enable the mount.
+- If `vast_storage_name` is empty or omitted, Orchestrator skips the standard
+  `vast_storage` entry and reuses `nfs_storage_name` for Slurm shared-data and
+  HPC-tools paths. An unused VAST endpoint is therefore not contacted.
+- When `vast_storage_name` is set, it must match exactly one mount entry. The
+  referenced storage is validated and must be reachable.
 
 ```yaml title="Example: VAST storage mount for HPC tools"
 mounts:
@@ -161,7 +173,7 @@ When defining an NFS mount, the `source` field must use the format `server_ip:/e
 
 **NFS share for Slurm home directories with per-node isolation:**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mounts:
   - name: "nfs_home"
     source: "172.16.0.254:/mnt/share/home"
@@ -174,12 +186,12 @@ mounts:
 
 **NFS share using a named mount_params profile:**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mounts:
   - name: "nfs_app_data"
     source: "172.16.0.254:/mnt/share/appdata"
     mount_point: "/opt/appdata"
-    mount_params: "default"
+    mount_params: "nfs_default"
     mount_on_oim: false
     functional_group_prefix: ["slurm_node"]
 ```
@@ -200,7 +212,7 @@ RDMA-based VAST mounts are recommended for latency-sensitive HPC workloads such 
 
 **VAST mount with RDMA transport:**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mounts:
   - name: "vast_storage"
     source: "172.16.107.77:/share/vast"
@@ -210,18 +222,22 @@ mounts:
     functional_group_prefix: ["slurm_node", "login"]
 ```
 
-The `vast_rdma` mount_params profile uses `proto=rdma` to enable RDMA transport. The `nconnect=16` option opens multiple RDMA connections for parallel I/O, and `rsize=1048576,wsize=1048576` sets 1 MB read/write buffer sizes for optimal throughput.
+The source-provided `vast_rdma` mount profile uses `proto=rdma`, `nconnect=8`,
+`timeo=600`, `retrans=2`, and 1 MB read/write buffers. You may define a
+different named profile after validating its options with the VAST appliance
+and client kernel.
 
 **VAST mount with standard TCP transport (fallback):**
 
-If the cluster network does not support RDMA (no InfiniBand or RoCE), use the `vast_nfs` profile with standard TCP transport:
+If the cluster network does not support RDMA (no InfiniBand or RoCE), use the
+source-provided `vast_tcp` profile with standard TCP transport:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mounts:
-  - name: "vast_storage_tcp"
+  - name: "vast_storage"
     source: "172.16.107.77:/share/vast"
     mount_point: "/mnt/vast"
-    mount_params: "vast_nfs"
+    mount_params: "vast_tcp"
     mount_on_oim: true
     functional_group_prefix: ["slurm_node", "login"]
 ```
@@ -264,11 +280,11 @@ Named profiles that provide default values for filesystem type and mount options
 
 --8<-- "html/storage_config-mount_params.html"
 
-**Example**
+**Example custom profiles**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 mount_params:
-  default:
+  nfs_default:
     fs_type: "nfs"
     mnt_opts: "nfsvers=4.1,hard,intr,noatime,nconnect=16,rsize=1048576,wsize=1048576"
     dump_freq: "0"
@@ -276,11 +292,11 @@ mount_params:
 
   vast_rdma:
     fs_type: "nfs"
-    mnt_opts: "proto=rdma,hard,intr,noatime,nconnect=16,rsize=1048576,wsize=1048576"
+    mnt_opts: "proto=rdma,nconnect=8,timeo=600,retrans=2,rsize=1048576,wsize=1048576,hard"
     dump_freq: "0"
     fsck_pass: "0"
 
-  vast_nfs:
+  vast_tcp:
     fs_type: "nfs"
     mnt_opts: "nosuid,rw,sync,hard"
     dump_freq: "0"
@@ -305,7 +321,7 @@ Defines PowerVault iSCSI volume connection parameters.
 
 **Example**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 powervault_config:
   - name: powervault1
     ip:
@@ -334,7 +350,7 @@ Defines swap file configurations created during node provisioning.
 
 **Example**
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: storage_config.yml"
 swap:
   - name: "compute_swap"
     filename: "/swapfile"
@@ -399,14 +415,6 @@ swap:
     - [Configure VAST Telemetry](../Telemetry/configure_vast.md) -- Metrics
       and log collection from a configured VAST appliance.
     - [PXE Mapping File](../../Reference/SampleFiles/pxe_mapping_file.md) -- Functional groups and `GROUP_NAME` values.
-
-
-
-
-
-
-
-
 
 
 

@@ -32,8 +32,11 @@ or provision cluster nodes.
     ```text
     $OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/
     $OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/
-    $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/
+    $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/
     ```
+
+  `ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator` when
+  no component-specific path is configured.
 
 - Ensure the OIM can reach the package and container sources required by the
   selected configurations.

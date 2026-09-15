@@ -17,7 +17,10 @@ Issues related to the Kubernetes service cluster, including image pulls, pod sch
 
 ??? note "Resolution"
 
-    1. Add Docker credentials to `omnia_config_credentials.yml`.
+    1. If the pull is blocked by Docker Hub rate limiting, collect optional
+       Docker Hub credentials through the Repository Manager `credentials`
+       flow. They are stored in the Vault-encrypted
+       `repo_manager_config_credentials.yml` file.
     2. Verify that Repository Manager synchronized the selected catalog and
        that `repo_status.yml` reports `overall_status: success`.
 
@@ -57,7 +60,9 @@ Issues related to the Kubernetes service cluster, including image pulls, pod sch
 
         **CrashLoopBackOff**: Review current and previous logs. Verify ConfigMaps, Secrets, PVC mounts, DNS, certificates, and dependent Omnia services.
 
-        **ImagePullBackOff or ErrImagePull**: Verify the image name and tag, node access to the Pulp registry, and registry certificate trust. See Section 4.1 ImagePullBackOff / ErrImagePull.
+        **ImagePullBackOff or ErrImagePull**: Verify the image name and tag,
+        node access to the Pulp registry, and registry certificate trust. See
+        [ImagePullBackOff / ErrImagePull](#imagepullbackoff-errimagepull).
 
         **OOMKilled**: Check container memory usage and limits:
 
@@ -205,7 +210,7 @@ Issues related to the Kubernetes service cluster, including image pulls, pod sch
     1. On a healthy control-plane, regenerate the join script:
 
         ```bash title="Run on: K8s control plane"
-        {{ k8s_client_mount_path }}/generate-control-plane-join.sh
+        <K8S_CLIENT_MOUNT_PATH>/generate-control-plane-join.sh
         ```
 
         !!! note
@@ -352,13 +357,16 @@ Issues related to the Kubernetes service cluster, including image pulls, pod sch
 
 ??? note "Resolution"
 
-    1. Ensure that the catalog selected by `CATALOG_FILE_PATH` includes its
-       PowerScale CSI group for `x86_64`, such as
-       `csi_powerscale_v2_17_0`.
+    1. Ensure that the catalog selected by `CATALOG_FILE_PATH` includes the
+       catalog group `powerscale_csi_group` for `x86_64`.
     2. Set `enable_powerscale_csi: true` for the target
        `service_k8s_cluster` entry in `omnia_config.yml` and provide the
        required driver configuration files.
-    3. Rerun Orchestrator.
+    3. Rerun Repository Manager, then run the Orchestrator `provision` phase to
+       regenerate the first control-plane node's cloud-init metadata.
+    4. For an initial automated install, PXE boot or otherwise reprovision that
+       node so it consumes the generated CSI deployment script. Follow the
+       deployment guide's maintenance guidance for an existing CSI deployment.
 
 !!! info
 

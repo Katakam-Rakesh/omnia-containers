@@ -72,7 +72,10 @@ their tags are selected explicitly.
     also checks SSH access to the Kubernetes VIP and verifies the configured
     Kubernetes mount remotely, so this is not an offline-only operation. Use
     an absolute `cluster_inventory` path, normally
-    `<OMNIA_DATA_PATH>/orchestrator/output/<project>/orchestrator_inventory.yaml`.
+    `<ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/orchestrator_inventory.yaml`.
+    When `ORCHESTRATOR_DATA_PATH` is unset, resolve it as
+    `<OMNIA_DATA_PATH>/orchestrator`. Replace the placeholders with absolute
+    values because environment variables are not expanded inside YAML.
 
 5. Deploy the enabled configuration:
 

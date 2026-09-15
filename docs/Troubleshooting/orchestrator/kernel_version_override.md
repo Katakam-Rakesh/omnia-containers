@@ -25,16 +25,22 @@ Issues related to kernel version override functionality, including repository sy
         curl -I <repository_url>
         ```
 
-    2. For RHEL subscription (EUS) repositories, verify that the entitlement certificates are valid and correctly placed:
+    2. For RHEL subscription (EUS) repositories, inspect the configured
+       `sslcacert`, `sslclientkey`, and `sslclientcert` paths in the active
+       Repository Manager project. Verify those exact files rather than
+       assuming a fixed certificate directory:
 
         ```bash title="Run on: OIM host"
-        ls -la /opt/omnia/rhel_repo_certs/
+        source /etc/profile.d/omnia-env.sh
+        repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
+        vi "$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml"
         ```
 
     3. Validate kernel packages are available in the synced Pulp repository:
 
         ```bash title="Run on: OIM host"
-        source /opt/omnia/activate-omnia.sh
+        source /etc/profile.d/omnia-env.sh
+        source "$OMNIA_DATA_PATH/activate-omnia.sh"
         pulp rpm distribution list
         ```
 
@@ -45,7 +51,7 @@ Issues related to kernel version override functionality, including repository sy
         ```
 
     5. If no kernel packages are found, correct the repository URLs in
-       `$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`,
+       `$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`,
        then rerun the Repository Manager `download` and `status` phases.
 
 ## Kernel Image Not Found in S3
@@ -111,7 +117,8 @@ Issues related to kernel version override functionality, including repository sy
 
 ??? note "Cause"
 
-    - BSS boot parameters were not updated with the new kernel version
+    - The OpenCHAMI boot-service configuration was not regenerated with the
+      new kernel version
     - The kernel version specified in `orchestrator_config.yml` does not match the
       kernel images available in S3
     - Network connectivity issues between nodes and the OIM prevent fetching
@@ -122,7 +129,10 @@ Issues related to kernel version override functionality, including repository sy
 
     Validate the following:
 
-    - BSS configuration matches the expected kernel and initrd paths in S3.
+    - The functional group's boot-service configuration and
+      `provisioning_report.yml` match the expected kernel and initrd paths in
+      S3. See [OpenCHAMI Issues](openchami.md) for current service and API
+      diagnostics.
     - Network connectivity between nodes and the OIM.
     - DHCP and TFTP services are running.
     - Node console logs for boot errors.
@@ -152,16 +162,21 @@ Issues related to kernel version override functionality, including repository sy
 
 ??? note "Resolution"
 
-    1. Verify the certificate files exist at the configured paths:
+    1. Resolve the active Repository Manager configuration and verify that the
+       certificate files exist at the paths declared by `sslcacert`,
+       `sslclientkey`, and `sslclientcert`:
 
         ```bash title="Run on: OIM host"
-        ls -la /opt/omnia/rhel_repo_certs/
+        source /etc/profile.d/omnia-env.sh
+        repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
+        vi "$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml"
+        ls -l <configured-certificate-path>
         ```
 
     2. Ensure the CA certificate, client key, and client certificate are valid and not expired:
 
         ```bash title="Run on: OIM host"
-        openssl x509 -in /opt/omnia/rhel_repo_certs/<entitlement-cert>.pem -noout -dates
+        openssl x509 -in <configured-entitlement-certificate> -noout -dates
         ```
 
     3. Verify the `sslcacert`, `sslclientkey`, and `sslclientcert` paths in

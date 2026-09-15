@@ -67,7 +67,9 @@ When Orchestrator provisions a target category with Cluster DNS enabled, it:
 1. Edit the staged Orchestrator configuration:
 
     ```bash title="Run on: OIM host"
-    vi <OMNIA_DATA_PATH>/orchestrator/input/<OMNIA_PROJECT_NAME>/orchestrator_config.yml
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    vi "${orchestrator_path}/input/${OMNIA_PROJECT_NAME}/orchestrator_config.yml"
     ```
 
 2. Enable the source-defined option:

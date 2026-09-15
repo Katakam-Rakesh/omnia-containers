@@ -25,8 +25,10 @@ each domain owns and exposes its cleanup workflow.
 
 - Log in to the OIM as a user with the privileges required by the selected
   cleanup workflows.
-- Use the same `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` that were used for
-  deployment.
+- Use the same project name and resolved domain data paths that were used for
+  deployment. In particular, preserve `ORCHESTRATOR_DATA_PATH` when
+  Orchestrator was deployed from a custom root; when it is unset,
+  Orchestrator uses `<OMNIA_DATA_PATH>/orchestrator`.
 - Stop or drain workloads that use the services being removed.
 - Back up project inputs, credentials, repository content, images, telemetry
   data, databases, and shared-storage data that must be retained.
@@ -75,13 +77,6 @@ environment.
 
 !!! warning
 
-    The current BuildStreaM entry point contains an unresolved static import
-    for its upgrade placeholder. Until that source issue is corrected, the
-    top-level BuildStreaM playbook can fail during parsing before the
-    `cleanup` tag runs.
-
-!!! warning
-
     Discovery cleanup removes every artifact from the current project's output
     directory and removes the Discovery credential file and Vault key by
     default. Copy any mapping required by Orchestrator before cleanup. See
@@ -102,11 +97,12 @@ PVC `mysqldb-pvc-idrac-telemetry-0` is also preserved unless
 `Delete_volume=true` is supplied.
 
 Orchestrator removes its encrypted credentials and Vault key during full
-cleanup by default. To preserve them, run:
-
-```bash title="Run on: OIM"
-./omnia.sh --run orchestrator --tags cleanup -e cleanup_credentials=false
-```
+cleanup. The current implementation does not consume the documented
+`cleanup_credentials=false` extra variable. To preserve those files, run the
+standalone Orchestrator cleanup playbook with explicit component tags that omit
+`cleanup_credentials`, or save both files through an approved secure backup
+procedure before full cleanup. See the limitation in
+[Clean Up Orchestrator](../HowTo/orchestrator/cleanup_orchestrator.md).
 
 Slurm and Kubernetes shared-data deletion is selected independently during
 full cleanup. Review

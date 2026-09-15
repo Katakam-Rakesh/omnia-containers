@@ -21,7 +21,9 @@ clusters via PXE using a mapping file **(Mandatory)** to dictate IP
 address/MAC mapping.
 
 Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and
-configured on the cluster. OpenLDAP is installed for providing authentication.
+configured on the cluster. When a catalog group name contains the lowercase
+text `openldap`, Orchestrator deploys OpenLDAP for supported Slurm and login
+functional groups.
 
 To perform these configurations and installations, a secure SSH channel is
 established between the management node and the following entities:
@@ -40,7 +42,12 @@ Omnia does not have its own authentication mechanism because bare metal installa
 
 ## Cluster Authentication Tool
 
-In order to enable authentication to the cluster, Omnia installs OpenLDAP: an open source tool providing integrated identity and authentication for Linux networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to cluster administrators only.
+For centralized authentication, Orchestrator can deploy OpenLDAP, an open
+source directory service for Linux networked environments. Selection is
+catalog-driven, and the current provisioning templates configure OpenLDAP
+clients on supported Slurm control, compute, and login functional groups. The
+Kubernetes provisioning path does not configure an OpenLDAP client. Site
+administrators remain responsible for user and group management.
 
 !!! note
 
@@ -88,8 +95,6 @@ Credential collection depends on the enabled service or workflow:
 Credentials with the same variable name in different domain files are separate.
 For example, the Orchestrator, Telemetry, and Utils domains maintain their own
 `bmc_username` and `bmc_password` values.
-
-
 
 
 

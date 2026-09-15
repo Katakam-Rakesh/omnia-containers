@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <div class="omnia-cell">
-                            <p>Named mount parameter profiles. Each profile provides defaults for fs_type, mnt_opts, dump_freq, fsck_pass. Custom fields are allowed for backend-specific metadata.</p>
+                            <p>Named mount parameter profiles. Each profile defines <code class="docutils literal notranslate"><span class="pre">fs_type</span></code> and <code class="docutils literal notranslate"><span class="pre">mnt_opts</span></code>, with optional <code class="docutils literal notranslate"><span class="pre">dump_freq</span></code> and <code class="docutils literal notranslate"><span class="pre">fsck_pass</span></code>. Custom fields are rejected.</p>
                         </div>
                     </td>
                 </tr>
@@ -41,7 +41,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Dynamic key matching pattern: <code class="docutils literal notranslate"><span class="pre">^[a-zA-Z0-9_-]+$</span></code></p>
+                            <p>Profile name referenced by a mount's <code class="docutils literal notranslate"><span class="pre">mount_params</span></code> value.</p>
                         </div>
                     </td>
                 </tr>

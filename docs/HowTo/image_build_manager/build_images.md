@@ -393,7 +393,8 @@ used by the workflow are fixed.
 ## Next steps
 
 - Continue to the [provisioning workflow](../orchestrator/provision_nodes.md).
-  It consumes `build_status.yml` to validate images and render BSS templates.
+  It consumes `build_status.yml` to validate images and create the
+  `boot-service` configurations used during PXE boot.
 - Retain `build_status.yml` and its S3 artifacts while they are needed for
   provisioning. The full cleanup flow removes the services, credentials,
   build output, buckets, and artifacts.

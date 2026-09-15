@@ -1,280 +1,118 @@
-# Orchestrator Issues
+# Orchestrator issues
 
-Issues related to the Orchestrator module: Slurm job scheduling, Kubernetes services, networking (InfiniBand, DNS), storage configuration, authentication (LDAP), and node provisioning.
+Start with the active project inputs and the phase that failed. Load the Omnia
+environment before using any paths:
 
-## Provisioning Issues
+```bash title="Run on: OIM"
+source /etc/profile.d/omnia-env.sh
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+project_input="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
+project_output="$orchestrator_path/output/$OMNIA_PROJECT_NAME"
+```
 
-???+ note "Symptom"
+The main Ansible execution log is
+`/var/log/omnia/orchestrator/orchestrator.log`. Generated status and inventory
+files are under `$project_output`.
 
-    - Nodes fail to PXE boot
-    - Nodes boot but don't complete cloud-init
-    - Nodes get stuck in provisioning loop
-    - IP address conflicts on cluster
+## Input or precheck failure
 
-??? note "Cause"
+Run the phases separately so the failing contract is clear:
 
-    - Incorrect PXE mapping file entries
-    - DHCP server not responding
-    - Network configuration errors
-    - Cloud-init script failures
-    - NFS mount issues
+```bash title="Run from: <omnia-repository>/src/main"
+./omnia.sh --run orchestrator --tags validate
+./omnia.sh --run orchestrator --tags precheck
+```
 
-??? note "Resolution"
+Review the named file in `$project_input`. Common causes are an invalid PXE
+mapping header, duplicate node identifiers, a missing referenced storage name,
+or an image absent from Image Build Manager's successful `build_status.yml`.
+Do not edit generated content under `$project_output` to correct an input
+failure.
 
-    1. Verify PXE mapping file:
+## Provisioning or PXE failure
 
-        ```bash title="Run on: OIM host"
-        cat /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
-        ```
+1. Review the mapping selected by `pxe_mapping_file_path` in
+   `orchestrator_config.yml`.
+2. Check OpenCHAMI and DHCP services on the OIM:
 
-    2. Check DHCP logs:
+    ```bash title="Run on: OIM"
+    systemctl status openchami.target --no-pager
+    systemctl list-dependencies openchami.target --plain
+    podman logs --tail 100 coresmd-coredhcp
+    ```
 
-        ```bash title="Run on: OIM host"
-        podman logs coresmd-coredhcp
-        ```
+3. Review the generated result files:
 
-    3. Verify network configuration:
+    ```bash title="Run on: OIM"
+    cat "$project_output/provisioning_report.yml"
+    cat "$project_output/pxeboot_status.yml"
+    cat "$project_output/failed_nodes.json"
+    ```
 
-        ```bash title="Run on: OIM host"
-        cat /opt/omnia/orchestrator/input/project_default/network_spec.yml
-        ```
+4. Use `failure_stage` to distinguish an iDRAC PXE operation from the later
+   node-registration wait. See [Provisioning Issues](provisioning.md) and
+   [OpenCHAMI Issues](openchami.md).
 
-    4. Check cloud-init logs on node:
+## Slurm failure
 
-        ```bash title="Run on: Provisioned node"
-        journalctl -u cloud-init
-        ```
+Run diagnostics on the Slurm controller, not on the OIM:
 
-## Slurm Issues
+```bash title="Run on: Slurm controller"
+systemctl status munge slurmctld slurmdbd mariadb --no-pager
+sinfo -Nel
+journalctl -u slurmctld -b -n 200 --no-pager
+```
 
-???+ note "Symptom"
+On an affected compute node, check `slurmd`, Munge, shared mounts, and
+cloud-init. See [Slurm Issues](slurm.md) for targeted recovery procedures.
 
-    - Slurmctld fails to start
-    - Nodes show as DOWN in `sinfo`
-    - Jobs fail to submit or start
-    - GPU scheduling not working
+## Kubernetes failure
 
-??? note "Cause"
+Run cluster diagnostics on the first Kubernetes control-plane node:
 
-    - Incorrect Slurm configuration
-    - Munge authentication failure
-    - Network connectivity between nodes
-    - Missing or incorrect GRES configuration
+```bash title="Run on: first Kubernetes control-plane node"
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+kubectl get events -A --sort-by=.lastTimestamp
+```
 
-??? note "Resolution"
+Describe the first failing node, pod, PVC, or service before restarting it.
+See [Kubernetes Issues](kubernetes.md).
 
-    1. Check Slurm controller status:
+## Authentication failure
 
-        ```bash title="Run on: Slurm control node"
-        systemctl status slurmctld
-        ```
+OpenLDAP runs as the `omnia_auth` Quadlet service on the OIM; there is no
+OIM-hosted `slapd` service to manage directly:
 
-    2. Verify node status:
+```bash title="Run on: OIM"
+systemctl status omnia_auth --no-pager
+podman logs --tail 100 omnia_auth
+```
 
-        ```bash title="Run on: Slurm control node"
-        sinfo -Nel
-        ```
+The LDAP base is derived from `SYSTEM_DOMAIN_NAME`. On clients, verify SSSD and
+the generated search base rather than using a fixed example DN. See
+[Authentication Issues](authentication.md).
 
-    3. Check Slurm logs:
+## Storage failure
 
-        ```bash title="Run on: Slurm control node"
-        journalctl -u slurmctld -n 100
-        ```
+Use the mount selected by `nfs_storage_name` or `vast_storage_name` in the
+active `omnia_config.yml`; a storage entry that is merely present in
+`storage_config.yml` is not necessarily selected.
 
-    4. Verify Munge is running:
+```bash title="Run on: affected host"
+findmnt -t nfs,nfs4
+systemctl status nfs-client.target --no-pager
+```
 
-        ```bash title="Run on: All Slurm nodes"
-        systemctl status munge
-        ```
+If the OIM itself exports the selected share, also inspect `exportfs -v` and
+`nfs-server`. For an external appliance, perform those server-side checks
+through its supported administration interface. See
+[Configure Storage](../../HowTo/orchestrator/configure_storage.md).
 
-## Kubernetes Issues
-
-???+ note "Symptom"
-
-    - Kubernetes pods fail to start
-    - Nodes show as NotReady
-    - Persistent volume claims fail
-    - PowerScale CSI driver not working
-
-??? note "Cause"
-
-    - Incorrect Kubernetes configuration
-    - Network plugin (CNI) issues
-    - Storage class not configured
-    - Resource constraints
-
-??? note "Resolution"
-
-    1. Check cluster status:
-
-        ```bash title="Run on: Kubernetes control plane"
-        kubectl get nodes
-        ```
-
-    2. Check pod status:
-
-        ```bash title="Run on: Kubernetes control plane"
-        kubectl get pods -A
-        ```
-
-    3. Check pod logs:
-
-        ```bash title="Run on: Kubernetes control plane"
-        kubectl logs <pod-name> -n <namespace>
-        ```
-
-    4. Verify storage classes:
-
-        ```bash title="Run on: Kubernetes control plane"
-        kubectl get storageclass
-        ```
-
-## Networking Issues
-
-???+ note "Symptom"
-
-    - InfiniBand fabric not detected
-    - Cluster DNS not resolving
-    - Network connectivity between nodes
-    - Multi-subnet DHCP not working
-
-??? note "Cause"
-
-    - Incorrect InfiniBand configuration
-    - DNS server not running
-    - Firewall blocking traffic
-    - Incorrect network CIDRs
-
-??? note "Resolution"
-
-    1. Check InfiniBand status:
-
-        ```bash title="Run on: Node with InfiniBand"
-        ibstat
-        ```
-
-    2. Check DNS resolution:
-
-        ```bash title="Run on: Any node"
-        nslookup <hostname>
-        ```
-
-    3. Check firewall rules:
-
-        ```bash title="Run on: OIM host"
-        firewall-cmd --list-all
-        ```
-
-    4. Verify network configuration:
-
-        ```bash title="Run on: OIM host"
-        cat /opt/omnia/orchestrator/input/project_default/network_spec.yml
-        ```
-
-## Authentication Issues
-
-???+ note "Symptom"
-
-    - LDAP authentication fails
-    - Users cannot log in
-    - OpenLDAP service not running
-    - Kerberos errors
-
-??? note "Cause"
-
-    - Incorrect LDAP configuration
-    - OpenLDAP service down
-    - Network connectivity to LDAP server
-    - Invalid credentials
-
-??? note "Resolution"
-
-    1. Check OpenLDAP status:
-
-        ```bash title="Run on: OIM host"
-        systemctl status slapd
-        ```
-
-        Or in container:
-
-        ```bash title="Run on: OIM host"
-        podman ps | grep ldap
-        ```
-
-    2. Test LDAP connectivity:
-
-        ```bash title="Run on: OIM host"
-        ldapsearch -x -H ldap://localhost -b dc=omnia,dc=local
-        ```
-
-    3. Check LDAP configuration:
-
-        ```bash title="Run on: OIM host"
-        cat /opt/omnia/orchestrator/input/project_default/security_config.yml
-        ```
-
-## Storage Issues
-
-???+ note "Symptom"
-
-    - NFS mounts fail
-    - PowerScale not accessible
-    - Storage quotas exceeded
-    - Slow I/O performance
-
-??? note "Cause"
-
-    - NFS server not running
-    - Incorrect mount points
-    - Network connectivity to storage
-    - Insufficient disk space
-
-??? note "Resolution"
-
-    1. Check NFS service:
-
-        ```bash title="Run on: OIM host"
-        systemctl status nfs-server
-        ```
-
-    2. Verify NFS exports:
-
-        ```bash title="Run on: OIM host"
-        exportfs -v
-        ```
-
-    3. Check mount status:
-
-        ```bash title="Run on: Mounted node"
-        df -h
-        ```
-
-    4. Check storage configuration:
-
-        ```bash title="Run on: OIM host"
-        cat /opt/omnia/orchestrator/input/project_default/storage_config.yml
-        ```
-
-## Related Topics
+## Related topics
 
 - [Configure PXE Boot](../../HowTo/orchestrator/configure_pxe_boot.md)
 - [Deploy Slurm](../../HowTo/orchestrator/deploy_slurm.md)
 - [Deploy Kubernetes](../../HowTo/orchestrator/deploy_kubernetes.md)
 - [Configure InfiniBand](../../HowTo/orchestrator/configure_infiniband.md)
 - [Configure Cluster DNS](../../HowTo/orchestrator/configure_cluster_dns.md)
-- [Configure Storage](../../HowTo/orchestrator/configure_storage.md)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

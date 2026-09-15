@@ -12,7 +12,7 @@ For more information on the CSI PowerScale driver, see the
       configures the deployed Kubernetes cluster to interact with PowerScale
       storage.
     - Sample `secret.yaml` and `values.yaml` files are available in
-      `omnia/examples/powerscale_reference_files/CSI_driver/` for reference
+      `src/orchestrator/examples/powerscale_reference_files/CSI_driver/` for reference
       only. Always download the actual files from the links provided in the
       prerequisite steps below.
     - Ensure that NFSv4 is enabled on the PowerScale cluster before deploying and configuring the CSI driver. NFSv4 helps prevent stale file locks and improves pod recovery after node reboot events. Omnia does not enable or modify NFS protocol settings on the PowerScale storage system.
@@ -23,7 +23,7 @@ For more information on the CSI PowerScale driver, see the
 Omnia automates the following steps when the CSI PowerScale driver is enabled:
 
 - Creates the `isilon` namespace on the Kubernetes cluster
-- Creates and patches the `isilon-creds` secret with Base64-encoded credentials from `omnia_config_credentials`
+- Creates and patches the `isilon-creds` secret with Base64-encoded credentials from `orchestrator_credentials.yml`
 - Applies the empty certificate secret (`isilon-certs-0`)
 - Deploys the external-snapshotter CRDs and snapshot controller (v8.5.0)
 - Installs the CSI PowerScale driver via the `csi-install.sh` Helm installer
@@ -36,9 +36,9 @@ To use the PowerScale SmartConnect hostname, you need an upstream DNS server
 that includes delegation mappings of hostname to PowerScale IP addresses.
 
 **During provisioning:** Specify the upstream DNS server IP in
-`/opt/omnia/orchestrator/input/project_default/network_spec.yml`:
+`network_spec.yml` in the active project's Orchestrator input directory:
 
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/network_spec.yml"
+```yaml title="File: network_spec.yml"
 ---
 Networks:
   - admin_network:
@@ -54,7 +54,10 @@ Networks:
 
 **After provisioning:** If the upstream DNS server was not specified during
 provisioning, add the DNS server IP to `network_spec.yml` and re-run the
-Orchestrator `provision` workflow.
+Orchestrator `provision` workflow to regenerate cloud-init. Then PXE boot or
+otherwise reprovision the affected Kubernetes nodes so they consume the new
+metadata. Running `provision` alone does not update an already provisioned
+node.
 
 
 ## Prerequisites
@@ -69,7 +72,7 @@ Orchestrator `provision` workflow.
    `storage_config.yml`. This NFS share stores the CSI driver artifacts,
    Helm charts, and deployment scripts for the cluster nodes.
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+    ```yaml title="File: storage_config.yml"
     mounts:
       - name: "nfs_k8s"
         source: "172.16.107.121:/mnt/share/omnia_k8s"
@@ -96,7 +99,7 @@ Orchestrator `provision` workflow.
 
 6. **Enable basic authentication on PowerScale:**
 
-    Omnia uses basic authentication (`isiAuthType: 0`) to connect with
+    Omnia uses basic authentication (`isiAuthType: 0`) to connect to
     PowerScale devices. To check and enable it:
 
     **a.** SSH into the PowerScale node.
@@ -116,8 +119,12 @@ Orchestrator `provision` workflow.
 7. **Configure PowerScale user privileges:**
 
     !!! note
-        This step is required only if you want to collect PowerScale
-        telemetry.
+        The example role below grants the privileges listed in this section
+        for PowerScale API, NFS, quota, snapshot, and access-zone operations.
+        Confirm the required privileges against the installation guide for
+        the deployed CSI driver version. PowerScale telemetry can require
+        additional read privileges; review its separate telemetry guide when
+        that source is enabled.
 
     The username in `secret.yaml` must be from the PowerScale authentication
     providers with sufficient privileges. The required privileges are:
@@ -131,6 +138,7 @@ Orchestrator `provision` workflow.
     | ISI_PRIV_IFS_RESTORE    | Read Only  |
     | ISI_PRIV_NS_IFS_ACCESS  | Read Only  |
     | ISI_PRIV_IFS_BACKUP     | Read Only  |
+    | ISI_PRIV_AUTH           | Read Only  |
     | ISI_PRIV_AUTH_ZONES     | Read Only  |
     | ISI_PRIV_SYNCIQ         | Read Write |
     | ISI_PRIV_STATISTICS     | Read Only  |
@@ -144,7 +152,7 @@ Orchestrator `provision` workflow.
 
         ```bash title="Run on: PowerScale node"
         isi auth group create csmadmins --zone system
-        isi auth user create csmadmin --password "P@ssw0rd123" \
+        isi auth user create csmadmin --password "<secure-password>" \
           --password-expires false --primary-group csmadmins --zone system
         ```
 
@@ -169,7 +177,7 @@ Orchestrator `provision` workflow.
           --add-priv-write ISI_PRIV_SNAPSHOT \
           --add-priv-write ISI_PRIV_SYNCIQ
 
-        isi auth roles modify CSMAdminRole --add-group csmadmins
+        isi auth roles modify CSMAdminRole --zone System --add-group csmadmins
         ```
 
         !!! note
@@ -182,20 +190,30 @@ Orchestrator `provision` workflow.
     wget https://raw.githubusercontent.com/dell/csi-powerscale/refs/heads/release/v2.17.0/samples/secret/secret.yaml
     ```
 
-    Update the following parameters (keep the rest as defaults):
+    Keep `isilonClusters` as a non-empty list of mappings. Every entry must
+    define `clusterName` and `endpoint` as non-empty strings, `username` and
+    `password` as strings, and `isDefault` as a Boolean. Exactly one entry must
+    set `isDefault: true`. The validator also checks the optional fields shown
+    below when they are present:
 
-    | Parameter       | Value                                  |
-    |-----------------|----------------------------------------|
-    | `clusterName`   | Your desired cluster name              |
-    | `endpoint`      | PowerScale SmartConnect hostname or IP |
-    | `endpointPort`  | Endpoint port (default: `8080`)        |
-    | `isDefault`     | `true`                                 |
+    | Parameter | Requirement |
+    | --- | --- |
+    | `endpointPort` | Integer from 1 through 65535 |
+    | `skipCertificateValidation` | Boolean |
+    | `isiPath` | Absolute path when provided |
+    | `isiVolumePathPermissions` | Three- or four-digit octal string when provided |
 
     !!! important
         Do **not** update the `username` and `password` fields in
         `secret.yaml`. Omnia reads these from the
-        `omnia_config_credentials` file and automatically Base64-encodes
+        `orchestrator_credentials.yml` file and automatically Base64-encodes
         and injects them during deployment.
+
+        A plaintext `secret.yaml` is accepted. If you encrypt it before
+        validation, place the matching Vault password file at
+        `.csi_powerscale_secret_vault` in the active Orchestrator project input
+        directory. An encrypted file without that exact key file, or one that
+        cannot be decrypted and parsed, fails validation.
 
     !!! note
         If SmartConnect is configured, you can use the PowerScale hostname
@@ -208,31 +226,45 @@ Orchestrator `provision` workflow.
     wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.17.0/charts/csi-isilon/values.yaml
     ```
 
-    Update the following parameters (keep the rest as defaults):
+    `values.yaml` must be a readable, non-empty, plaintext YAML mapping. The
+    validator requires the following values; an Ansible Vault-encrypted values
+    file is not accepted:
 
-    | Parameter                    | Required Value | Description                               |
-    |------------------------------|----------------|-------------------------------------------|
-    | `controller.controllerCount` | `1`            | Number of CSI controller pods              |
-    | `controller.replication.enabled` | `false`    | Replication must be disabled               |
-    | `controller.snapshot.enabled` | `true`        | Volume snapshots must be enabled           |
-    | `controller.resizer.enabled` | `false`        | Volume expansion is not supported          |
-    | `node.dnsPolicy`             | `Default`      | Pod DNS policy for node daemonset          |
-    | `skipCertificateValidation`  | `true`         | Skip OneFS API certificate verification    |
-    | `endpointPort`               | `8080`         | OneFS API server HTTPS port                |
-    | `isiAccessZone`              | `System`       | PowerScale access zone name                |
-    | `isiPath`                    | `/ifs/data/csi` | Base path for CSI volumes on PowerScale   |
-    | `enableQuota`                | `false`         | Disable SmartQuotas |
+    | Parameter | Required value or constraint | Description |
+    | --- | --- | --- |
+    | `controller.controllerCount` | `1` | Number of CSI controller pods |
+    | `controller.replication.enabled` | `false` | Replication sidecar is disabled |
+    | `controller.snapshot.enabled` | `true` | Volume snapshot sidecar is enabled |
+    | `controller.resizer.enabled` | Boolean | Enables or disables the volume expansion sidecar |
+    | `skipCertificateValidation` | Boolean | Controls OneFS API certificate verification |
+    | `isiAuthType` | `0` or `1` | Authentication type accepted by the driver |
+    | `endpointPort` | Integer from 1 through 65535 | OneFS API server port |
+    | `isiAccessZone` | Non-empty string | PowerScale access zone used by `ps01` |
+    | `isiPath` | Absolute path | Base path used by `ps01` for CSI volumes |
+    | `isiVolumePathPermissions` | Three- or four-digit octal string | Permissions for created volume paths |
 
     !!! caution
-        The `isiPath` and `isiAccessZone` values are used by Omnia to
-        generate the `ps01` StorageClass. Ensure the `isiPath` directory
-        exists on the PowerScale cluster before deployment.
+        The top-level `isiPath` and `isiAccessZone` keys are required because
+        Omnia reads them to generate the `ps01` StorageClass. Ensure the
+        `isiPath` directory exists on the PowerScale cluster before
+        deployment. Omnia also reads the `endpoint` from the first
+        `isilonClusters` entry in `secret.yaml`.
+
+    !!! warning "Protect staged credentials"
+        Ansible Vault protects `orchestrator_credentials.yml`, but Base64 in
+        `secret.yaml` and the Kubernetes Secret is encoding, not encryption.
+        During staging, the current workflow decrypts the configured source
+        `secret.yaml` when necessary, injects the encoded credentials, and
+        copies it with mode `0600`; it does not re-encrypt that source file
+        afterward. Restrict access to the project input directory and the
+        Kubernetes NFS staging share.
 
     !!! warning
-        Once the PowerScale CSI driver is deployed, the parameters in
-        `values.yaml` **cannot** be changed. To modify them, you must first
-        uninstall the driver (see [Uninstallation](#uninstallation)) and then
-        manually re-install it.
+        Omnia does not reconcile `values.yaml` changes into an existing CSI
+        deployment. The generated deployment script skips installation when
+        it detects existing `isilon` driver pods. Apply changes through a
+        driver-supported maintenance procedure, or uninstall and redeploy the
+        driver as described in [Uninstallation](#uninstallation).
 
 10. **Set up credentials:** After setting `enable_powerscale_csi: true` on the
     deployed `service_k8s_cluster`, run the Orchestrator credential workflow.
@@ -248,23 +280,33 @@ Orchestrator `provision` workflow.
 ## Procedure
 
 1. **Select the CSI driver catalog content.** Ensure that the catalog selected
-   by `CATALOG_FILE_PATH` includes its PowerScale CSI group for `x86_64`, such
-   as the source sample's `csi_powerscale_v2_17_0`, so Repo Manager can publish
-   the required dependencies. Catalog content does not enable the driver.
+   by `CATALOG_FILE_PATH` includes the catalog group `powerscale_csi_group` for
+   `x86_64`, so Repo Manager can publish the required driver, Helm chart,
+   snapshotter, and image dependencies. Catalog content does not enable the
+   driver.
 
 2. **Synchronize the required artifacts** by following
    [Configure Repositories](../repo_manager/configure_repos.md). Repo Manager
    publishes the CSI PowerScale driver, Helm charts, external-snapshotter, and
    required images in `repo_status.yml` for Orchestrator.
 
-3. **Enable and configure the CSI driver** in
-   `/opt/omnia/orchestrator/input/project_default/omnia_config.yml` under the
-   `service_k8s_cluster` section:
+3. **Enable and configure the CSI driver** in `omnia_config.yml` in the active
+   project's Orchestrator input directory, under the `service_k8s_cluster`
+   section. Resolve the project directory in the current shell before editing
+   the file:
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+    ```bash title="Run on: OIM"
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+    source "$OMNIA_DATA_PATH/activate-omnia.sh"
+    printf '%s\n' "$orchestrator_path/input/$OMNIA_PROJECT_NAME"
+    ```
+
+    ```yaml title="File: omnia_config.yml"
     service_k8s_cluster:
       - cluster_name: service_cluster
         deployment: true
+        etcd_on_local_disk: false
         enable_powerscale_csi: true
         k8s_cni: "calico"
         pod_external_ip_range: "172.16.107.170-172.16.107.200"
@@ -272,8 +314,8 @@ Orchestrator `provision` workflow.
         k8s_pod_network_cidr: "10.233.64.0/18"
         nfs_storage_name: "nfs_k8s"
         k8s_crio_storage_size: "20G"
-        csi_powerscale_driver_secret_file_path: "/opt/omnia/orchestrator/input/project_default/secret.yaml"
-        csi_powerscale_driver_values_file_path: "/opt/omnia/orchestrator/input/project_default/values.yaml"
+        csi_powerscale_driver_secret_file_path: "/absolute/path/to/orchestrator/input/project/secret.yaml"
+        csi_powerscale_driver_values_file_path: "/absolute/path/to/orchestrator/input/project/values.yaml"
     ```
 
     !!! important
@@ -285,6 +327,9 @@ Orchestrator `provision` workflow.
         `csi_powerscale_driver_values_file_path` must be absolute paths to
         existing regular files when `enable_powerscale_csi` is `true`. An
         empty, relative, missing, or non-file path causes validation to fail.
+        Set them to absolute paths beneath the project directory printed by
+        the command above; shell-variable expressions are not expanded inside
+        YAML values.
 
 4. **Build the service Kubernetes images** by following
    [Build Images](../image_build_manager/build_images.md).
@@ -297,10 +342,16 @@ Orchestrator `provision` workflow.
     ./omnia.sh --run orchestrator --tags provision
     ```
 
+    The `provision` phase generates the first control-plane node's cloud-init
+    metadata, including the CSI deployment script. The driver is installed
+    when that node boots and consumes the metadata. Running `provision` alone
+    does not install or update the driver on an already provisioned node; PXE
+    boot or otherwise reprovision the node for an initial automated install.
+
 ## Verification
 
-After successful execution of the Orchestrator `provision` flow, verify the
-deployment on the `service_kube_control_plane` node.
+After the first `service_kube_control_plane` node has consumed its generated
+cloud-init metadata, verify the deployment on that node.
 
 1. **Check CSI driver pods** are running in the `isilon` namespace:
 
@@ -358,6 +409,13 @@ parameters:
   csi.storage.k8s.io/fstype: "nfs"
 ```
 
+!!! important "Volume expansion is not enabled"
+    The generated StorageClass currently advertises
+    `allowVolumeExpansion: true`, but the required deployment values disable
+    `controller.resizer`. Therefore, PVC expansion is not supported by this
+    Omnia deployment. Do not resize a PowerScale-backed PVC unless the resizer
+    is enabled and that workflow has been validated for the deployed driver.
+
 !!! failure "If installation errors occur"
     Uninstall the CSI driver first (see [Uninstallation](#uninstallation)),
     verify that all prerequisites are met, then manually re-install using
@@ -399,7 +457,7 @@ metadata:
   name: <storage class name>
 provisioner: csi-isilon.dellemc.com
 reclaimPolicy: Retain
-allowVolumeExpansion: true
+allowVolumeExpansion: false
 volumeBindingMode: Immediate
 parameters:
   clusterName: <powerscale cluster name>
@@ -416,6 +474,8 @@ parameters:
       Otherwise, use the PowerScale IP address.
     - If storage class parameters change for a PowerScale cluster, update the
       existing storage class or create a new one.
+    - Keep `allowVolumeExpansion: false` while
+      `controller.resizer.enabled` is `false` in the deployed driver values.
 
 Apply the storage class:
 
@@ -548,23 +608,42 @@ To uninstall the PowerScale CSI driver manually:
     ```
 
 !!! note "Updating OneFS credentials"
-    If the OneFS portal credentials change, update the `secret.yaml`
-    manually:
+    The encrypted Orchestrator credential file is the authoritative source for
+    `csi_username` and `csi_password`. Updating only the live Kubernetes secret
+    leaves the stored input out of sync.
 
-    1. Update `secret.yaml` with the new credentials.
-    2. Copy the updated file to the `kube_control_plane` node.
-    3. Delete the existing secret:
+    The current Orchestrator deployment script skips CSI installation when it
+    detects existing `isilon` driver pods, so rerunning `provision` does not
+    perform an in-place credential rotation. To change the OneFS credentials:
 
-        ```bash title="Run on: kube_control_plane"
-        kubectl delete secret isilon-creds -n isilon
+    1. Quiesce PowerScale-backed workloads and plan a maintenance window.
+    2. Edit the encrypted credentials on the OIM:
+
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        source "$OMNIA_DATA_PATH/activate-omnia.sh"
+        ansible-vault edit \
+          "$orchestrator_path/input/$OMNIA_PROJECT_NAME/orchestrator_credentials.yml" \
+          --vault-password-file \
+          "$orchestrator_path/input/$OMNIA_PROJECT_NAME/.orchestrator_credentials_key"
         ```
 
-    4. Create a new secret:
+       Update `csi_username` and `csi_password`, save the file, and exit the
+       editor. Do not place either value on the command line.
 
-        ```bash title="Run on: kube_control_plane"
-        kubectl create secret generic isilon-creds -n isilon \
-          --from-file=config=<updated_secret.yaml_filepath>
-        ```
+    3. Apply the new credentials through an approved CSI maintenance
+       procedure. The current Omnia workflow does not automate live rotation:
+       `provision` stages updated configuration for future node cloud-init, but
+       it does not replace the live `isilon-creds` secret on an already running
+       cluster. Either follow the CSI driver's supported live-rotation
+       procedure, or uninstall and redeploy the driver during the maintenance
+       window. A redeployment that depends on Omnia cloud-init also requires
+       the affected control-plane node to be reprovisioned; running the
+       `provision` tag alone is insufficient.
+
+    4. Verify the `isilon-creds` secret exists and that the CSI controller and
+       node pods return to `Running` before restoring workloads.
 
 ## Next steps
 
@@ -606,13 +685,3 @@ state. Check the pod status and logs:
 ```bash title="Run on: kube_control_plane"
 kubectl logs -n isilon deployment/isilon-controller --all-containers
 ```
-
-
-
-
-
-
-
-
-
-

@@ -11,7 +11,7 @@ against the Repo Manager status schema before loading repository data.
 ### `repo_status.yml`
 
 **Location**:
-`$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml`
+`$REPO_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/repo_status.yml`
 
 **Producer**: Repository Manager.
 
@@ -19,7 +19,8 @@ against the Repo Manager status schema before loading repository data.
 
 The path can be overridden by `repo_manager_output_path` in
 `image_build_config.yml`. The generated Repository Manager output is the
-authoritative contract.
+authoritative contract. When `REPO_MANAGER_DATA_PATH` is unset, its default is
+`$OMNIA_DATA_PATH/repo_manager`.
 
 #### Structure
 
@@ -103,8 +104,8 @@ not require this upstream output.
 
 **Producer**: The `build_os_images` role's status-writing task.
 
-**Consumer**: The provisioning workflow, for image validation and BSS template
-rendering.
+**Consumer**: The provisioning workflow, for image validation and OpenCHAMI
+boot-service configuration rendering.
 
 The current manifest does not contain a `schema_version` or
 `contract_version` field. Consumers determine compatibility by validating the

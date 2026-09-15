@@ -6,21 +6,21 @@ This page lists all software components that Omnia installs and configures acros
 
 | Component | Version | License | Purpose |
 | --- | --- | --- | --- |
-| OpenCHAMI | 0.1.7-1 | Apache-2.0 | Open Composable Heterogeneous Adaptable Management Infrastructure |
-| SMD | v2.20.6 | MIT | The State Management Database (SMD) is a robust service designed for monitoring, tracking, and managing hardware components in high-performance computing (HPC) environments. |
-| BSS | v1.32.4 | MIT | The Boot Script Service (BSS) provides boot arguments (initrd, kernel arguments, etc.) and Level 2 boot services for static images in HPE Shasta systems. |
+| OpenCHAMI | 0.2.0-1 | Apache-2.0 | Open Composable Heterogeneous Adaptable Management Infrastructure |
+| SMD | v2.20.5 | MIT | Stores and serves OpenCHAMI hardware inventory and functional-group membership. |
+| boot-service | v0.3.1 | MIT | Stores boot configurations and generates node iPXE boot parameters. |
+| metadata-service | v0.2.1 | MIT | Serves NoCloud-compatible metadata and cloud-init payloads for provisioned nodes. |
+| TokenSmith | v0.4.1 | MIT | Issues and validates the JWTs used for OpenCHAMI service access. |
+| local-ca | v0.2.6 | MIT | Provides the local certificate authority used by OpenCHAMI services. |
 | Image builder | 1.2 | MIT | A wrapper around various buildah commands that makes creating images in layers easier. |
-| coresmd | v0.6.3 | MIT | A CoreDHCP plugin with a pull-through cache that communicates with SMD |
-| cloud-init | v1.4.9 | GPL-3.0 | Micro-service for serving cloud-init payloads |
-| haproxy | latest | GPL-2.0-only | Reverse proxy for allowing all microservices to be accessible through a single http(s) host |
-| Step-CA | v0.2.6 | Apache-2.0 | A zero trust swiss army knife for working with X509, OAuth, JWT, OATH OTP, etc. |
-| Ory Hydra | v2.3 | Apache-2.0 | The only web-scale, fully customizable OpenID Certified™ OpenID Connect and OAuth2 Provider in the world. Become an OpenID Connect and OAuth2 Provider over night. Written in Go, cloud native, headless, API-first. Available as a service on Ory Network and for self-hosters. Relied upon by OpenAI and others for web-scale security. |
+| coresmd | v0.7.0 | MIT | Connects CoreDHCP and CoreDNS to the inventory held in SMD. |
+| HAProxy | latest | GPL-2.0-only | Exposes the OpenCHAMI service APIs through a single HTTPS endpoint. |
 | Pulp container | 3.114.2 | GPL-2.0-only | Pulp 3 pulpcore package |
 | pulpcore | 3.114.2 | GPL-2.0-only | Pulp Django Application and Related Modules |
 | pulp-cli | 0.40.1 | GPL-2.0-only | Command line interface to talk to pulpcore's REST API. |
 | minio | RELEASE.2026-08-04T00-00-00Z | GNU Affero General Public License v3.0 (AGPLv3) | MinIO is a high-performance object storage system compatible with the Amazon S3 API. |
 | registry | 3.1.1 | Apache-2.0 license | Docker Registry is the official image registry service for storing and distributing Docker images. |
-| postgresSQL (OpenCHAMI) | 17-alpine | PostgreSQL | PostgreSQL, also known as Postgres, is a free and open-source relational database management system emphasizing extensibility and SQL compliance. |
+| PostgreSQL (OpenCHAMI) | 11.5-alpine | PostgreSQL | Stores OpenCHAMI service data. |
 | postgresSQL (BuildStreaM) | 16 | PostgreSQL | PostgreSQL, also known as Postgres, is a free and open-source relational database management system emphasizing extensibility and SQL compliance. |
 
 ## Kubernetes
@@ -103,7 +103,7 @@ This page lists all software components that Omnia installs and configures acros
 | --- | --- | --- | --- |
 | OpenLDAP | Latest from Fedora 44 | GPL-3.0-only | OpenLDAP is a free, open-source implementation of the Lightweight Directory Access Protocol (LDAP) developed by the OpenLDAP Project |
 | openldap-clients | Latest RPM from RHEL 10 baseos | OpenLDAP Public License | LDAP client libraries for directory service access |
-| Omnia Auth | 1.1 | Apache License 2.0 | The omnia_auth image is part of Dell's Omnia toolkit and is responsible for authentication services within HPC, AI, and data analytics clusters. It primarily manages centralized user authentication and integrates with OpenLDAP to provide secure access control across the cluster. |
+| Omnia Auth | 1.2 | Apache License 2.0 | The omnia_auth image is part of Dell's Omnia toolkit and is responsible for authentication services within HPC, AI, and data analytics clusters. It primarily manages centralized user authentication and integrates with OpenLDAP to provide secure access control across the cluster. |
 | nss-pam-ldapd | Latest RPM from EPEL | LGPL-2.1-or-later | NSS/PAM module for LDAP authentication integration |
 | sssd | Latest RPM from RHEL 10 baseos | GPL-3.0-or-later | System Security Services Daemon for centralized identity management |
 | oddjob-mkhomedir | Latest RPM from RHEL 10 appstream | BSD-3-Clause | Oddjob helper for automatic home directory creation |
@@ -205,8 +205,6 @@ This page lists all software components that Omnia installs and configures acros
 
     - [Catalog JSON](../SampleFiles/catalog_json.md) -- Software and artifact selection through `catalog_rhel.json`.
     - [Local Repo Config](../Configuration/repo_manager_config.md) -- Repository mirror configuration for package sources.
-
-
 
 
 

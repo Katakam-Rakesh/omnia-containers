@@ -41,8 +41,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The subnet of the IB network.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">192.168.0.0</span></code></p>
+                    <p>The canonical IPv4 network address of the IB network. It must not overlap a primary or additional admin subnet.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">192.168.0.0</span></code></p>
                 </div>
             </td>
         </tr>
@@ -60,8 +60,8 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The number of bits in the subnet mask. This value must be same as the admin_network netmask_bits.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">24</span></code></p>
+                    <p>The number of bits in the subnet mask. This value must equal the primary admin_network netmask_bits because node configuration uses that shared prefix. The current precheck does not enforce the equality; verify it before deployment.</p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">24</span></code></p>
                 </div>
             </td>
         </tr>
@@ -80,10 +80,9 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
                     <p>External DNS server IP addresses for the InfiniBand network.</p>
-                    <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
+                    <p><b>Example value:</b> <code class="docutils literal notranslate"><span class="pre">[]</span></code></p>
                 </div>
             </td>
         </tr>
     </tbody>
 </table>
-

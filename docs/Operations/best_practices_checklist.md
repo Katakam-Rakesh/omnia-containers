@@ -10,7 +10,7 @@ detailed procedures.
 
 | | Best Practice | Reference |
 | --- | --- | --- |
-| ☐ | **Run playbooks from their directory** using `cd`. Omnia playbooks use relative paths for roles and configuration files. Always `cd /omnia` before running `ansible-playbook`. | [How-to Guides Index](../HowTo/index.md) |
+| ☐ | **Use the Main launcher from `src/main`.** Run `./omnia.sh --run <domain> --tags <tag>` from `<OMNIA_SOURCE_PATH>/src/main`, and use one documented lifecycle tag at a time. Direct component playbooks are reserved for procedures that explicitly document them. | [How-to Guides Index](../HowTo/index.md) |
 | ☐ | **Review prerequisites before running playbooks.** Each playbook has specific input files and environment requirements. Check the corresponding how-to guide before execution. | [How-to Guides Index](../HowTo/index.md) |
 
 ## BIOS and firmware
@@ -58,7 +58,6 @@ deployment:
     - [Prerequisites Checklist](../GetStarted/prerequisites_checklist.md) -- Detailed prerequisites for
       all deployment paths.
     - [Log Management](log_management.md) -- Log monitoring and rotation configuration.
-
 
 
 

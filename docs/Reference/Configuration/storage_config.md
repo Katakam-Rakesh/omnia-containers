@@ -1,8 +1,8 @@
 ﻿
 # storage_config.yml
 
-This file configures shared storage for the cluster, including NFS mounts,
-Dell PowerScale/PowerVault and swap configuration.
+This file configures shared storage for the cluster, including NFS and VAST
+Data mounts, Dell PowerScale/PowerVault, and swap configuration.
 
 ## Parameter Reference
 ### Mounts Configuration
@@ -13,11 +13,13 @@ Dell PowerScale/PowerVault and swap configuration.
 --8<-- "html/storage_config-powervault_config.html"
 ### Swap Configuration
 --8<-- "html/storage_config-swap.html"
-### S3 Configuration
---8<-- "html/storage_config-s3_configurations.html"
+
+S3 endpoint configuration is not part of `storage_config.yml`. Orchestrator
+loads the authoritative S3 endpoint and bucket from Image Build Manager's
+generated `build_status.yml` contract.
 
 ## Usage example
-```yaml title="File: /opt/omnia/orchestrator/input/project_default/storage_config.yml"
+```yaml title="File: $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/storage_config.yml"
 ---
 mounts:
   - name: "nfs_slurm"
@@ -86,11 +88,14 @@ swap:
     size: "2G"
     maxsize: "4G"
     functional_group_prefix: ["slurm_node"]
-
-s3_configurations:
-  provider: "powerscale"
-  endpoint_url: ""
 ```
+
+The standard optional Slurm VAST mount uses `name: vast_storage`. Orchestrator
+includes it only when `slurm_cluster[0].vast_storage_name` is non-empty and
+references that name. When `vast_storage_name` is empty or omitted, the
+standard `vast_storage` entry is skipped and the selected Slurm NFS mount
+supplies the shared-data and HPC-tools paths. No additional storage role field
+is supported or required.
 
 
 !!! info
@@ -101,9 +106,6 @@ s3_configurations:
     - [Storage Requirements](../../Reference/../Reference/ClusterRequirements/storage_requirements.md) -- Storage sizing and prerequisites.
     - [Storage](../SupportMatrix/storage.md) -- Supported storage platforms.
     - [Disk Space](../../Reference/../Reference/ClusterRequirements/disk_space.md) -- Disk space requirements.
-
-
-
 
 
 

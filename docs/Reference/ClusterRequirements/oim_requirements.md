@@ -10,7 +10,10 @@ devices and software, see [Support Matrix](../index.md#support-matrix).
 - Ensure the OIM has at least 64 GB RAM. To check the free RAM size, use the `free -h` command. To check the disk space, use the `df -h` command.
 - Ensure that the OIM has the RHEL operating system installed with the **Server with GUI** Base Environment. For a complete list of supported RHEL versions, see the [supported operating systems](../SupportMatrix/operating_systems.md).
 - Ensure that **Podman** container engine is installed on the OIM.
-- The OIM must have access to public/internet (for downloading packages and images) network and admin (PXE) network.
+- The OIM must have access to the admin (PXE) network and to every configured
+  package, container, and source repository. Internet access is required when
+  public repositories are used; an offline deployment can use reachable local
+  mirrors instead.
 - Verify that **Git** is installed. If not, install it using:
 
     ```bash title="Run on: OIM host"
@@ -26,7 +29,6 @@ devices and software, see [Support Matrix](../index.md#support-matrix).
 
     See [Running Deployment Modules](../../Overview/domain_execution.md) for
     the supported module setup and execution workflow.
-
 
 
 

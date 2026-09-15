@@ -90,18 +90,19 @@ Omnia uses the following ports on the OIM. Ensure these ports are not assigned t
 
 | Port | Protocol | Service |
 | --- | --- | --- |
-| 9000, 9001 | TCP | minio-server |
-| 5000 | TCP | registry |
-| 9000 | TCP | step-ca |
 | 5432 | TCP | postgres |
+| 27778 | TCP | OpenCHAMI compatibility port reserved by the current deployment |
 | 27779 | TCP | smd |
-| 27778 | TCP | bss |
-| 80, 443 | TCP | haproxy |
-| 22 | UDP | ssh-udp |
-| 67 | UDP | dhcp-udp |
-| 68 | UDP | bootpc |
-| 69 | UDP | tftp-udp |
-| 636, 389 | TCP | omnia_auth |
+| 8081 | TCP | boot-service (iPXE boot script) |
+| 8443 | TCP | OpenCHAMI HTTPS API gateway |
+| 67, 68 | UDP | CoreDHCP and PXE clients |
+| 69 | UDP | TFTP |
+| 53 | TCP, UDP | CoreDNS (when `dns_enabled` is `true`) |
+| 389, 636 | TCP | `omnia_auth` LDAP (when OpenLDAP is selected) |
+
+The object-store and container-registry ports are owned by Image Build Manager,
+not by the OpenCHAMI deployment. Internal Podman-network ports for local CA,
+TokenSmith, and metadata-service do not need to be exposed as OIM host ports.
 
 **Telemetry Ports**
 
@@ -245,7 +246,7 @@ via iDRAC or BIOS Setup (F2 at POST).
 | ☐ | NVIDIA GPU hardware present | Must be present on any Slurm node intended for GPU workloads. Nodes without GPU hardware are automatically skipped. |
 | ☐ | GPU packages synchronized | Synchronize the selected RHEL 10.0 Slurm catalog through Repository Manager. It must provide the NVIDIA driver, CUDA toolkit, DCGM, and matching kernel-development packages for each target architecture. |
 | ☐ | GPU repositories reachable | Confirm Repository Manager completed successfully and Slurm compute nodes can reach the repositories recorded in `repo_status.yml`. |
-| ☐ | DCGM installation setting reviewed | DCGM installation on GPU-capable Slurm nodes is controlled by `dcgm_enabled` in `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml`. The shipped value is `true`. |
+| ☐ | DCGM installation setting reviewed | DCGM installation on GPU-capable Slurm nodes is controlled by `dcgm_enabled` in the active project's Orchestrator `orchestrator_config.yml`. The shipped value is `true`. |
 | ☐ | NFS path for HPC tools reachable | The shared NFS path for Slurm HPC tools must be reachable from all Slurm compute and login/compiler nodes. Minimum 30 GB recommended for `hpc_tools/cuda`. The NFS share must be exported with `no_root_squash`. |
 
 !!! note
@@ -361,10 +362,6 @@ dnf repolist
     deep in the Ansible playbook execution.
 
 You are now ready to choose your deployment path. Return to [Get Started Index](index.md).
-
-
-
-
 
 
 

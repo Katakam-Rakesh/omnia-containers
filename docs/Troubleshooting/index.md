@@ -18,13 +18,15 @@ When you encounter an issue, follow this general diagnostic flow:
     podman ps --format 'table {{.Names}}\t{{.Status}}'
     ```
 
-4. **Use the ochami CLI.** For provisioning issues, the `ochami-cli` provides direct access to the OpenCHAMI state manager for inspecting node inventory, boot status, and hardware state:
+4. **Check the current OpenCHAMI services.** Use the `ochami` CLI for SMD
+   inventory and systemd for the Fabrica boot and metadata services:
 
     **Execution context: OIM**
 
     ```bash
     ochami smd component get
-    ochami bss boot params get
+    ochami smd service status
+    systemctl is-active boot-service metadata-service tokensmith
     ```
 
 5. **Search this section.** Browse the topic-specific pages below or use your browser's search (Ctrl+F) to find your symptom.
@@ -105,7 +107,6 @@ Helper utilities issues - Backup, install, and prepare operations
     If you cannot resolve an issue using this guide, open an issue on the
     [Omnia GitHub repository](https://github.com/dell/omnia/issues) with
     the relevant log output and a description of your environment.
-
 
 
 

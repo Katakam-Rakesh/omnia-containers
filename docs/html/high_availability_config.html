@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <div class="omnia-cell">
-                            <p>High Availability (HA) configuration for Kubernetes (K8s) service clusters. Service K8s clusters are supported only in HA mode.</p>
+                            <p>High Availability (HA) configuration for Kubernetes (K8s) service clusters. Configure exactly one entry. Orchestrator validates it against the Kubernetes cluster selected for deployment and generates kube-vip configuration from its virtual IP address.</p>
                         </div>
                     </td>
                 </tr>
@@ -41,7 +41,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>Captures the name of the service cluster on which HA will be set up. <b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">service_cluster</span></code></p>
+                            <p>Identifies the intended service cluster. This value must match the single <code class="docutils literal notranslate"><span class="pre">service_k8s_cluster</span></code> entry selected with <code class="docutils literal notranslate"><span class="pre">deployment: true</span></code> in <code class="docutils literal notranslate"><span class="pre">omnia_config.yml</span></code>.</p>
                         </div>
                     </td>
                 </tr>
@@ -59,9 +59,8 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p><b>Possible values:</b> <code class="docutils literal notranslate"><span class="pre">true</span></code></p>
-                            <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">true</span></code></p>
-                            <p>Indicates whether to enable HA for the Kubernetes (K8s) service node or not. Set to <code class="docutils literal notranslate"><span class="pre">true</span></code> to enable.</p>
+                            <p><b>Possible values:</b> <code class="docutils literal notranslate"><span class="pre">true</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code></p>
+                            <p>Set this value to <code class="docutils literal notranslate"><span class="pre">true</span></code> for the supported HA configuration. The current provisioning role reads the value but does not use it to disable kube-vip generation.</p>
                         </div>
                     </td>
                 </tr>
@@ -81,7 +80,8 @@
                         <div class="omnia-cell">
                             <p>This is a mandatory and user-configurable parameter.</p>
                             <p>Captures the virtual IP address for the K8s service node HA setup. Ensure that the <code class="docutils literal notranslate"><span class="pre">virtual_ip_address</span></code> does not belong to the <code class="docutils literal notranslate"><span class="pre">dynamic_range</span></code> mentioned in the network_spec.yml.</p>
-                            <p><b>Default value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.1</span></code></p>
+                            <p><b>Sample value:</b> <code class="docutils literal notranslate"><span class="pre">172.16.107.1</span></code></p>
+                            <p>Input validation requires this VIP to be a usable address in the shared control-plane admin subnet, requires the complete MetalLB pool to belong to that subnet, and rejects conflicts with OIM, mapped node, DHCP, and MetalLB addresses.</p>
                         </div>
                     </td>
                 </tr>

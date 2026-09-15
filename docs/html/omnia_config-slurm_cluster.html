@@ -23,7 +23,7 @@
             </td>
             <td>
                 <div class="omnia-cell">
-                    <p>List of slurm cluster configurations.</p>
+                    <p>Slurm cluster configuration list. When Slurm is enabled, supply one entry. The current implementation reads only the first entry and does not process additional entries.</p>
                 </div>
             </td>
         </tr>
@@ -79,7 +79,7 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>Storage name corresponding to the VAST storage to be used by slurm cluster.<br>This should match exactly with an entry in storage_config.yml.<br>The following directories will be mounted on the VAST storage:<br>- /scratch<br>- /tmp<br>- /home<br>- /apps<br>- /projects</p>
+                    <p>Optional storage name for a separate Slurm VAST mount in <code class="docutils literal notranslate"><span class="pre">storage_config.yml</span></code>. Use the standard value <code class="docutils literal notranslate"><span class="pre">vast_storage</span></code>, which must exactly match the mount <code class="docutils literal notranslate"><span class="pre">name</span></code>.<br>When omitted or empty, Orchestrator skips the standard <code class="docutils literal notranslate"><span class="pre">vast_storage</span></code> entry and reuses <code class="docutils literal notranslate"><span class="pre">nfs_storage_name</span></code> for shared-data and HPC-tools paths.<br>When selected, the following directories use the VAST storage:<br>- /scratch<br>- /tmp<br>- /home<br>- /apps<br>- /projects</p>
                     <p>Refer - <a href="../../HowTo/Slurm/setup_slurm.html#slurm-storage-architecture">Slurm Storage Architecture</a></p>
                 </div>
             </td>
@@ -118,42 +118,6 @@
                 <div class="omnia-cell">
                     <p>Config can be a file path or inline mapping</p>
                     <p>Value can be: str (File path string) or dict (Inline configuration mapping).</p>
-                </div>
-            </td>
-        </tr>
-        <tr class="row-even">
-            <td>
-                <div class="omnia-indent"></div>
-                <div class="omnia-cell">
-                    <div class="ansibleOptionAnchor" id="parameter-slurm_cluster/nvidia_driver_version_x86_64"></div>
-                    <p class="omnia-title" id="module-parameter-slurm-cluster-nvidia-driver-version-x86-64">
-                        <strong>nvidia_driver_version_x86_64</strong>
-                    </p>
-                    <p class="omnia-type-line"><span class="omnia-type">string</span></p>
-                </div>
-            </td>
-            <td>
-                <div class="omnia-indent-desc"></div>
-                <div class="omnia-cell">
-                    <p>NVIDIA driver version to install on x86_64 GPU nodes</p>
-                </div>
-            </td>
-        </tr>
-        <tr class="row-odd">
-            <td>
-                <div class="omnia-indent"></div>
-                <div class="omnia-cell">
-                    <div class="ansibleOptionAnchor" id="parameter-slurm_cluster/nvidia_driver_version_aarch64"></div>
-                    <p class="omnia-title" id="module-parameter-slurm-cluster-nvidia-driver-version-aarch64">
-                        <strong>nvidia_driver_version_aarch64</strong>
-                    </p>
-                    <p class="omnia-type-line"><span class="omnia-type">string</span></p>
-                </div>
-            </td>
-            <td>
-                <div class="omnia-indent-desc"></div>
-                <div class="omnia-cell">
-                    <p>NVIDIA driver version to install on aarch64 GPU nodes</p>
                 </div>
             </td>
         </tr>
@@ -326,4 +290,3 @@
         </tr>
     </tbody>
 </table>
-

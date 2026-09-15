@@ -1,6 +1,6 @@
 # Disk Space Requirements
 
-Omnia 2.2.0.0 uses a stateless (diskless) provisioning model. Cluster nodes PXE boot from network-delivered images and run entirely from RAM. The OIM builds and serves these images, hosts all software repositories, and stores provisioning state. This page documents disk and memory requirements for each node role.
+Omnia 2.3.0.0 uses a stateless (diskless) provisioning model. Cluster nodes PXE boot from network-delivered images and run entirely from RAM. The OIM builds these images, hosts the software repositories and OpenCHAMI services, and stores provisioning state. Boot artifacts are stored in the S3 backend selected in Image Build Manager.
 
 ## Diskless provisioning model
 
@@ -14,7 +14,7 @@ Cluster nodes do not require local OS disks. During PXE boot, the OIM serves a k
 
 | Node Role | Minimum Disk | Notes |
 | --- | --- | --- |
-| **OIM (Management Node)** | 256 GB | Hosts Pulp repos, boot images (S3), containers, PostgreSQL, ISO files, logs. SSD recommended. |
+| **OIM (Management Node)** | 256 GB | Hosts Pulp repositories, management containers, ISO files, and logs. It also hosts boot images when local MinIO is selected. SSD recommended. |
 | **Service K8s Node** | 200 GB of shared storage | For container images, persistent volumes, and telemetry data (VictoriaMetrics, Kafka). |
 | **NFS Server (external)** | 200 GB+ | Shared storage for `/home`, Slurm spool, scratch space. Size depends on user count and workload. |
 | **Slurm / Login / OS Nodes** | No local disk required | Diskless boot from OIM. Persistent data stored on NFS. Optional local scratch disk for temporary job data. |
@@ -32,7 +32,7 @@ The OIM is the most storage-intensive node in the cluster. All software packages
 | RHEL OS | ~20 GB | Server installation profile. |
 | Pulp repository mirror | ~150 GB | Mirrors RHEL BaseOS, AppStream, EPEL, CUDA/ROCm, Kubernetes repos. Size varies with enabled repositories. |
 | Container images (Podman) | ~30 GB | OpenCHAMI, Pulp, and other OIM service containers. |
-| Boot images (S3) | ~10 GB | Built `rootfs.img`, `vmlinuz`, `initrd.img` per architecture and functional group. Stored in MinIO S3 (`s3://boot-images/`). |
+| Boot images (S3) | ~10 GB | Kernel, initramfs, and root filesystem artifacts per architecture and functional group. Stored on the OIM only when Image Build Manager uses local MinIO; external PowerScale S3 consumes capacity on that appliance instead. |
 | ISO images | ~10 GB | RHEL ISO(s) used for image building. |
 | PostgreSQL (BuildStreaM) | ~30 GB | GitLab and BuildStreaM pipeline database. Required only when BuildStreaM is deployed. |
 | BuildStreaM pipeline artifacts | Variable | Additional space required during build pipeline execution. Ensure 200 GB free space on the OIM / partition before triggering build pipelines. |
@@ -86,7 +86,7 @@ Since cluster nodes run diskless with the root filesystem in RAM, memory sizing 
 
 | Node Role | Minimum RAM | Notes |
 | --- | --- | --- |
-| OIM | 64 GB | Runs Pulp, OpenCHAMI, MinIO, and build processes concurrently. |
+| OIM | 64 GB | Runs Pulp, OpenCHAMI, image-build processes, and local MinIO when that S3 provider is selected. |
 | Slurm compute node | 64 GB | Root filesystem in RAM (~3 GB) plus workload memory. |
 | Service K8s node | 64 GB | Root filesystem in RAM plus container workloads (telemetry, monitoring). |
 | Login node | 64 GB | Root filesystem in RAM plus user sessions and compilers. |
@@ -97,7 +97,6 @@ Since cluster nodes run diskless with the root filesystem in RAM, memory sizing 
     - [Storage Config](../Configuration/storage_config.md) -- NFS configuration.
     - [Local Repo Config](../Configuration/repo_manager_config.md) -- Pulp repository storage path.
     - [Configure Mounts](../../HowTo/orchestrator/configure_storage.md) -- Mount configuration for diskless nodes.
-
 
 
 

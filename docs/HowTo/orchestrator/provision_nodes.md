@@ -24,13 +24,14 @@ The source recognizes these categories:
   requires a successful `repo_status.yml`, a valid Pulp public certificate, and
   a successful `build_status.yml` containing an image for each functional
   group.
-- Provide the discovery mapping with these case-sensitive columns:
-  `FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `SERVICE_TAG`,
-  `PARENT_SERVICE_TAG`, `HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and
-  `BMC_IP`. `IB_NIC_NAME` and `IB_IP` are supported optional columns.
-- Use unique service tags, hostnames, and admin IPs. Hostnames must be lowercase,
-  must not begin with a number, and must not contain underscores, dots, or
-  spaces.
+- Provide the mapping with the exact 11 case-sensitive columns documented in
+  [PXE mapping file](../../Reference/SampleFiles/pxe_mapping_file.md), including
+  `IB_NIC_NAME` and `IB_IP`. Optional cells may be empty, but columns must not
+  be removed.
+- Use unique hostnames, normalized admin MAC addresses, and admin IPs. Every
+  nonempty service tag and InfiniBand IP must also be unique. Hostnames must be
+  lowercase, must not begin with a number, and must not contain underscores,
+  dots, or spaces.
 - Configure `network_spec.yml`. Every mapped admin IP must be valid for the
   configured network.
 - For physical-server PXE boot, provide reachable Dell iDRAC addresses and BMC
@@ -47,10 +48,12 @@ The source recognizes these categories:
 ```bash title="Run on: OIM"
 cd src/main
 ./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
 ```
 
 The input directory is
-`$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`. In
+`$orchestrator_path/input/$OMNIA_PROJECT_NAME/`. In
 `orchestrator_config.yml`, configure the mapping and any non-default upstream
 paths:
 
@@ -63,8 +66,8 @@ enable_pxe_boot: true
 ```
 
 Empty upstream paths use the current project defaults. For a mapping already
-copied into the project input directory, use its absolute path for
-`pxe_mapping_file_path`.
+copied to the default project input location, leave `pxe_mapping_file_path`
+empty. Set it to an absolute path only when the mapping is stored elsewhere.
 
 ### 2. Validate the inputs and prerequisites
 
@@ -75,9 +78,11 @@ copied into the project input directory, use its absolute path for
 
 ### 3. Run the complete or staged workflow
 
-For a complete run, use the playbook without tags. The default path runs
-precheck, prepare, and execute; `execute` includes provisioning and PXE boot
-when `enable_pxe_boot` is `true`.
+For a complete run, use the playbook without tags. An untagged run executes all
+phases that are not protected by the Ansible `never` tag, in playbook order:
+shared setup and input validation, functional-group generation, precheck,
+standalone credential collection, preparation, deployment and service
+readiness, provisioning, and PXE boot when `enable_pxe_boot` is `true`.
 
 ```bash title="Run on: OIM"
 ./omnia.sh --run orchestrator
@@ -106,20 +111,31 @@ trigger, and writes the final status.
 Inspect the generated status and provisioning report:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/failed_nodes.json"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
 ```
 
 The provisioning validation compares expected mapping xnames with SMD,
 confirms boot-service configurations for functional groups, checks
 metadata-service group data and hostname assignments, and generates
 `orchestrator_inventory.yaml` and `bmc_group_data.csv` in the same output
-directory.
+directory. Its `overall_status` is based on missing SMD nodes. Missing boot
+configurations, metadata, admin interfaces, or hostname assignments are
+reported in warning arrays and can therefore coexist with
+`overall_status: success`.
 
-After PXE boot, `orchestrator_status.yml` reports `overall_status`, total,
-success, and failure counts, plus each node's `pxe_boot` or
-`node_registration` failure stage.
+After PXE boot, inspect the two PXE-specific artifacts as well:
+
+```bash title="Run on: OIM"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/pxeboot_status.yml"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/failed_nodes.json"
+```
+
+`pxeboot_status.yml` contains every target node. `failed_nodes.json` is
+created by the PXE phase and contains only failures; it has an empty
+`failed_nodes` list on success. The aggregate `orchestrator_status.yml`
+reports `overall_status`, total, success, and failure counts, plus each node's
+`pxe_boot` or `node_registration` failure stage.
 
 ## Next steps
 
@@ -134,8 +150,11 @@ success, and failure counts, plus each node's `pxe_boot` or
 
 **Input validation fails for the mapping**
 
-Confirm the configured path, uppercase headers, unique identifiers, valid admin
-IPs, and lowercase hostnames. Review the generated validation log under
+Confirm the configured path, exact 11-column header, unique identifiers, valid
+addresses, paired IB fields, supported functional groups, and lowercase
+hostnames. Review the detailed validation log at
+`$OMNIA_DATA_PATH/log/core/playbooks/orchestrator_validation_${OMNIA_PROJECT_NAME}.log`.
+The surrounding Ansible execution is recorded separately in
 `/var/log/omnia/orchestrator/orchestrator.log`.
 
 **OpenCHAMI provisioning fails**
@@ -154,7 +173,7 @@ cd src/main
 
 **PXE boot reports no BMC hosts**
 
-Populate `BMC_IP` in column 9 of every physical-node row. Ensure the OIM can
+Populate the named `BMC_IP` field in every physical-node row. Ensure the OIM can
 reach each iDRAC and rerun `--tags pxeboot`.
 
 **Node registration times out**

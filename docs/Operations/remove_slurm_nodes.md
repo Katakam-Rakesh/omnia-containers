@@ -26,18 +26,29 @@ logic for Kubernetes, login, controller, OS-only, or custom nodes.
 
 ## Procedure
 
+Resolve the active project paths before changing the inventory:
+
+```bash title="Run on: OIM"
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_DATA_PATH/activate-omnia.sh"
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+orchestrator_input="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
+orchestrator_output="$orchestrator_path/output/$OMNIA_PROJECT_NAME"
+```
+
 ### 1. Update the desired inventory
 
 Remove only the intended `slurm_node_...` rows from the primary mapping
-configured by `pxe_mapping_file_path`. Keep all remaining cluster rows.
+configured by `pxe_mapping_file_path`. When that value is empty, update
+`$orchestrator_input/pxe_mapping_file.csv`. Keep all remaining cluster rows.
 
 ### 2. Validate and apply the change
 
 ```bash title="Run on: OIM"
-cd /omnia/src/orchestrator
-ansible-playbook playbooks/orchestrator.yml --tags validate
-ansible-playbook playbooks/orchestrator.yml --tags precheck
-ansible-playbook playbooks/orchestrator.yml --tags provision
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run orchestrator --tags validate
+./omnia.sh --run orchestrator --tags precheck
+./omnia.sh --run orchestrator --tags provision
 ```
 
 ### 3. Respond to active jobs
@@ -76,8 +87,8 @@ should show only the compute nodes retained in the mapping.
 Review the regenerated Orchestrator report and inventory:
 
 ```bash title="Run on: OIM"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/provisioning_report.yml"
-cat "$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
+cat "$orchestrator_output/provisioning_report.yml"
+cat "$orchestrator_output/orchestrator_inventory.yaml"
 ```
 
 ## Next steps

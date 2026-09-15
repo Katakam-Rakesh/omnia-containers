@@ -13,10 +13,10 @@ defined in the `BMC_IP` column of `bmc_group_data.csv`.
 
 ### Components
 
-- **iDRAC Collector** -- Polls each server's Redfish endpoint for hardware
-  metrics. Runs as a Kubernetes pod in the `telemetry` namespace.
-- **ActiveMQ** -- Internal message broker used by the iDRAC collector to
-  decouple metric collection from downstream routing.
+- **iDRAC Telemetry Receiver** -- Receives telemetry reports sent by enabled
+  iDRACs and publishes them to the co-located ActiveMQ broker.
+- **ActiveMQ** -- Internal message broker that buffers reports between the
+  receiver and the enabled downstream pumps.
 - **KafkaPump** -- Routes iDRAC metrics from ActiveMQ to the Kafka `idrac`
   topic.
 - **VictoriaPump** -- Routes iDRAC metrics from ActiveMQ to VictoriaMetrics
@@ -29,8 +29,8 @@ defined in the `BMC_IP` column of `bmc_group_data.csv`.
 ### Data flow
 
 ```text
-iDRAC (BMC) → iDRAC Collector → Kafka
-iDRAC (BMC) → iDRAC Collector → VMAgent → VictoriaMetrics
+iDRAC (BMC) → iDRAC Telemetry Receiver → ActiveMQ → KafkaPump → Kafka
+iDRAC (BMC) → iDRAC Telemetry Receiver → ActiveMQ → VictoriaPump → VMAgent → VictoriaMetrics
 ```
 
 ### Supported metrics
@@ -55,18 +55,24 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
   `idrac_telemetry_configurations.bmc_group_data_path`:
 
   ```text
-  $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+  $ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
   ```
 
-- Ensure the BMCs are reachable from at least one service Kubernetes worker.
-  If the worker cannot be reached over SSH, the source falls back to validating
-  BMCs from the control-plane VIP.
+  If this setting is left empty, Telemetry uses
+  `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/bmc_group_data.csv`.
+
+- For deployment-time validation, ensure each BMC is reachable from at least
+  one service Kubernetes worker. Validation starts from the first worker; when
+  individual BMCs remain unreachable, it retries them from the second worker,
+  if present. If the first worker itself cannot be reached over SSH, validation
+  runs from the control-plane VIP instead.
 - Have one common `bmc_username` and `bmc_password` for the BMCs, plus
   `mysqldb_user`, `mysqldb_password`, and `mysqldb_root_password`.
 
   These credentials are requested only when iDRAC metrics are enabled. They are
   stored in the encrypted project file
-  `<OMNIA_DATA_PATH>/telemetry/input/<project>/telemetry_credentials.yml` and
+  `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/telemetry_credentials.yml`
+  and
   deployed to the `mysqldb-credentials` Kubernetes Secret.
 
 ## Procedure
@@ -83,7 +89,7 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
           - kafka
 
     idrac_telemetry_configurations:
-      bmc_group_data_path: ""
+      bmc_group_data_path: "<ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/bmc_group_data.csv"
       mysqldb_storage: "1Gi"
       oim_bmc_ips:
         oim1: ""
@@ -92,14 +98,18 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
 
     !!! note
 
-        The default value of `bmc_group_data_path` is empty. To collect iDRAC
-        metrics, set it to an existing BMC CSV, for example:
+        Set `bmc_group_data_path` to an existing BMC CSV that is readable from
+        the OIM. Orchestrator generates this file at:
 
         ```text
-        $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+        <ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/bmc_group_data.csv
         ```
 
-        You can specify any other absolute path accessible from the OIM.
+        Resolve `ORCHESTRATOR_DATA_PATH` from `/etc/omnia/omnia.env`; when it
+        is unset, use `<OMNIA_DATA_PATH>/orchestrator`. Replace both
+        placeholders with their absolute values because environment variables
+        are not expanded inside YAML. You can use another absolute path if it
+        points to a valid BMC CSV accessible from the OIM.
 
 2. Keep the `idrac_telemetry_storage` resource sections in
    `telemetry_storage_config.yml` and the `images.idrac` entries in
@@ -200,13 +210,11 @@ kubectl get pods -n telemetry
 
 !!! note
 
-    The `idrac-telemetry-0` pod is a StatefulSet that collects telemetry data
-    from all management nodes (`oim`, `service_kube_control_plane_x86_64`,
-    `service_kube_node_x86_64`, `login_node_x86_64`, and others). The number of
-    `idrac-telemetry` pod replicas is determined by the number of unique
-    `PARENT_SERVICE_TAG` values in the mapping file. Each replica collects
-    telemetry from the iDRAC interfaces of nodes that share the same parent
-    service tag.
+    The `idrac-telemetry` StatefulSet has one replica,
+    `idrac-telemetry-0`. That pod contains MySQL, ActiveMQ, the receiver,
+    KafkaPump, and VictoriaPump, and handles every iDRAC service record loaded
+    from the mapping file. Parent values group inventory records; they do not
+    create or shard StatefulSet replicas.
 
 ### Verify iDRAC messages in Kafka
 
@@ -288,7 +296,7 @@ The CLI runs `src/telemetry/playbooks/telemetry.yml`, which imports
 file contains the VictoriaMetrics endpoints and TLS configuration:
 
 ```text
-$OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+<TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/external_victoria/external_victoria_connect_details.yml
 ```
 
 When TLS is enabled, confirm that `ca.crt` exists in the same directory. The
@@ -310,7 +318,7 @@ directory contains the connection details and the `ca.crt`, `user.crt`, and
 `user.key` TLS files:
 
 ```text
-$OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_kafka/
+<TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/external_kafka/
 ```
 
 The utility fails if the Kafka pods, native Kafka endpoint, HTTP Bridge
@@ -340,7 +348,7 @@ stored successfully.
 3. Read `victoria_metrics.endpoints.vmselect.ui_url` from:
 
     ```text
-    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    <TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/external_victoria/external_victoria_connect_details.yml
     ```
 
 4. Access the VMUI in a web browser:
@@ -436,11 +444,13 @@ intended:
   present, and `mysqldb_storage` is not empty.
 - **A BMC is listed as invalid:** Confirm the common BMC credentials, Redfish
   availability, required firmware, and Datacenter license.
-- **A BMC is unreachable:** Restore network access from a service worker or the
-  control-plane VIP. The workflow selects the first service worker and retries
-  the second service worker, when present, before it falls back to the VIP. The
-  Telemetry source validates reachability but does not configure site VLANs or
-  routes.
+- **A BMC is unreachable:** Restore network access from a service worker. The
+  workflow validates from the first worker, retries individual unreachable
+  BMCs from the second worker when one is available, and uses the control-plane
+  VIP when the first worker itself is not SSH-reachable. This is
+  deployment-time validation; the running receiver accepts telemetry reports
+  from iDRAC and does not poll BMC Redfish endpoints. Telemetry does not configure site
+  VLANs or routes.
 - **Kafka or VictoriaMetrics is missing:** Confirm the corresponding sink is
   deployed; both are required by the iDRAC role.
 - **MySQL is not ready:** Inspect the `mysqldb` container and the

@@ -21,12 +21,15 @@ Omnia configures:
 ## Prerequisites
 
 - Slurm is deployed and operational (see [Set Up Slurm](deploy_slurm.md)).
-- GPU-capable nodes are assigned to `slurm_node_x86_64` or
-  `slurm_node_aarch64` functional groups.
+- GPU-capable nodes are assigned to a functional group whose name begins with
+  `slurm_node_` and ends with the node architecture. The mapping accepts a
+  Discovery-style name such as `slurm_node_x86_64`, or a catalog-qualified
+  name such as `slurm_node_rhel_10_0_x86_64`. An explicit OS/version segment
+  must match the selected catalog.
 - DCGM installation is enabled in `orchestrator_config.yml` (enabled by
   default):
 
-    ```yaml title="File: /opt/omnia/orchestrator/input/project_default/orchestrator_config.yml"
+    ```yaml title="File: orchestrator_config.yml"
     dcgm_enabled: true
     ```
 
@@ -187,10 +190,6 @@ dcgm_enabled: true
    ```
 
 For the complete list, see [Slurm Issues](../../Troubleshooting/orchestrator/index.md).
-
-
-
-
 
 
 

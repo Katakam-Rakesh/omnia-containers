@@ -42,7 +42,9 @@ Service Kubernetes requires shared storage mounts for persistent storage, Helm c
 
 ### Primary NFS mount
 
-- An NFS server with at least **50 GB** of available storage is required. Increase based on cluster size and application data volume.
+- An NFS server with at least **200 GB** of available storage is required for
+  the supported small-cluster baseline. Increase it based on cluster size,
+  application data, and telemetry retention.
 - The NFS share must be accessible from the OIM, all K8s control-plane nodes, and all K8s worker nodes.
 - The NFS share must be exported with `no_root_squash` and **755 permissions**.
 - Omnia uses this mount to store and distribute:
@@ -58,7 +60,6 @@ For details on what data lives on this mount, see [K8s Storage Architecture](../
 
     - [Set Up Service Kubernetes](../../HowTo/orchestrator/deploy_kubernetes.md) -- For detailed information on setting up the Service Kubernetes cluster with ETCD storage configuration.
     - [Kubernetes Configuration](../Configuration/omnia_config.md#kubernetes-configuration-parameters) -- For detailed information on Kubernetes configuration parameters.
-
 
 
 

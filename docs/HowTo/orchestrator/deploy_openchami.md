@@ -6,7 +6,8 @@ Orchestrator deploys OpenCHAMI on the Omnia Infrastructure Manager (OIM) as
 containerized services managed by `openchami.target`. The services used by the
 source provisioning workflow include SMD for node state, boot-service for boot
 parameters, metadata-service for cloud-init data, tokensmith, ACME certificate
-deployment, HAProxy, and the S3 endpoint supplied by Image Build Manager.
+deployment, and HAProxy. During the later provisioning phase, boot-service
+uses the S3 endpoint supplied by Image Build Manager for boot artifacts.
 
 The top-level Orchestrator entry point deploys OpenCHAMI and conditionally
 deploys OpenLDAP in the same `prepare` or `deploy` phase. It does not provide a
@@ -37,14 +38,22 @@ set on the OIM.
 - Ensure `/etc/omnia/omnia.env` has been created and the configured system
   hostname, domain, and admin IP match the OIM. `SYSTEM_DOMAIN_NAME` must be a
   non-empty domain and `SYSTEM_ADMIN_NIC_IPV4` must be assigned locally.
-- Run Repo Manager successfully. Orchestrator requires `repo_status.yml` to
-  report `overall_status: success` and provide a valid Pulp public certificate.
-- Run Image Build Manager successfully. Its `build_status.yml` must contain a
-  reachable S3 endpoint and images for every functional group in the PXE
-  mapping.
+- Provide the resolved catalog file. Orchestrator uses it to derive feature
+  support and determine whether OpenLDAP is selected; `prepare` and `deploy`
+  fail when the catalog is missing or invalid.
+- Before running the recommended `precheck` step, Repo Manager must have
+  completed successfully. Its `repo_status.yml` must report
+  `overall_status: success` and reference a valid Pulp public certificate.
+- Before `precheck` or node provisioning, Image Build Manager must have
+  completed successfully. Its `build_status.yml` must contain a reachable S3
+  endpoint and images for every functional group in the PXE mapping.
+- If you are deploying only the OpenCHAMI services with `prepare` or `deploy`,
+  `repo_status.yml` and `build_status.yml` are not required. They become
+  mandatory for the full, precheck, and provisioning flows described above.
 - Copy the discovery mapping to the Orchestrator project input directory. The
-  mapping must contain the required uppercase columns and unique service tags,
-  hostnames, and admin IP addresses.
+  mapping must contain the exact uppercase header. Hostnames, normalized admin
+  MAC addresses, and admin IP addresses must be unique; every nonempty service
+  tag and InfiniBand IP must also be unique.
 
 ## Procedure
 
@@ -56,10 +65,12 @@ set on the OIM.
     ```bash title="Run on: OIM"
     cd src/main
     ./omnia.sh --setup-venv
+    source /etc/profile.d/omnia-env.sh
+    orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
     ```
 
 2. Edit the project inputs under
-   `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`:
+   `$orchestrator_path/input/$OMNIA_PROJECT_NAME/`:
 
    - In `orchestrator_config.yml`, set `pxe_mapping_file_path` to the mapping
      CSV. Set `image_build_manager_output_path`, `repo_manager_output_path`, or
@@ -71,7 +82,9 @@ set on the OIM.
    - Keep `language: "en_US.UTF-8"`. Set `default_lease_time` to a positive
      number of seconds.
 
-3. Validate the input files, then run the prerequisite checks.
+3. Validate the input files, then run the prerequisite checks. The `precheck`
+   phase validates Repo Manager output and functional-group boot images, so run
+   Repo Manager and Image Build Manager first.
 
     ```bash title="Run on: OIM"
     ./omnia.sh --run orchestrator --tags validate
@@ -101,8 +114,9 @@ cd src/main
 
 The check succeeds only when `openchami.target` is active, the authenticated
 SMD readiness endpoint responds, boot-service and metadata-service respond,
-tokensmith and ACME are active, and the configured S3 health endpoint is
-reachable.
+tokensmith and ACME are active, and the HAProxy certificate volume contains a
+PEM certificate. This readiness gate does not test the Image Build Manager S3
+endpoint.
 
 You can also inspect the systemd target directly:
 
@@ -121,6 +135,8 @@ systemctl list-dependencies openchami.target
 
 **A required Repo Manager output or certificate is missing**
 
+This check applies to `precheck`, provisioning, PXE boot, execute, and the
+untagged full flow; it does not apply to an isolated `prepare` or `deploy` run.
 Run Repo Manager again or set `repo_manager_output_path` to its successful
 `repo_status.yml`. The file must contain `cluster_os_type`, a `repositories`
 mapping, and `repo_manager.certificates.server_crt`; the referenced certificate
@@ -128,10 +144,11 @@ must exist.
 
 **A functional-group image cannot be found**
 
-Run Image Build Manager for the missing functional group and confirm that its
-successful `build_status.yml` contains the corresponding kernel, initrd, and
-root image. If `kernel_version_override` is set, the requested kernel must exist
-in S3; clear the setting to let Orchestrator select the latest available image.
+This check applies to `precheck` and node-provisioning flows. Run Image Build
+Manager for the missing functional group and confirm that its successful
+`build_status.yml` contains the corresponding kernel, initrd, and root image.
+If `kernel_version_override` is set, the requested kernel must exist in S3;
+clear the setting to let Orchestrator select the latest available image.
 
 **OpenCHAMI is not ready**
 

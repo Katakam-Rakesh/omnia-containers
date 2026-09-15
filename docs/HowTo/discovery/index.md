@@ -61,9 +61,10 @@ Orchestrator input directory.
 - Plan the iDRAC hostnames and exact, case-sensitive OME static-group names.
   See [Plan iDRAC hostnames](discover_nodes.md#plan-idrac-hostnames) and
   [Plan OME static groups](discover_nodes.md#plan-ome-static-groups).
-- For a deployment with N Scalable Units, plan N dedicated
+- For predictable automatic parent-service assignment in a deployment with N
+  Scalable Units, Dell recommends planning N dedicated
   `service_kube_node_x86_64` servers, with one server in each Scalable Unit.
-  See [Plan Scalable Unit service
+  Discovery does not enforce this topology. See [Plan Scalable Unit service
   nodes](discover_nodes.md#plan-scalable-unit-service-nodes).
 - Make credentials for an OME administrator, or an account with equivalent
   inventory-read permissions, available through the Discovery credential
@@ -93,16 +94,16 @@ the supported `cleanup,cleanup_credentials` combination.
 | `credentials` | Validates the configuration and creates or updates the encrypted OME credential file. | Created or updated |
 | `execute` | Runs OME discovery after setup, validation, and credential handling. | Created or loaded |
 | `discovery` | Alias of `execute`. | Created or loaded |
-| `precheck` | Reserved placeholder; no Discovery precheck is implemented. | Skipped |
+| `precheck` | Validates the resolved data path, warns if `/etc/omnia/omnia.env` is absent, and, when BMC discovery is enabled, checks the configured OME endpoint on TCP port 443. It does not authenticate to OME or query its API. | Skipped |
 | `prepare` | Reserved placeholder; no Discovery preparation flow is implemented. | Do not use |
 | `cleanup` | Empties the current project's Discovery output directory but preserves the directory. | Removed by default |
 | `cleanup_credentials` | Removes only the Discovery credential file and Vault key. | Removed |
 | `upgrade` | Reserved placeholder; no Discovery upgrade flow is implemented. | Do not use |
 | `rollback` | Reserved placeholder; no Discovery rollback flow is implemented. | Do not use |
 
-Unsupported tags and conflicting combinations fail validation. Although some
-placeholder tags are accepted by the playbook, they do not perform an
-operational lifecycle action in the current release.
+Unsupported tags and conflicting combinations fail validation. The `prepare`,
+`upgrade`, and `rollback` placeholder tags are accepted by the playbook but do
+not perform an operational lifecycle action in the current release.
 
 ### Clean up Discovery data
 
@@ -185,8 +186,11 @@ checklist](discover_nodes.md#verification), including
 the stable mapping to the Orchestrator-owned input path:
 
 ```bash title="Run on: OIM host"
-cp /opt/omnia/discovery/output/project_default/bmc_pxe_mapping_file.csv \
-  /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+source /etc/profile.d/omnia-env.sh
+discovery_path="${OMNIA_DATA_PATH}/discovery"
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+cp "${discovery_path}/output/${OMNIA_PROJECT_NAME}/bmc_pxe_mapping_file.csv" \
+  "${orchestrator_path}/input/${OMNIA_PROJECT_NAME}/pxe_mapping_file.csv"
 ```
 
 See the [Discovery contract](../../Reference/domain_contracts/discovery_contract.md)

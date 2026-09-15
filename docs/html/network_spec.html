@@ -132,7 +132,7 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The range of dynamic IP addresses available on the admin network. Default: 172.16.107.201-172.16.107.250</p>
+                    <p>The range of dynamic IP addresses available on the admin network. It must be contained by this subnet and must not include the OIM admin address or any static ADMIN_IP in the PXE mapping file. The current precheck does not cross-check the pool against PXE mapping addresses; reserve those addresses outside the pool. Default: 172.16.107.201-172.16.107.250</p>
                 </div>
             </td>
         </tr>
@@ -306,7 +306,7 @@
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The DHCP IP pool range in start_ip-end_ip format. Must fall within the subnet.</p>
+                    <p>The DHCP IP pool range in start_ip-end_ip format. It must fall within this subnet, must not overlap another configured DHCP range, and must not contain a static ADMIN_IP in the PXE mapping file. The current precheck does not cross-check the pool against PXE mapping addresses; reserve those addresses outside the pool.</p>
                 </div>
             </td>
         </tr>
@@ -359,7 +359,7 @@
             <td>
                 <div class="omnia-indent-desc"></div>
                 <div class="omnia-cell">
-                    <p>The number of bits in the subnet mask. Must be same as admin_network netmask_bits. Default: 24</p>
+                    <p>The number of bits in the subnet mask. It must equal the primary admin_network netmask_bits because node configuration uses that shared prefix. The current precheck does not enforce the equality; verify it before deployment. Default: 24</p>
                 </div>
             </td>
         </tr>

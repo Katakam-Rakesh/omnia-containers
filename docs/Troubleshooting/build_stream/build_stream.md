@@ -55,11 +55,11 @@ Issues related to BuildStreaM pipeline execution, GitLab integration, catalog va
 
     2. For other non-successful API responses, check the authentication log
        on the OIM at
-       `<OMNIA_DATA_PATH>/log/build_stream/auth.log`.
+       `<OMNIA_DATA_PATH>/log/build_stream/events.log`.
 
        `OMNIA_DATA_PATH` is configurable and defaults to `/opt/omnia`. With
        the default value, the log is located at
-       `/opt/omnia/log/build_stream/auth.log`.
+       `/opt/omnia/log/build_stream/events.log`.
 
 ## Token Generation Stage Failing
 
@@ -75,7 +75,7 @@ Issues related to BuildStreaM pipeline execution, GitLab integration, catalog va
 ??? note "Resolution"
 
     On the OIM, check the authentication log at
-    `<OMNIA_DATA_PATH>/log/build_stream/auth.log`.
+    `<OMNIA_DATA_PATH>/log/build_stream/events.log`.
 
 ## Parse Catalog Stage Failing
 
@@ -192,7 +192,6 @@ Issues related to BuildStreaM pipeline execution, GitLab integration, catalog va
     - [Execute Deploy Pipeline](../../HowTo/build_stream/execute_deploy_pipeline.md) -- Deploy pipeline operations
     - [Retry Pipelines](../../Operations/build_stream/retry_pipelines.md) -- Retry failed pipeline operations
     - [Update Catalog](../../Operations/build_stream/update_catalog.md) -- Catalog configuration
-
 
 
 

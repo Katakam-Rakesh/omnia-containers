@@ -43,11 +43,18 @@ Useful initialization variants implemented by `omnia.sh` include:
 | `./omnia.sh --init --dry-run` | Show which module initialization scripts would run. |
 | `./omnia.sh --check-deps` | Audit installed dependency versions against module declarations. |
 
-Initialization copies source templates from `src/<domain>/input/` to:
+Initialization copies source templates from `src/<domain>/input/` to the
+domain's runtime data root:
 
 ```text
-<OMNIA_DATA_PATH>/<domain>/input/<OMNIA_PROJECT_NAME>/
+<RUNTIME_DATA_ROOT>/input/<OMNIA_PROJECT_NAME>/
 ```
+
+For domains that implement a component-specific path, the initializer uses
+that value and otherwise derives the root from `OMNIA_DATA_PATH`. For example,
+Orchestrator resolves `ORCHESTRATOR_DATA_PATH` first and otherwise uses
+`<OMNIA_DATA_PATH>/orchestrator`. Discovery and BuildStreaM currently use
+`<OMNIA_DATA_PATH>/discovery` and `<OMNIA_DATA_PATH>/build_stream` directly.
 
 Edit the staged project inputs before running a deployment phase. Existing
 files may require confirmation before an initialization script overwrites them.
@@ -113,16 +120,16 @@ Image Build Manager, and its deploy pipeline invokes Orchestrator.
 ## Module operations and tags
 
 Tags are module-specific. The following table lists the implemented
-customer-facing entry operations; placeholder upgrade or rollback tags are not
-deployment procedures.
+customer-facing entry operations. Reserved or placeholder operations are
+identified per module and are not deployment procedures.
 
 | Deployment module | Principal tags |
 |---|---|
 | `repo_manager` | `precheck`, `credentials`, `prepare`/`deploy`, `download`/`execute`, `status`, `cleanup_pulp`/`cleanup`, `cleanup_repos`, and catalog-operation tags |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `build`/`execute`, `x86_64`, `aarch64`, `cleanup`, `cleanup_images` |
-| `discovery` | `validate`, `credentials`, `execute`, the `discovery` execution alias, `cleanup`, and `cleanup_credentials`; `precheck`, `prepare`, `upgrade`, and `rollback` currently select placeholder flows |
-| `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials` |
-| `telemetry` | `precheck`, `validate`/`validation`, `execute`/`deploy`, `cleanup`, source-specific cleanup tags, `external_kafka`, `external_victoria` |
+| `discovery` | `precheck`, `validate`, `credentials`, `execute`, the `discovery` execution alias, `cleanup`, and `cleanup_credentials`; `prepare`, `upgrade`, and `rollback` currently select placeholder flows |
+| `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, and `upgrade`; `rollback` is reserved and unsupported |
+| `telemetry` | `precheck`, `validate`/`validation`/`prepare`, `credentials`, `execute`/`deploy`, `cleanup`, source-specific cleanup tags, `external_kafka`, `external_victoria` |
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup` |
 | `utils` | `precheck`, `collect`, `install_os`, `backup_oim_logs`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`; running without a tag performs setup only |
 
@@ -130,6 +137,11 @@ Repository Manager's standard tags can be combined in the order implemented by
 its entry playbook. Other module entry points direct operators to run one tag
 at a time. Cleanup tags are explicit operations and are not selected by the
 normal untagged deployment flows.
+
+Orchestrator accepts `upgrade` and `rollback`. Its `upgrade` tag invokes the
+current OpenCHAMI and OpenLDAP component workflows; review their documented
+limitations before use. Its `rollback` workflows are reserved and intentionally
+fail because rollback is not supported in this release.
 
 ## Direct deployment example
 
@@ -153,6 +165,7 @@ cd src/main
 ./omnia.sh --run discovery --tags execute
 
 ./omnia.sh --run orchestrator --tags validate
+./omnia.sh --run orchestrator --tags precheck
 ./omnia.sh --run orchestrator --tags prepare
 ./omnia.sh --run orchestrator --tags execute
 
@@ -172,10 +185,16 @@ Module status and handoff files are stored under the selected project output
 directory. Verify the files relevant to the executed flow:
 
 ```bash title="Run on: OIM host"
-cat <OMNIA_DATA_PATH>/repo_manager/output/<OMNIA_PROJECT_NAME>/repo_status.yml
-cat <OMNIA_DATA_PATH>/image_build_manager/output/<OMNIA_PROJECT_NAME>/build_status.yml
-cat <OMNIA_DATA_PATH>/orchestrator/output/<OMNIA_PROJECT_NAME>/orchestrator_status.yml
-cat <OMNIA_DATA_PATH>/telemetry/output/<OMNIA_PROJECT_NAME>/telemetry_status.yml
+source /etc/profile.d/omnia-env.sh
+repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
+image_build_manager_path="${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}"
+orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+telemetry_path="${TELEMETRY_DATA_PATH:-${OMNIA_DATA_PATH}/telemetry}"
+
+cat "$repo_manager_path/output/$OMNIA_PROJECT_NAME/repo_status.yml"
+cat "$image_build_manager_path/output/$OMNIA_PROJECT_NAME/build_status.yml"
+cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_status.yml"
+cat "$telemetry_path/output/$OMNIA_PROJECT_NAME/telemetry_status.yml"
 ```
 
 Discovery primarily produces CSV results, BuildStreaM reports its prepared
@@ -191,8 +210,12 @@ reported state and the corresponding module log.
   `src/main`.
 - **A downstream contract is missing:** Complete the producer module and verify
   its reported success before running the consumer.
-- **Inputs are not found:** Confirm `OMNIA_DATA_PATH` and
-  `OMNIA_PROJECT_NAME`, then verify the staged module input directory.
+- **Inputs are not found:** Confirm `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
+  and any path override implemented by the affected domain, then verify the
+  staged module input directory. For Orchestrator, check
+  `ORCHESTRATOR_DATA_PATH`; when it is unset, the path falls back to
+  `<OMNIA_DATA_PATH>/orchestrator`. Discovery and BuildStreaM use paths below
+  `OMNIA_DATA_PATH` directly.
 - **A tag is rejected or does nothing:** Check the module entry playbook. Tags
   and default flows are not uniform, and some source tags are placeholders.
 

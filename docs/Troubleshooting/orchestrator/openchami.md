@@ -1,593 +1,283 @@
-# OpenCHAMI Issues
+# OpenCHAMI issues
 
-Issues related to OpenCHAMI services, including stack health checks, certificate management, SMD node discovery, BSS boot parameters, cloud-init-server, and cloud-init execution failures.
+Use this page to diagnose the Fabrica-based OpenCHAMI stack deployed by Omnia
+2.3. The current stack uses `boot-service`, `metadata-service`, `tokensmith`,
+and SMD. Commands for the retired BSS, cloud-init-server, Hydra, and OPAAL
+services do not apply to this release.
 
-## OpenCHAMI Stack Health Check — Diagnostic Command Reference
+## Establish a baseline
 
-!!! note
+Run the supported deployment validation first:
 
-    This section is a diagnostic command reference, not a troubleshooting entry. It does not describe a specific symptom, cause, or resolution. Use these commands to verify the overall health of the OpenCHAMI stack on the OIM before or after troubleshooting a specific issue, or as a routine operational check.
+```bash title="Run from: <omnia-repository>/src/main"
+source /etc/profile.d/omnia-env.sh
+./omnia.sh --run orchestrator --tags validate-deployment
+```
 
-**When to use this reference:**
+If validation fails, inspect the target and its generated dependencies on the
+OIM:
 
-- Before running the Orchestrator `provision` phase to confirm the OpenCHAMI stack is ready
-- After an OIM reboot to verify all services recovered
-- When investigating any OpenCHAMI-related failure described in the sections below
-- As a post-recovery validation after applying a fix
-
-**Service health check:**
-
-```bash title="Run on: OIM host"
-# Check openchami.target and all component services
+```bash title="Run on: OIM"
 systemctl status openchami.target --no-pager
 systemctl list-dependencies openchami.target --plain
-
-# Verify individual services
-systemctl status smd --no-pager
-systemctl status bss --no-pager
-systemctl status cloud-init-server --no-pager
-systemctl status hydra --no-pager
-systemctl status acme-deploy --no-pager
+systemctl --failed --no-pager
+podman ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
 ```
 
-**API connectivity check:**
+Use the dependency list rather than a copied list of services. The RPM owns
+the Quadlet definitions, so the exact dependency set can change with the
+packaged OpenCHAMI version.
 
-```bash title="Run on: OIM host"
-# Verify API endpoints are responding
-ochami smd service status
-ochami bss service status
-ochami cloud-init service status
+For the services checked directly by Orchestrator, collect these journals and
+container logs:
+
+```bash title="Run on: OIM"
+journalctl -u openchami.target -b -n 100 --no-pager
+journalctl -u tokensmith -b -n 100 --no-pager
+journalctl -u smd -b -n 100 --no-pager
+journalctl -u boot-service -b -n 100 --no-pager
+journalctl -u metadata-service -b -n 100 --no-pager
+podman logs --tail 100 smd
+podman logs --tail 100 haproxy
 ```
 
-**Log inspection:**
-
-```bash title="Run on: OIM host"
-# View recent logs for any component
-journalctl -u smd -n 50 --no-pager
-journalctl -u bss -n 50 --no-pager
-journalctl -u cloud-init-server -n 50 --no-pager
-journalctl -u hydra -n 50 --no-pager
-```
-
-**Certificate and token status:**
-
-```bash title="Run on: OIM host"
-# Check certificate expiry
-openssl s_client -connect localhost:8443 -showcerts </dev/null 2>&1 | openssl x509 -noout -dates
-
-# Check access token validity
-echo $<OIM_HOSTNAME>_ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
-```
-
-**Recovery action (if any service is not active):**
-
-```bash title="Run on: OIM host"
-sudo systemctl restart openchami.target
-sleep 15
-systemctl status openchami.target --no-pager
-```
-
-If the restart does not resolve the issue, refer to the specific troubleshooting entry in the sections below that matches the failing service.
-
-## Certificate Expiration
+## `openchami.target` is not active
 
 ???+ note "Symptom"
 
-    - The Orchestrator `provision` phase or `ochami` CLI commands fail with TLS errors
-    - BSS or cloud-init-server returns connection refused or certificate errors
-    - Nodes fail to PXE boot or cloud-init cannot reach the OIM
+    The `prepare`, `provision`, or `validate-deployment` flow reports that
+    `openchami.target`, `boot-service`, `tokensmith`, or SMD is unavailable.
 
 ??? note "Cause"
 
-    The OpenCHAMI certificate has expired, or one or more `openchami.target` services are not running.
+    Common causes include an incomplete `prepare` run, a failed Quadlet
+    dependency, a port conflict, an unavailable container image, an SMD
+    database failure, or an expired OpenCHAMI certificate.
 
 ??? note "Resolution"
 
-    1. Check if OpenCHAMI target dependencies are satisfied:
+    1. Identify the first failed dependency:
 
-        ```bash title="Run on: OIM host"
-        systemctl list-dependencies openchami.target
+        ```bash title="Run on: OIM"
+        systemctl list-dependencies openchami.target --plain
+        systemctl --failed --no-pager
+        journalctl -u openchami.target -b --no-pager
         ```
 
-    2. Update the certificate and restart the target:
+    2. Correct that service's reported cause. If the stack was previously
+       healthy, restart the target and recheck it:
 
-        ```bash title="Run on: OIM host"
-        sudo openchami-certificate-update update <OIM_hostname>.<domain>
-        sudo systemctl restart openchami.target
-        ```
-
-    3. If certificate expiry issues persist, restart the `acme-deploy` service:
-
-        ```bash title="Run on: OIM host"
-        systemctl restart acme-deploy
-        ```
-
-    4. If any other service under the OpenCHAMI target failed, restart it:
-
-        ```bash title="Run on: OIM host"
-        systemctl restart <service_name>
-        ```
-
-    5. Wait for the OpenCHAMI target and all its dependencies to become active:
-
-        ```bash title="Run on: OIM host"
+        ```bash title="Run on: OIM"
+        systemctl restart openchami.target
         systemctl is-active openchami.target
         ```
 
-## Token Expired
+    3. If deployment did not complete, run the complete preparation flow. It
+       collects required credentials, deploys the services, and validates
+       readiness:
+
+        ```bash title="Run from: <omnia-repository>/src/main"
+        ./omnia.sh --run orchestrator --tags prepare
+        ```
+
+    4. Run `validate-deployment` before provisioning nodes again.
+
+## Certificate or authentication failure
 
 ???+ note "Symptom"
 
-    - ochami CLI commands return 401 Unauthorized
-    - The Orchestrator `provision` phase fails during OpenCHAMI authentication
-    - BSS or SMD API calls return authentication errors
-
-    **Example errors:**
-
-    ```json
-    {"error":"token is expired","status":401}
-    ```
-
-    ```text
-    ochami bss boot params get: 401 Unauthorized
-    Failed to generate access token after 5 retries
-    ```
+    OpenCHAMI requests fail with a TLS error or `401 Unauthorized`, token
+    generation fails, or SMD becomes unreachable through HAProxy.
 
 ??? note "Cause"
 
-    The OpenCHAMI access token (JWT issued via Hydra OIDC client_credentials grant) has reached its expiration time. Omnia's `openchami_auth.yml` task retries token generation up to 5 times with 5-second delays. Manual regeneration is required if automatic retries fail.
+    The site certificate may be expired or inconsistent with the configured
+    OIM FQDN, `tokensmith` may be unavailable, or the current shell may not
+    contain a fresh access token.
 
 ??? note "Resolution"
 
-    **Diagnostics**
-
-    ```bash title="Run on: OIM host"
-    # Check if the token environment variable is set
-    echo $<OIM_HOSTNAME>_ACCESS_TOKEN
-
-    # Inspect the token expiry (if jq is available)
-    echo $<OIM_HOSTNAME>_ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
-
-    # Test BSS connectivity with the current token
-    ochami bss service status
-    ```
-
-    **Resolution**
-
-    ```bash title="Run on: OIM host"
-    export <OIM_HOSTNAME>_ACCESS_TOKEN=$(sudo bash -lc 'gen_access_token')
-    ```
-
-    If `gen_access_token` fails, verify the Hydra OIDC service is running:
-
-    ```bash title="Run on: OIM host"
-    systemctl status hydra
-    journalctl -u hydra -n 50 --no-pager
-    ```
-
-## Orchestrator Provision Phase Fails — OpenCHAMI Services Not Running
-
-???+ note "Symptom"
-
-    - The Orchestrator `provision` phase fails while registering nodes and configuring OpenCHAMI services
-    - Playbook output contains one of the following error messages:
-        - `cloud-init-server is not running after 16 retries`
-        - `openchami.target is not up after 16 retries`
-        - `Failed to discover ochami nodes after retries`
-        - `smd service is not running`
-        - `ochami bss boot params get: 401 Unauthorized` (token expired)
-
-    **Example errors:**
-
-    **cloud-init-server is not running after 16 retries.**
-
-    Next steps:
-    1. Check service status: `systemctl status cloud-init-server`
-    2. Check if openchami.target dependencies are satisfied: `systemctl list-dependencies openchami.target`
-
-    **openchami.target is not up after 16 retries.**
-
-    Next steps:
-    1. Check target status: `systemctl status openchami.target`
-    2. View logs: `journalctl -u openchami.target -n 50`
-
-    **Failed to discover ochami nodes after retries.**
-
-    Next steps:
-    1. Verify nodes.yaml is valid
-    2. Check SMD connectivity (see below)
-
-??? note "Cause"
-
-    The Orchestrator `provision` phase requires the OpenCHAMI stack (`openchami.target`, which manages `smd`, `bss`, `cloud-init-server`, `hydra`, `acme-deploy`) to be running on the OIM. Common causes of failure:
-
-    - The Orchestrator `prepare` phase was not run or failed partway through, leaving OpenCHAMI services undeployed
-    - OpenCHAMI service crashed after deployment (certificate expiry, database failure, port conflict)
-    - OIM was rebooted and `openchami.target` did not recover automatically (dependency ordering, NIC autoconnect disabled)
-    - Access token expired — the JWT token issued by Hydra OIDC has a limited lifetime; the Orchestrator `provision` phase runs the OpenCHAMI authentication tasks to regenerate it, but if Hydra itself is down, token generation fails
-    - SELinux context on the OpenCHAMI work directory is incorrect (the Orchestrator `provision` phase sets `container_file_t`, but this can be reset after an NFS remount)
-    - `nodes.yaml` generation failed — invalid `pxe_mapping_file.csv` or missing `functional_groups_config.yml` produced malformed input for `ochami discover`
-
-??? note "Resolution"
-
-    **Diagnostics**
-
-    Run these on the OIM to identify the specific failure:
-
-    ```bash title="Run on: OIM host"
-    # 1. Check openchami.target and all its component services
-    systemctl status openchami.target --no-pager
-    systemctl list-dependencies openchami.target --plain
-    systemctl status smd bss cloud-init-server hydra acme-deploy --no-pager
-
-    # 2. Check for failed services
-    systemctl --failed --no-pager
-
-    # 3. View service logs for the first failure
-    journalctl -u openchami.target -b --no-pager | tail -30
-    journalctl -u smd -b --no-pager | tail -30
-    journalctl -u cloud-init-server -b --no-pager | tail -30
-
-    # 4. Verify API connectivity
-    /usr/bin/ochami smd service status
-    /usr/bin/ochami bss service status
-    /usr/bin/ochami cloud-init service status
-
-    # 5. Check certificate validity
-    openssl s_client -connect localhost:8443 -showcerts </dev/null 2>&1 | openssl x509 -noout -dates
-
-    # 6. Check access token
-    echo $<OIM_HOSTNAME>_ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
-
-    # 7. Verify nodes.yaml was generated correctly
-    cat /opt/omnia/openchami/workdir/nodes/nodes.yaml
-
-    # 8. Verify Omnia containers are running
-    podman ps -a --format "{{.Names}} {{.Status}}"
-    ```
-
-    Follow the appropriate resolution based on the diagnostic findings:
-
-    **1. If OpenCHAMI deployment never ran or failed:** Clean the OpenCHAMI
-    component and redeploy Orchestrator services:
-
-    ```bash title="Run on: OIM"
-    cd <OMNIA_SOURCE_PATH>/src/orchestrator
-    ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags openchami
-
-    cd ../main
-    ./omnia.sh --run orchestrator --tags deploy
-    ./omnia.sh --run orchestrator --tags provision
-    ```
-
-    Verify OpenCHAMI health before provisioning nodes.
-
-    **2. If openchami.target services are down but were previously deployed:** Restart the target and wait for all services:
-
-    ```bash title="Run on: OIM host"
-    sudo systemctl restart openchami.target
-    sleep 15
-    systemctl status openchami.target --no-pager
-    /usr/bin/ochami smd service status
-    /usr/bin/ochami cloud-init service status
-    ```
-
-    **3. If certificates have expired:** Renew and restart:
-
-    ```bash title="Run on: OIM host"
-    sudo openchami-certificate-update update <OIM_hostname>.<domain>
-    sudo systemctl restart acme-deploy
-    sleep 10
-    sudo systemctl restart openchami.target
-    ```
-
-    **4. If the access token is expired and Hydra is running:** Regenerate the token:
-
-    ```bash title="Run on: OIM host"
-    export <OIM_HOSTNAME>_ACCESS_TOKEN=$(sudo bash -lc 'gen_access_token')
-    ```
-
-    **5. If nodes.yaml is malformed:** Verify `pxe_mapping_file.csv` has valid entries (MAC addresses, xnames, functional groups), then rerun the Orchestrator `provision` phase. The phase regenerates the node data from the CSV.
-
-    **6. If SELinux context is incorrect:** Re-apply the context:
-
-    ```bash title="Run on: OIM host"
-    chcon -R system_u:object_r:container_file_t:s0 /opt/omnia/openchami
-    ```
-
-    After resolving the issue, rerun the Orchestrator `provision` phase from `src/main`:
-
-    ```bash title="Run on: OIM host"
-    cd <OMNIA_SOURCE_PATH>/src/main
-    ./omnia.sh --run orchestrator --tags provision
-    ```
-
-    !!! note
-
-        The Orchestrator `provision` phase retries OpenCHAMI readiness checks 16 times at 15-second intervals and attempts an `openchami.target` restart if the metadata-service readiness check fails. If the phase still fails after these retries, the underlying service has a persistent problem that requires manual diagnosis.
-
-## SMD Node Discovery Fails
-
-???+ note "Symptom"
-
-    - The Orchestrator `provision` phase fails at the node-discovery task
-    - `ochami smd component get` returns empty results or HTTP 404
-    - Nodes are not visible in SMD after running the Orchestrator `provision` phase
-
-    **Example errors:**
-
-    - Failed to discover ochami nodes after retries
-    - smd service is not running
-    - ochami smd component get: no components found
-    - HTTP 404: node `<xname>` not found in SMD
-
-??? note "Cause"
-
-    - SMD service is not running or failed to start
-    - `openchami.target` and its dependencies are not fully active
-    - Invalid or malformed `nodes.yaml` (generated from `pxe_mapping_file.csv`)
-    - Network connectivity issues between the OIM and SMD
-
-??? note "Resolution"
-
-    **Diagnostics**
-
-    ```bash title="Run on: OIM host"
-    # Check SMD service status
-    systemctl status smd
-    journalctl -u smd -n 50 --no-pager
-
-    # Check openchami.target and all dependencies
-    systemctl status openchami.target
-    systemctl list-dependencies openchami.target --plain
-
-    # Verify SMD API is reachable
-    ochami smd service status
-
-    # List registered nodes
-    ochami smd component get | jq '.Components[] | select(.Type == "Node")'
-
-    # Verify nodes.yaml is valid
-    cat /opt/omnia/openchami/workdir/nodes/nodes.yaml
-    ```
-
-    1. Restart `openchami.target` and verify all services are active:
-
-        ```bash title="Run on: OIM host"
-        sudo systemctl restart openchami.target
-        sleep 15
+    1. Load the active environment and verify the configured OIM identity:
+
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        printf '%s\n' "$SYSTEM_HOSTNAME.$SYSTEM_DOMAIN_NAME"
+        systemctl status tokensmith acme-deploy --no-pager
+        ```
+
+    2. Inspect the certificate presented by HAProxy:
+
+        ```bash title="Run on: OIM"
+        openssl s_client -connect localhost:8443 -servername "$SYSTEM_HOSTNAME.$SYSTEM_DOMAIN_NAME" \
+          </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+        ```
+
+    3. If the certificate is expired or has the wrong FQDN, regenerate it with
+       the same identity and restart the certificate service and target:
+
+        ```bash title="Run on: OIM"
+        openchami-certificate-update update "$SYSTEM_HOSTNAME.$SYSTEM_DOMAIN_NAME"
+        systemctl restart acme-deploy
+        systemctl restart openchami.target
+        ```
+
+    4. Prefer rerunning the Orchestrator flow to obtain a fresh token. For a
+       one-time CLI diagnostic, generate the token without displaying it:
+
+        ```bash title="Run on: OIM"
+        token_name="$(hostname -s | tr '[:lower:]' '[:upper:]')_ACCESS_TOKEN"
+        token_value="$(sudo bash -lc 'gen_access_token')"
+        export "$token_name=$token_value"
+        unset token_value
         ochami smd service status
         ```
 
-    2. Verify `pxe_mapping_file.csv` contains valid MAC addresses and xnames, then rerun the Orchestrator `provision` phase.
+       Do not write the token to a file or include it in diagnostic output.
 
-## BSS Boot Parameters Not Applied
-
-???+ note "Symptom"
-
-    - Nodes boot with the default image instead of the expected functional group image
-    - `ochami bss boot params get` returns empty or incorrect kernel/initrd paths
-    - Nodes do not pick up updated boot parameters after rerunning the Orchestrator `provision` phase
-
-    **Example errors:**
-
-    - node boots default image, ignoring BSS boot parameters
-    - ochami bss boot params get: no params found for MAC `<mac>`
-    - Missing kernel or initrd in BSS boot parameters
-
-??? note "Cause"
-
-    - BSS service is not running or has stale data
-    - The kernel/initrd images were not built or uploaded to S3 (`build_image_x86_64.yml` not run)
-    - MAC addresses in `pxe_mapping_file.csv` do not match the node hardware
-
-??? note "Resolution"
-
-    **Diagnostics**
-
-    ```bash title="Run on: OIM host"
-    # Check BSS service status
-    ochami bss service status
-
-    # List all boot parameters
-    ochami bss boot params get -F yaml
-
-    # Verify kernel/initrd in S3
-    s3cmd ls -Hr s3://boot-images
-    ```
-
-    1. Ensure `build_image_x86_64.yml` (or `build_image_aarch64.yml`) completed successfully and images exist in S3.
-    2. Verify MAC addresses in `pxe_mapping_file.csv` match node hardware.
-    3. Rerun the Orchestrator `provision` phase to refresh BSS boot parameters.
-
-## cloud-init-server Not Reachable
+## SMD node discovery fails
 
 ???+ note "Symptom"
 
-    - The Orchestrator `provision` phase fails while verifying that the metadata service is reachable
-    - Nodes complete PXE boot but cloud-init fails to fetch user-data from the OIM
-
-    **Example errors:**
-
-    - cloud-init-server is not running after 16 retries
-    - ochami cloud-init service status: connection refused
+    The `provision` flow reports `Failed to discover ochami nodes`, or the
+    expected nodes are absent from `ochami smd component get`.
 
 ??? note "Cause"
 
-    - `cloud-init-server` systemd service is not running
-    - `openchami.target` dependencies are not satisfied
-    - Certificate issues preventing the service from starting
+    SMD may be unhealthy, the generated node document may not match the
+    current PXE mapping, or the mapping may contain invalid or duplicate
+    hardware identifiers.
 
 ??? note "Resolution"
 
-    **Diagnostics**
+    1. Check SMD and its backing container:
 
-    ```bash title="Run on: OIM host"
-    # Check cloud-init-server status
-    systemctl status cloud-init-server
-    journalctl -u cloud-init-server -n 50 --no-pager
+        ```bash title="Run on: OIM"
+        systemctl status smd --no-pager
+        podman logs --tail 100 smd
+        ochami smd service status
+        ```
 
-    # Check if openchami.target dependencies are satisfied
-    systemctl list-dependencies openchami.target --plain
+    2. Review the active project mapping and generated OpenCHAMI node file:
 
-    # Test cloud-init endpoint from OIM
-    ochami cloud-init service status
-    ```
+        ```bash title="Run on: OIM"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        sed -n '1,20p' "$orchestrator_path/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
+        sed -n '1,120p' "$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes.yaml"
+        ```
 
-    ```bash title="Run on: OIM host"
-    # If certificate issues, restart acme-deploy first
-    sudo systemctl restart acme-deploy
-    sleep 10
+    3. Correct the mapping, then run `validate`, `precheck`, and `provision`.
+       Do not edit the generated `nodes.yaml`; Orchestrator replaces it from
+       the mapping.
 
-    # Restart the cloud-init-server
-    sudo systemctl restart cloud-init-server
-
-    # If still failing, restart the full openchami stack
-    sudo systemctl restart openchami.target
-    ```
-
-    Once the service is running, rerun the Orchestrator `provision` phase.
-
-## Cloud-init Execution Failures on Compute Nodes
+## Boot configuration is missing or stale
 
 ???+ note "Symptom"
 
-    - Node completes PXE boot but cloud-init does not finish successfully
-    - Services (Slurm, Kubernetes, LDMS) are not configured after provisioning
-    - Node is reachable via SSH but cloud-init scripts did not execute
-    - Upgrade playbook reports "Cloud-init did not complete within timeout"
-
-    **Example errors:**
-
-    In `/var/log/cloud-init-output.log` or `/var/log/cloud-init.log` on the compute node:
-
-    ```text
-    cloud-init[ERROR]: Failed running module cc_scripts_user
-    cloud-init status: error
-    WARNING: could not determine cloud type
-    stage failed: 'init-network' (duration: 120.0s, error: timeout waiting for metadata)
-    ```
+    A node boots the wrong functional-group image, or its boot configuration
+    has missing kernel, initrd, or rootfs artifacts.
 
 ??? note "Cause"
 
-    - Network not ready when cloud-init attempts to fetch metadata from the OIM (`http://<admin_nic_ip>:8081/cloud-init/`)
-    - cloud-init user-data or vendor-data contains errors (invalid YAML, missing scripts)
-    - NFS mount failures during `runcmd` scripts (NFS server unreachable, incorrect `fstab` entries)
-    - Stale cloud-init state on re-provisioned nodes (cloud-init skips modules it has already run)
-    - Pulp certificate trust not established (`pulp_webserver.crt` copy failed), causing `dnf` package installs to fail
-    - Timeout on CUDA driver installation or DOCA setup during `runcmd` phase
+    The functional-group image may be absent from Image Build Manager's
+    successful `build_status.yml`, a MAC address may not match the physical
+    node, or provisioning may not have refreshed `boot-service` after the
+    mapping or image changed.
 
 ??? note "Resolution"
 
-    **Diagnostics**
+    1. Confirm Image Build Manager reports success and contains the affected
+       functional group.
+    2. Compare the mapping's `ADMIN_MAC` and service tag with the hardware.
+    3. With a valid access token, list current boot configurations:
 
-    Run these commands on the affected compute node:
+        ```bash title="Run on: OIM"
+        ochami boot config list -F json | jq .
+        ```
 
-    ```bash title="Run on: compute node"
-    # Overall cloud-init status
-    cloud-init status --long
+    4. Rebuild the missing image when necessary. Then run Orchestrator
+       `precheck` and `provision` to regenerate boot and metadata-service
+       configuration.
 
-    # Execution log (shows runcmd script output)
-    tail -100 /var/log/cloud-init-output.log
+## Metadata service is not reachable
 
-    # Detailed error log
-    grep -i error /var/log/cloud-init.log | tail -30
+???+ note "Symptom"
 
-    # What user-data was injected by the OIM
-    cloud-init query userdata
+    Orchestrator cannot reach `/metadata-service/health`, or a node boots but
+    cloud-init cannot download its NoCloud data.
 
-    # Which cloud-init modules completed successfully
-    ls /var/lib/cloud/instance/sem/
+??? note "Cause"
 
-    # Check NFS mounts (many cloud-init scripts depend on NFS)
-    mount | grep nfs
-    cat /etc/fstab | grep nfs
+    `metadata-service` or HAProxy may be down, the OIM FQDN may resolve to the
+    wrong address, internal Podman-network traffic to TCP 8080 may be broken,
+    or the externally exposed HAProxy endpoint on TCP 8443 may be blocked.
+    TCP 8081 belongs to `boot-service`; it is not the metadata-service port.
 
-    # Check Pulp certificate trust
-    ls /etc/pki/ca-trust/source/anchors/pulp_webserver.crt
-    openssl s_client -connect <admin_nic_ip>:2225 -showcerts </dev/null 2>&1 | grep -i verify
+??? note "Resolution"
+
+    ```bash title="Run on: OIM"
+    source /etc/profile.d/omnia-env.sh
+    systemctl status metadata-service openchami.target --no-pager
+    journalctl -u metadata-service -b -n 100 --no-pager
+    podman logs --tail 100 haproxy
+    curl --fail --silent --show-error --insecure \
+      "https://$SYSTEM_HOSTNAME.$SYSTEM_DOMAIN_NAME:8443/metadata-service/health"
     ```
 
-    1. If cloud-init is still running, wait for it to complete (check with `cloud-init status --long`).
+    Restore DNS, firewall, or service health as indicated, restart
+    `openchami.target` if required, and rerun `validate-deployment`.
 
-    2. If cloud-init completed with errors, review the specific failure in `/var/log/cloud-init-output.log`. Common sub-failures:
+## Cloud-init fails on a provisioned node
 
-        - **NFS mount failure**: Verify OIM NFS service is reachable from the node (`showmount -e <admin_nic_ip>`)
-        - **Pulp cert trust failure**: Manually copy the certificate and update trust:
+???+ note "Symptom"
 
-        ```bash title="Run on: compute node"
-        cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors/ && update-ca-trust
+    PXE boot succeeds, but `cloud-init status --long` reports an error or the
+    expected Slurm/Kubernetes configuration is absent.
+
+??? note "Cause"
+
+    Typical causes are metadata-service connectivity, invalid generated
+    user-data, unavailable repositories, certificate trust, or a failed NFS
+    mount used by a provisioning script.
+
+??? note "Resolution"
+
+    1. Collect evidence on the node before rebooting or reprovisioning it:
+
+        ```bash title="Run on: affected node"
+        cloud-init status --long
+        journalctl -u cloud-init -b --no-pager
+        tail -n 200 /var/log/cloud-init-output.log
+        cloud-init query userdata
+        findmnt -t nfs,nfs4
         ```
 
-        - **CUDA/DOCA timeout or failure**: These are non-critical — cloud-init scripts use `|| echo "failed (non-critical)"` so the overall provisioning continues. However, GPU workloads will not function until these components are recovered. Verify the status and recover if needed:
+    2. From the affected node, verify the metadata URL shown in its kernel
+       command line is reachable. From the OIM, check `metadata-service` and
+       HAProxy logs.
+    3. Correct the source input or external dependency and regenerate content
+       with `precheck` and `provision`.
+    4. PXE boot the reviewed node or subset again. Do not run `cloud-init
+       clean` followed by a reboot as a generic recovery step; that can rerun
+       destructive initialization against an already configured node.
 
-        **Verify CUDA driver:**
+For a support bundle, use [Collect Cluster Logs](../../Operations/collect_cluster_logs.md).
 
-        ```bash title="Run on: compute node"
-        # Check if NVIDIA driver is functional
-        nvidia-smi
-        # Expected: GPU listing with driver version. If "command not found" or error, driver needs recovery.
+## Recreate only the OpenCHAMI deployment
 
-        # Review driver install log
-        tail -30 /var/log/nvidia_install.log
-        ```
+Use component cleanup only after collecting logs and confirming that existing
+OpenCHAMI state can be removed:
 
-        **Verify CUDA toolkit:**
+```bash title="Run on: OIM"
+cd <omnia-repository>/src/orchestrator
+ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags openchami
 
-        ```bash title="Run on: compute node"
-        # Check if toolkit is available
-        ls /usr/local/cuda/bin/nvcc 2>/dev/null && nvcc --version || echo "CUDA toolkit NOT available"
+cd ../main
+./omnia.sh --run orchestrator --tags prepare
+./omnia.sh --run orchestrator --tags validate-deployment
+./omnia.sh --run orchestrator --tags provision
+```
 
-        # Check NFS mount for shared toolkit
-        mount | grep cuda
-
-        # Check toolkit installation log
-        tail -30 /var/log/cuda_toolkit_install.log
-
-        # Check lock manager status (shared NFS install)
-        cat /hpc_tools/cuda/.cuda_install_status.log 2>/dev/null
-        ```
-
-        **Verify DCGM:**
-
-        ```bash title="Run on: compute node"
-        # Check DCGM service
-        systemctl status nvidia-dcgm --no-pager
-        dcgmi discovery -l
-
-        # Review DCGM setup log
-        tail -30 /var/log/dcgm_setup.log
-        ```
-
-        **Verify DOCA-OFED:**
-
-        ```bash title="Run on: compute node"
-        # Check if DOCA is installed
-        rpm -q doca-ofed && echo "DOCA-OFED installed" || echo "DOCA-OFED NOT installed"
-
-        # Check InfiniBand device status
-        ibstat 2>/dev/null || echo "ibstat not available"
-
-        # Check DOCA MPI environment
-        ls /opt/mellanox/doca/tools/ 2>/dev/null
-        ```
-
-        **Verify nvidia-peermem (RDMA environments only):**
-
-        ```bash title="Run on: compute node"
-        # Check if peermem module is loaded
-        lsmod | grep -E 'nv_peer_mem|nvidia_peermem'
-
-        # Review install log
-        tail -20 /var/log/nvidia_peermem_install.log
-        ```
-
-        If any component failed, refer to the Slurm troubleshooting section for CUDA Toolkit and DCGM Setup Failure recovery procedures.
-
-    3. For stale cloud-init state on re-provisioned nodes, the node image should be rebuilt via `build_image_x86_64.yml` to ensure a clean `/var/lib/cloud` state. Do not manually run `cloud-init clean` on provisioned nodes as this may break existing configuration.
-
-    4. If cloud-init timed out during upgrade, SSH to the node and wait for completion, then re-run the upgrade playbook (completed steps are skipped automatically).
-
-    !!! note
-
-        Omnia collects cloud-init logs from all node types during log collection (`log_collector/collect.yml`). The collected files include `/var/log/cloud-init.log` and `/var/log/cloud-init-output.log`.
+`prepare` is required in this recovery sequence because it performs credential
+handling, deployment, and readiness validation. Running `deploy` followed
+directly by `provision` omits those preparation steps.

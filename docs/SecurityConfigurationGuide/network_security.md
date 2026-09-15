@@ -81,10 +81,11 @@ Omnia configures the following ports for use by third-party tools installed by O
 
 | Port Number | Layer 4 Protocol | Purpose | Node |
 |-------------|------------------|---------|------|
-| 80 | TCP | HTTP | Manager / Login Node |
-| 443 | TCP | HTTPS | Manager / Login Node |
-| 389 | TCP | LDAP | Manager / Login Node |
-| 636 | TCP | LDAPS | Manager / Login Node |
+| 389 | TCP | LDAP with StartTLS when `ldap_connection_type` is `TLS` | OIM-hosted `omnia_auth`; Slurm and login clients |
+| 636 | TCP | LDAPS when `ldap_connection_type` is `SSL` | OIM-hosted `omnia_auth`; Slurm and login clients |
+
+The `omnia_auth` Quadlet publishes both ports. Provisioned clients use the port
+selected by `ldap_connection_type`; ports 80 and 443 are not OpenLDAP ports.
 
 ### Telemetry Ports
 
@@ -139,15 +140,23 @@ restricted to the trusted service-cluster network.
 
 | Port | Protocol | Service Name | Type of Node |
 |---|---|---|---|
-|8081|TCP|HAProxy HTTP|Manager (OIM)|
-|8443|TCP|HAProxy HTTPS|Manager (OIM)|
-|27779|TCP|State Mgmt Daemon (SMD)|Manager (OIM)|
-|27778|TCP|Boot Script Service (BSS)|Manager (OIM)|
-|5432|TCP|PostgreSQL|Manager (OIM)|
-|9000|TCP|Step CA (PKI)|Manager (OIM)|
-|4444/4445|TCP|Hydra OAuth2|Manager (OIM)|
-|67/69|UDP|CoreDHCP|Manager (OIM)|
+|5432|TCP|PostgreSQL firewall allowance|Manager (OIM)|
+|27778|TCP|OpenCHAMI compatibility firewall allowance|Manager (OIM)|
+|27779|TCP|SMD firewall allowance|Manager (OIM)|
+|8081|TCP|HAProxy HTTP gateway for PXE boot and metadata requests|Manager (OIM)|
+|8443|TCP|HAProxy HTTPS API gateway|Manager (OIM)|
+|67/68|UDP|CoreDHCP and PXE clients|Manager (OIM)|
+|69|UDP|TFTP|Manager (OIM)|
 |53|TCP/UDP|CoreDNS|Manager (OIM)|
+
+The containers for `boot-service` (TCP 8081), `metadata-service` (TCP 8080),
+TokenSmith (TCP 8080), SMD (TCP 27779), PostgreSQL (TCP 5432), and step-ca
+communicate on internal Podman networks. HAProxy publishes host ports 8081
+and 8443 and routes requests to the applicable internal service. The current
+deployment also creates host-firewall allowances for TCP 5432, 27778, and
+27779; 27778 is retained as an OpenCHAMI compatibility allowance and has no
+standalone service in the Fabrica deployment. The deployment does not run
+standalone BSS, cloud-init-server, Hydra, or OPAAL services.
 
 ## Data Security
 
@@ -178,8 +187,12 @@ locations are listed below.
 | `/var/log/omnia/orchestrator/orchestrator.log` | Orchestrator playbook log |
 | `/var/log/omnia/telemetry/telemetry.log` | Telemetry playbook log |
 | `/var/log/omnia/utils/utils.log` | Utils playbook log |
-| `<OMNIA_DATA_PATH>/orchestrator/log/openchami/` | OpenCHAMI logs |
+| `<ORCHESTRATOR_DATA_PATH>/log/openchami/` | OpenCHAMI logs |
 | `<OMNIA_DATA_PATH>/repo_manager/log/` | Repository processing and Pulp logs |
+
+`ORCHESTRATOR_DATA_PATH` uses the component-specific value from
+`/etc/omnia/omnia.env`; when unset, it resolves to
+`<OMNIA_DATA_PATH>/orchestrator`.
 
 Additionally, an aggregate of the events taking place during storage, scheduler and network role installation called `omnia.log` is created in `/var/log`.
 
@@ -235,10 +248,6 @@ The format is described in the following table.
 Omnia performs network and application security scans on all modules of the product. Omnia additionally performs Blackduck scans on the open source softwares, which are installed by Omnia at runtime. However, Omnia is not responsible for the third-party software installed using Omnia. Review all third party software before using Omnia to install it.
 
 If you have any feedback about Omnia documentation, please reach out at [omnia.readme@dell.com](mailto:omnia.readme@dell.com).
-
-
-
-
 
 
 
