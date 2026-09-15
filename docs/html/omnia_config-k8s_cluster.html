@@ -205,7 +205,7 @@
                     <td>
                         <div class="omnia-indent-desc"></div>
                         <div class="omnia-cell">
-                            <p>When Kubernetes functional groups are selected, the current precheck requires a non-empty value on every <code class="docutils literal notranslate"><span class="pre">service_k8s_cluster</span></code> entry and verifies that every referenced name exists in <code class="docutils literal notranslate"><span class="pre">storage_config.yml</span></code>. For the entry selected with <code class="docutils literal notranslate"><span class="pre">deployment: true</span></code>, the matching mount must also set <code class="docutils literal notranslate"><span class="pre">mount_on_oim: true</span></code>.</p>
+                            <p>When Kubernetes functional groups are selected, the entry selected with <code class="docutils literal notranslate"><span class="pre">deployment: true</span></code> must define a non-empty value that exists in <code class="docutils literal notranslate"><span class="pre">storage_config.yml</span></code>. Its matching mount must also set <code class="docutils literal notranslate"><span class="pre">mount_on_oim: true</span></code>. Entries with <code class="docutils literal notranslate"><span class="pre">deployment: false</span></code> are not deployed and need not define this value.</p>
                         </div>
                     </td>
                 </tr>

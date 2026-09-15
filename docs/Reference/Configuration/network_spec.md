@@ -115,17 +115,15 @@ Networks:
       contain the OIM admin or BMC address. Orchestrator does not currently
       cross-check these DHCP pools against static `ADMIN_IP` values in the PXE
       mapping file, so reserve those addresses outside the pools.
-    - When `ib_network` is configured, its `netmask_bits` must equal the primary
-      admin-network `netmask_bits` because node InfiniBand configuration uses
-      the shared prefix length. The current precheck does not enforce this
-      equality; verify it before deployment.
+    - When `ib_network` is configured, its subnet must not overlap an admin
+      subnet. Its `netmask_bits` value is applied independently to node
+      InfiniBand interfaces and may differ from the admin-network prefix.
 
 !!! info
 
     - [Network Topologies](../SupportMatrix/network_topologies.md) -- How topologies
       affect NIC and VLAN assignments.
     - [Nics](../SupportMatrix/nics.md) -- Supported NIC models.
-
 
 
 

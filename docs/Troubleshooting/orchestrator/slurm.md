@@ -714,19 +714,27 @@ state problems, job submission errors, and GPU detection.
 
 ??? note "Resolution"
 
-    1. Verify Munge is running on all nodes:
+    1. Resolve the generated Orchestrator inventory, then verify Munge on all
+       Slurm and login functional groups:
 
         ```bash title="Run on: OIM host"
-        ansible slurm_cluster -m shell -a "systemctl status munge"
+        source /etc/profile.d/omnia-env.sh
+        orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+        inventory="$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
+        ansible -i "$inventory" \
+          'slurm_*:login_node_*:login_compiler_node_*' \
+          -m ansible.builtin.command -a "systemctl is-active munge"
         ```
 
     2. Verify the Munge key is identical across all nodes:
 
         ```bash title="Run on: OIM host"
-        ansible slurm_cluster -m shell -a "md5sum /etc/munge/munge.key"
+        ansible -i "$inventory" \
+          'slurm_*:login_node_*:login_compiler_node_*' \
+          -m ansible.builtin.command -a "sha256sum /etc/munge/munge.key"
         ```
 
-       All nodes should report the same MD5 hash.
+       All nodes should report the same SHA-256 hash.
 
     3. If keys differ, redistribute the key from the controller node and
        restart Munge on all affected nodes:

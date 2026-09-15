@@ -33,10 +33,8 @@ This page lists the minimum number of servers required for each Omnia deployment
 !!! note
 
     The Service Kubernetes Node quantity in the Slurm and Kubernetes tables is
-    the baseline minimum. For predictable automatic parent-service assignment
-    in a deployment with N Scalable Units, Dell recommends N dedicated
-    `service_kube_node_x86_64` servers, with one server in each Scalable Unit.
-    Discovery does not enforce one worker per Scalable Unit.
+    the baseline minimum. Size the service Kubernetes cluster for the required
+    availability and workload capacity.
 
 ## Slurm -- x86_64
 

@@ -157,18 +157,21 @@ podman logs --tail 100 haproxy
         ochami smd service status
         ```
 
-    2. Review the active project mapping and generated OpenCHAMI node file:
+    2. Review the active project mapping and generated per-category OpenCHAMI
+       node files:
 
         ```bash title="Run on: OIM"
         source /etc/profile.d/omnia-env.sh
         orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
         sed -n '1,20p' "$orchestrator_path/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
-        sed -n '1,120p' "$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes.yaml"
+        ls -1 "$OMNIA_DATA_PATH/openchami/workdir/nodes"/nodes_*.yaml
+        sed -n '1,120p' "$OMNIA_DATA_PATH/openchami/workdir/nodes"/nodes_*.yaml
         ```
 
     3. Correct the mapping, then run `validate`, `precheck`, and `provision`.
-       Do not edit the generated `nodes.yaml`; Orchestrator replaces it from
-       the mapping.
+       Do not edit generated files such as `nodes_slurm.yaml`,
+       `nodes_kubernetes.yaml`, `nodes_os.yaml`, or `nodes_custom.yaml`;
+       Orchestrator replaces them from the mapping.
 
 ## Boot configuration is missing or stale
 

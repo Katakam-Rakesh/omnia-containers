@@ -131,17 +131,17 @@ In this example, `3c:ec:ef:12:34:56` is the host operating system NIC MAC addres
 
 **Symptom:**
 
-Server identification and mapping during PXE boot rely on information retrieved from OME and iDRAC inventory. Depending on the DNS environment, the `DnsName` value may match the intended iDRAC hostname, or may return a reverse DNS name (for example, `pool-<IP-based>`), which may not align with naming conventions required for cluster configuration. This can result in incorrect `GROUP_NAME` and `PARENT_SERVICE_TAG` values in the generated BMC PXE mapping file.
+Server identification and mapping during PXE boot rely on information retrieved from OME and iDRAC inventory. Depending on the DNS environment, the `DnsName` value may match the intended iDRAC hostname, or may return a reverse DNS name (for example, `pool-<IP-based>`), which may not align with naming conventions required for cluster configuration. This can result in incorrect generated `GROUP_NAME` or optional `PARENT_SERVICE_TAG` values in the BMC PXE mapping file.
 
 This behaviour is observed in Dell Omnia deployments integrated with OpenManage Enterprise (OME) discovery.
 
 **Cause:**
 
-Differences between iDRAC configuration and OME-reported hostnames can lead to DNS name mismatches, causing incorrect `GROUP_NAME` and `PARENT_SERVICE_TAG` values in the generated PXE mapping file.
+Differences between iDRAC configuration and OME-reported hostnames can lead to DNS name mismatches and incorrect generated mapping metadata.
 
 **Resolution:**
 
-Explicitly define `GROUP_NAME` and `PARENT_SERVICE_TAG` in the `pxe_mapping_file` to ensure accurate PXE provisioning and cluster setup in Omnia.
+Review both `GROUP_NAME` and optional `PARENT_SERVICE_TAG` in the generated `pxe_mapping_file`. Correct either value as needed before using the file with Orchestrator. Orchestrator does not require a parent value or validate it against `GROUP_NAME`.
 
 ### ADMIN_IP and BMC_IP Correlation in Single-Subnet /24 Environments
 
@@ -254,8 +254,6 @@ There is currently no workaround available.
 An enhancement request has been submitted to enable support for the complete set of iDRAC telemetry metrics on the PowerEdge XE8712 platform:
 
 **GitHub Enhancement Request:** [Enhancement Request: Support Complete iDRAC Telemetry Metrics on PowerEdge XE8712 with NVIDIA GB200](https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues/190)
-
-
 
 
 
