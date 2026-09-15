@@ -11,6 +11,10 @@ create the OME topics.
 ## Prerequisites
 
 - Complete the common [Telemetry deployment prerequisites](deploy_telemetry.md#prerequisites).
+- Ensure that the nodes are discovered in OpenManage Enterprise before
+  configuring Telemetry streaming.
+- Ensure that the OpenManage Enterprise Advanced license is installed for the
+  nodes discovered in OME. This license is required to retrieve OME Telemetry.
 - Enable OME with the Kafka collection target. The Vector-OME bridge derives
   the required VictoriaMetrics and VictoriaLogs sinks from its enabled
   channels; another source is not required to select those sinks.

@@ -12,7 +12,7 @@ THE INFORMATION IN THIS PUBLICATION IS PROVIDED “AS-IS.” DELL MAKES NO REPRE
 
 ## Scope of the Guide
 
-This security configuration guide covers the security features supported by Omnia 2.2.0.0.
+This security configuration guide covers the security features supported by Omnia 2.3.0.0.
 
 
 ## Document References
@@ -34,7 +34,6 @@ Follow Dell Security on these sites:
 To provide feedback on this solution, email us at [security@dell.com](mailto:security@dell.com).
 
 If you have any feedback about Omnia documentation, please reach out at [omnia.readme@dell.com](mailto:omnia.readme@dell.com).
-
 
 
 

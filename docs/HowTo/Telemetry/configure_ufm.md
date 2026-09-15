@@ -1,11 +1,56 @@
 # Configure UFM Telemetry
 
+Configure NVIDIA Unified Fabric Manager (UFM) to securely stream Telemetry
+metrics and logs to the Service Kubernetes cluster.
+
 ## Overview
 
-Omnia integrates an existing NVIDIA UFM Prometheus endpoint with the shared
-VictoriaMetrics `vmagent`. It creates a `ufm-external` Kubernetes Service and
-Endpoints object and, when required, a `ufm-telemetry-credentials` Secret.
+UFM Telemetry collects InfiniBand fabric metrics and logs from an existing
+NVIDIA UFM appliance.
+
+### Components
+
+- **UFM Prometheus Exporter** -- Exposes InfiniBand metrics over a
+  Prometheus-compatible HTTPS endpoint. The default port is `9001`.
+- **vmagent (shared)** -- Scrapes the UFM exporter over TLS and forwards the
+  metrics to VictoriaMetrics.
+- **VMServiceScrape** -- Defines the UFM scrape target, authentication, TLS,
+  interval, and timeout for vmagent.
+- **VLAgent** -- Receives RFC 3164 or RFC 5424 syslog messages from UFM and
+  sends them to VictoriaLogs.
+- **Kubernetes Service and Endpoints** -- Represent the external UFM appliance
+  as the `ufm-external` service in the `telemetry` namespace.
+
 Omnia does not deploy or configure the UFM appliance.
+
+### Data flow
+
+```text
+UFM Fabric Manager -> UFM Prometheus Exporter -> vmagent (shared) -> VictoriaMetrics
+UFM Fabric Manager -> syslog -> VLAgent -> VictoriaLogs
+```
+
+### Supported metrics and logs
+
+| Metrics category | Metrics collected |
+|---|---|
+| Port state | InfiniBand port operational state, including up, down, and disabled |
+| Traffic counters | Transmit and receive rates, bytes per second, and packets per port |
+| Error counters | Symbol errors, link recovery and link-down events, VL15 drops, and excessive buffer overruns |
+| Fabric topology | Switch information, port mappings, node GUIDs, and LIDs |
+| Telemetry health | Scrape success, scrape duration, and ingestion latency |
+
+For the complete list, see the
+[UFM Metrics reference](../../Reference/Metrics/ufm_metrics.md).
+
+| Log category | Logs collected |
+|---|---|
+| Fabric events | Topology changes, port transitions, errors, and warnings |
+| Manager events | Subnet Manager, SHARP, and UFM health events |
+| Labels | Hostname, severity, and facility metadata |
+
+UFM metrics and logs are controlled independently by `metrics_enabled` and
+`logs_enabled`.
 
 ## Prerequisites
 
@@ -43,23 +88,97 @@ Omnia does not deploy or configure the UFM appliance.
     `basic` or `none`. When `ca_signed` is selected, set
     `ufm_ca_cert_path` to the PEM file.
 
-2. Run validation and deployment:
+2. Run the Telemetry precheck. Choose one execution method; do not run both
+   commands for the same operation.
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags validate
-    ./omnia.sh --run telemetry --tags deploy
-    ```
+    === "Using omnia.sh (recommended)"
 
-3. To collect UFM logs, keep metrics enabled, set `logs_enabled: true`, add
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags precheck
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags precheck
+        ```
+
+3. Validate the Telemetry inputs and collect the required credentials:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags validate
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags validate
+        ```
+
+4. Deploy the enabled Telemetry configuration:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags deploy
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags deploy
+        ```
+
+5. To run validation and deployment in one invocation, omit the tag:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml
+        ```
+
+    The untagged flow does not run the opt-in precheck. Run step 2 separately
+    when an environment precheck is required.
+
+6. To collect UFM logs, keep metrics enabled, set `logs_enabled: true`, add
    `victoria_logs` to `collection_targets`, deploy Telemetry, and export the
    VLAgent target. The source role is imported only when metrics are enabled;
    a logs-only configuration is not supported.
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags external_victoria
-    ```
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags external_victoria
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags external_victoria
+        ```
 
     Configure the existing UFM appliance to send logs to the generated
     `vlagent.syslog_endpoint`. The Telemetry source exposes this endpoint but
@@ -70,17 +189,118 @@ Omnia does not deploy or configure the UFM appliance.
 
 ## Verification
 
-On the Kubernetes VIP, confirm that the service and endpoints were created:
+### Verify UFM Telemetry resources
 
-```bash title="Run on: Kubernetes VIP"
-kubectl get service ufm-external -n telemetry
-kubectl get endpoints ufm-external -n telemetry
-```
+1. Verify that the VictoriaMetrics pods are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get pods -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics pods](../../assets/images/verify_umf_telemetry_1.png)
+
+2. Verify that the VictoriaMetrics services are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics services](../../assets/images/verify_umf_telemetry_2.png)
+
+3. Check the shared vmagent logs for successful UFM scrapes:
+
+    ```bash title="Run on: Kubernetes control plane"
+    VMAGENT_POD=$(kubectl get pods -n telemetry \
+      -l app.kubernetes.io/name=vmagent \
+      -o jsonpath='{.items[0].metadata.name}')
+    kubectl logs "$VMAGENT_POD" -n telemetry -c vmagent --tail=50
+    ```
+
+    ![vmagent logs](../../assets/images/verify_umf_telemetry_3.png)
+
+4. Confirm that the Kubernetes service and endpoints for the external UFM
+   appliance were created:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service ufm-external -n telemetry
+    kubectl get endpoints ufm-external -n telemetry
+    ```
+
+### View UFM metrics in VictoriaMetrics UI
+
+1. Identify the external `vmselect` service:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep vmselect
+    ```
+
+    ![vmselect service](../../assets/images/verify_umf_telemetry_4.png)
+
+2. Export the VictoriaMetrics connection details:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags external_victoria
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags external_victoria
+        ```
+
+3. Open the URL recorded in `victoria_metrics.endpoints.vmselect.ui_url` in
+   the following file:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+4. Query a UFM metric, such as `infiniband_CBW`, to confirm that UFM metrics
+   are reaching VictoriaMetrics.
+
+    ![UFM metrics in VMUI](../../assets/images/verify_umf_telemetry_5.png)
+
+### View UFM logs in VictoriaLogs
+
+Complete these steps only when UFM log collection is enabled.
+
+1. Verify that VLAgent and VictoriaLogs services are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep -E '(vlagent|victoria-logs)'
+    ```
+
+    ![VLAgent and VictoriaLogs services](../../assets/images/view_umf_telemetry_1.png)
+
+2. Identify the external `vlselect` service:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep vlselect
+    ```
+
+    ![vlselect service](../../assets/images/view_umf_telemetry_2.png)
+
+3. If needed, export the Victoria connection details by using either command
+   shown in step 2 of the previous section. Open the URL recorded in
+   `victoria_logs.endpoints.vlselect.ui_url` in:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+4. Query `ufm` to confirm that UFM logs are reaching VictoriaLogs.
+
+    ![UFM logs in VictoriaLogs](../../assets/images/view_umf_telemetry_3.png)
 
 Confirm `sources.ufm.metrics: deployed` in `telemetry_status.yml`. This status
-records the integration resource state; verify actual metric ingestion from
-VictoriaMetrics separately for an end-to-end check. When logs are enabled,
-`sources.ufm.logs: deployed` confirms that VLAgent is running, not that the UFM
+records the integration resource state; successful metric queries provide the
+end-to-end validation. When logs are enabled, `sources.ufm.logs: deployed`
+confirms that VLAgent is running; a successful log query confirms that the UFM
 appliance has begun sending logs.
 
 ## Next steps
