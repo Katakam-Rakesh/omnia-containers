@@ -120,6 +120,8 @@ apptainer exec /hpc_tools/container_images/ubuntu_22.04.sif \
   fallback. Synchronize the image into Pulp and confirm that the OIM registry
   is reachable on port `2225`. The generated helper currently hard-codes that
   port; use a manual explicit Pulp pull if Repo Manager uses another port.
+- **A direct registry pull fails**: Confirm network and DNS connectivity from
+  the compute node and verify that the requested registry is reachable.
 - **A pull runs out of space**: Choose a larger `--tmpdir`. For the supplied
   helper, free space under `/hpc_tools/container_images` or edit a local copy
   of the script to use another temporary directory.

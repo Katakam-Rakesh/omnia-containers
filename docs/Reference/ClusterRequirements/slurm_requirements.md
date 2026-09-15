@@ -33,7 +33,7 @@ This section outlines the key requirements for Slurm used by Omnia to deploy HPC
 
 - If the package names in the repository differ from the selected catalog,
   update the catalog so its Slurm package names match the available RPMs. See
-  [Add an RPM Repository](../../HowTo/repo_manager/adding_additional_repositories.md).
+  [Add an RPM Repository and Packages](../../HowTo/repo_manager/adding_additional_repositories.md).
 
 ## HPC Benchmark Image Layer
 

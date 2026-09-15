@@ -9,12 +9,13 @@ of this file in their respective project input directories.
 
 ```text
 $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml
-$DISCOVERY_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml
+$OMNIA_DATA_PATH/discovery/input/$OMNIA_PROJECT_NAME/network_spec.yml
 ```
 
-`ORCHESTRATOR_DATA_PATH` and `DISCOVERY_DATA_PATH` default to their respective
-component directories under `$OMNIA_DATA_PATH`. Configure the Discovery copy
-for node discovery and the Orchestrator copy for provisioning.
+`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
+Discovery currently derives its input directory directly from
+`$OMNIA_DATA_PATH/discovery`. Configure the Discovery copy for node discovery
+and the Orchestrator copy for provisioning.
 
 Discovery currently reads only `admin_network.subnet` and
 `ib_network.subnet`. It uses their first two octets with the last two octets of
@@ -124,7 +125,6 @@ Networks:
     - [Network Topologies](../SupportMatrix/network_topologies.md) -- How topologies
       affect NIC and VLAN assignments.
     - [Nics](../SupportMatrix/nics.md) -- Supported NIC models.
-
 
 
 

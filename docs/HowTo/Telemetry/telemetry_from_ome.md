@@ -80,7 +80,6 @@ flow.
 
 ## Next steps
 
-- Use [Verify OME Telemetry](verify_ome.md) for repeatable bridge checks.
 - Retain the exported Kafka CA and client files securely for OME maintenance.
 
 ## Troubleshooting

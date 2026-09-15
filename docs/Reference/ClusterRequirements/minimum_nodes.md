@@ -30,6 +30,14 @@ This page lists the minimum number of servers required for each Omnia deployment
 
 **Total: 9 nodes**
 
+!!! note
+
+    The Service Kubernetes Node quantity in the Slurm and Kubernetes tables is
+    the baseline minimum. For predictable automatic parent-service assignment
+    in a deployment with N Scalable Units, Dell recommends N dedicated
+    `service_kube_node_x86_64` servers, with one server in each Scalable Unit.
+    Discovery does not enforce one worker per Scalable Unit.
+
 ## Slurm -- x86_64
 
 | Role | Architecture | Quantity |
@@ -83,18 +91,3 @@ must match the selected catalog.
     - [Disk Space](disk_space.md) -- Disk and memory requirements per node role.
     - [Ports](../../SecurityConfigurationGuide/network_security.md#firewall-settings) -- Network ports required per role.
     - [HA Config](../Configuration/high_availability_config.md) -- Kubernetes HA settings.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

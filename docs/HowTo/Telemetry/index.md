@@ -68,7 +68,8 @@ The domain entry point exposes these lifecycle operations:
 | Operation | Behavior |
 |---|---|
 | No tag | Run setup, input validation, and deployment. |
-| `validate` / `validation` | Run L1 schema and L2 logical and infrastructure validation. |
+| `credentials` | Collect only the credentials required by the enabled sources and store them in the encrypted project credential file. |
+| `prepare` / `validate` / `validation` | Run L1 schema and L2 logical and infrastructure validation, then collect the required credentials. |
 | `precheck` | Check the Kubernetes VIP, cluster health, and enabled source prerequisites. |
 | `deploy` / `execute` | Deploy Telemetry sinks, sources, and bridges. |
 | `cleanup` | Remove all Telemetry runtime resources while preserving PVCs and Kafka identity by default. |
@@ -78,11 +79,8 @@ The domain entry point exposes these lifecycle operations:
 The `upgrade` and `rollback` operations are placeholders in the current source
 and do not perform component lifecycle changes.
 
-The source-specific verification pages repeat the checks independently when a
-deployment must be inspected later: [iDRAC](verify_idrac.md),
-[LDMS](verify_ldms.md), [OME](verify_ome.md),
-[PowerScale](verify_powerscale.md), [UFM](verify_ufm.md),
-[VAST](verify_vast.md), and [Vector-LDMS](verify_vector_ldms.md).
+The source-specific guides include commands for inspecting deployed resources
+and verifying enabled data paths.
 
 ### Contract reference
 
@@ -92,29 +90,33 @@ contracts.
 
 Telemetry reads these project-scoped runtime inputs:
 
-| Input | Default location |
+| Input | Effective runtime location |
 |---|---|
-| `telemetry_config.yml` | `/opt/omnia/telemetry/input/project_default/` |
-| `telemetry_storage_config.yml` | `/opt/omnia/telemetry/input/project_default/` |
-| `telemetry_packages.yml` | `/opt/omnia/telemetry/input/project_default/` |
+| `telemetry_config.yml` | `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/` |
+| `telemetry_storage_config.yml` | `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/` |
+| `telemetry_packages.yml` | `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/` |
 | `telemetry_credentials.yml` | Created and encrypted in the same directory when credentials are collected |
 
-The domain contract uses `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` for the root
-and project portions of these paths. The current deployment configuration
-loader still resolves its input to the `project_default` directory, and
-`TELEMETRY_DATA_PATH` is not consistently honored by initialization and
-deployment. Use the default project and data root until those source
-limitations are corrected. The deployment writes
-`<OMNIA_DATA_PATH>/telemetry/output/<project>/telemetry_status.yml`. It records
-the overall result, Kubernetes namespace, VIP, package mode, per-sink and
-per-source results, bridge results, and LDMS nodes skipped as unreachable.
+At runtime, `TELEMETRY_DATA_PATH` defaults to
+`<OMNIA_DATA_PATH>/telemetry`, and `OMNIA_PROJECT_NAME` defaults to
+`project_default`. The setup and deployment roles honor both overrides.
+
+The initialization script has a narrower limitation: `domain-init.sh` honors
+`OMNIA_PROJECT_NAME`, but stages templates under
+`<OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>` and does not read a
+`TELEMETRY_DATA_PATH` override. When the override points elsewhere, stage the
+three input files in the effective runtime location shown above after running
+initialization. Deployment output, including `telemetry_status.yml`, is
+written under `<TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/`. The status
+records the overall result, Kubernetes namespace, VIP, package mode, per-sink
+and per-source results, bridge results, and LDMS nodes skipped as unreachable.
 
 ## Verification
 
 After deployment, inspect:
 
 ```bash title="Run on: OIM host"
-cat "$OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/telemetry_status.yml"
+cat "${TELEMETRY_DATA_PATH:-${OMNIA_DATA_PATH:-/opt/omnia}/telemetry}/output/${OMNIA_PROJECT_NAME:-project_default}/telemetry_status.yml"
 ```
 
 Confirm that `overall_status` is `success`, enabled components report

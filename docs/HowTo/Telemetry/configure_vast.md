@@ -86,7 +86,6 @@ VAST system is actually sending data.
 
 ## Next steps
 
-- Use [Verify VAST Telemetry](verify_vast.md) for repeatable checks.
 - Use [Export VictoriaMetrics Connection Details](configure_external_victoria.md)
   to obtain the query endpoint and UI URL.
 

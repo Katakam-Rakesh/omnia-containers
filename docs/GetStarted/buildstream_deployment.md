@@ -114,12 +114,12 @@ building and node provisioning occur when you run the corresponding pipeline.
     standard environment, BuildStreaM stages its configuration at:
 
     ```text
-    <BUILD_STREAM_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/build_stream_config.yml
+    <OMNIA_DATA_PATH>/build_stream/input/<OMNIA_PROJECT_NAME>/build_stream_config.yml
     ```
 
-    `BUILD_STREAM_DATA_PATH` defaults to
-    `<OMNIA_DATA_PATH>/build_stream` when no component-specific override is
-    configured.
+    The current BuildStreaM runtime derives its data directory directly from
+    `OMNIA_DATA_PATH`; it does not consume a separate
+    `BUILD_STREAM_DATA_PATH` override.
 
 3. Load the installed environment and activate the shared virtual environment
    in the current shell:
@@ -127,7 +127,7 @@ building and node provisioning occur when you run the corresponding pipeline.
     ```bash title="Run on: OIM host"
     source /etc/profile.d/omnia-env.sh
     source "$OMNIA_DATA_PATH/activate-omnia.sh"
-    build_stream_path="${BUILD_STREAM_DATA_PATH:-${OMNIA_DATA_PATH}/build_stream}"
+    build_stream_path="${OMNIA_DATA_PATH}/build_stream"
     repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
     image_build_manager_path="${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}"
     orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
@@ -395,8 +395,8 @@ pipeline results.
 - [Clean Up Pipeline Resources](../Operations/build_stream/cleanup_operations.md)
   with the manual/API-only cleanup pipeline. It is never selected by a catalog
   or mapping file change.
-- [Initialize Telemetry](../HowTo/build_stream/initialize_telemetry.md) after a
-  service Kubernetes cluster is available.
+- [Deploy Telemetry](../HowTo/Telemetry/deploy_telemetry.md) after a service
+  Kubernetes cluster is available.
 
 ## Troubleshooting
 

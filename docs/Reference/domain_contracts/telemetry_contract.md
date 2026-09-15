@@ -10,16 +10,74 @@ The source currently expects an explicitly selected or staged inventory; it
 does not automatically transfer the Orchestrator output into the Telemetry
 project.
 
-| Contract | Producer output | Structure sample |
-|---|---|---|
-| `orchestrator_inventory.yaml` | `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml` | [Orchestrator output contract](orchestrator_contract.md#output-contract) |
-| `bmc_group_data.csv` | `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv` | [Orchestrator output contract](orchestrator_contract.md#output-contract) |
+### `orchestrator_inventory.yaml`
+
+**Producer location**:
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml`
+
+When `ORCHESTRATOR_DATA_PATH` is unset, it defaults to
+`$OMNIA_DATA_PATH/orchestrator`.
+
+#### Structure
+
+The inventory follows the standard Ansible inventory hierarchy. Telemetry
+uses `kube_vip_group` to resolve the service Kubernetes virtual IP and the
+Slurm groups to identify collector targets. Other groups can be present.
+
+```yaml
+all:
+  children:
+    kube_vip_group:
+      hosts:
+        kube-vip:
+          ansible_host: "192.0.2.10"
+          ansible_user: "root"
+    service_kube_control_plane_first_x86_64:
+      hosts:
+        service-kube-control-plane-1:
+          ansible_host: "192.0.2.11"
+          bmc_ip: "198.51.100.11"
+          service_tag: "ABC1234"
+          group_name: "grp1"
+    slurm_control_node_x86_64:
+      hosts:
+        slurm-control-1:
+          ansible_host: "192.0.2.20"
+          bmc_ip: "198.51.100.20"
+          service_tag: "DEF5678"
+          group_name: "grp2"
+    slurm_node_x86_64:
+      hosts:
+        slurm-node-1:
+          ansible_host: "192.0.2.21"
+          bmc_ip: "198.51.100.21"
+          service_tag: "GHI9012"
+          group_name: "grp2"
+```
+
+### `bmc_group_data.csv`
+
+**Producer location**:
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv`
+
+**Required when**: iDRAC telemetry is enabled.
+
+#### Structure
+
+The first row defines the required columns. Each subsequent row maps one BMC
+address to its functional group and, when applicable, its parent service tag.
+
+```csv
+BMC_IP,GROUP_NAME,PARENT
+198.51.100.20,grp2,
+198.51.100.21,grp2,DEF5678
+```
 
 Reference these generated files through `cluster_inventory` and, when iDRAC
 telemetry is enabled,
 `idrac_telemetry_configurations.bmc_group_data_path` in
 `telemetry_config.yml`. The generated Orchestrator output is authoritative;
-the linked files are structure samples.
+review it before using it as Telemetry input.
 
 ## Output contract
 
@@ -28,11 +86,11 @@ the linked files are structure samples.
 Telemetry writes one authoritative status file:
 
 ```text
-$OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/telemetry_status.yml
+<TELEMETRY_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/telemetry_status.yml
 ```
 
-When `TELEMETRY_DATA_PATH` is set, the output is written below that root
-instead.
+`TELEMETRY_DATA_PATH` defaults to `<OMNIA_DATA_PATH>/telemetry`, and
+`OMNIA_PROJECT_NAME` defaults to `project_default`.
 
 | Field | Purpose |
 |---|---|
@@ -75,9 +133,14 @@ workflow preserves `telemetry_status.yml` as the last-known result.
 These utilities fail when their required deployment or endpoint state is not
 available instead of presenting an incomplete export as valid.
 
-The domain supports setup, validation, precheck, deployment, cleanup, and the
-two external connection exports. The `upgrade` and `rollback` operations are
-placeholders in the current source and do not perform lifecycle changes.
+The lifecycle includes setup, credential collection, preparation/validation,
+precheck, deployment, cleanup, and the two external connection exports.
+`credentials` collects only credentials required by enabled sources.
+`prepare`, `validate`, and `validation` run input validation and credential
+collection. The untagged flow runs setup, validation, and deployment; it does
+not select the opt-in `credentials` play. The `upgrade` and `rollback`
+operations are placeholders in the current source and do not perform lifecycle
+changes.
 
 ## iDRAC MySQL runtime contract
 

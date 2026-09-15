@@ -655,11 +655,17 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
 
     5. Once vminsert is reachable, vmagent flushes its queue; verify lag closes via a recent-range query.
 
-    Sizing guidance: provision vmstorage capacity from sources × active series/node × samples/series × retention. Under-provisioning the PVC is the most common cause of this issue — size for peak source count (iDRAC + LDMS + DCGM + PowerScale + UFM + VAST + OME), not initial node count.
+    Sizing guidance: provision vmstorage capacity from sources × active
+    series/node × samples/series × retention. Under-provisioning the PVC is the
+    most common cause of this issue — size for the peak enabled source count
+    (iDRAC, LDMS, PowerScale, UFM, VAST, and OME), not the initial node count.
 
     !!! note
 
-        cluster mode, replica counts, replication factor, TLS, and retention are rendered from `input/telemetry_config.yml` and `input/service_k8s.json`. Modify inputs and re-run; pod edits are transient.
+        Cluster mode, replica counts, replication factor, TLS, and retention
+        are rendered from the project-scoped `telemetry_config.yml` and
+        `telemetry_storage_config.yml` files. Modify the inputs and rerun the
+        deployment; pod edits are transient.
 
 ## VictoriaLogs (Cluster Mode) — Logs Missing or Unsearchable
 
@@ -837,7 +843,6 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
     - [Setup Telemetry](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry pipeline setup.
     - [Telemetry Setup](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry sources and configuration.
     - [Log Management](../../Operations/log_management.md) -- Log locations for telemetry services.
-
 
 
 

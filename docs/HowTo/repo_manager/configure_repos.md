@@ -23,6 +23,7 @@ and `reponame`; an image source is matched by `registry`.
   reference exactly one group with `type: "base_os"`, and every group and
   package reference must resolve.
 - Ensure all selected source URLs are reachable from the OIM.
+- [EPEL Repository Unavailable/Unstable/Too Slow](../../Troubleshooting/repo_manager/repo_manager.md#epel-repository-unavailableunstabletoo-slow).
 - Have credentials available for the Pulp administrator and for any private
   registries that use basic authentication. Docker Hub credentials are
   optional for anonymous public pulls.

@@ -85,7 +85,6 @@ appliance has begun sending logs.
 
 ## Next steps
 
-- Use [Verify UFM Telemetry](verify_ufm.md) for repeatable checks.
 - Use [Export VictoriaMetrics Connection Details](configure_external_victoria.md)
   to obtain the query endpoint and UI URL.
 

@@ -31,7 +31,7 @@ Resolve the active component paths once in the maintenance shell:
 source /etc/profile.d/omnia-env.sh
 source "$OMNIA_DATA_PATH/activate-omnia.sh"
 orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
-discovery_path="${DISCOVERY_DATA_PATH:-${OMNIA_DATA_PATH}/discovery}"
+discovery_path="${OMNIA_DATA_PATH}/discovery"
 orchestrator_input="$orchestrator_path/input/$OMNIA_PROJECT_NAME"
 orchestrator_output="$orchestrator_path/output/$OMNIA_PROJECT_NAME"
 discovery_output="$discovery_path/output/$OMNIA_PROJECT_NAME"

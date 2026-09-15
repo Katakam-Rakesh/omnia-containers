@@ -109,7 +109,7 @@ shown because each stage supplies input to the next stage.
     source "$OMNIA_DATA_PATH/activate-omnia.sh"
     repo_manager_path="${REPO_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/repo_manager}"
     image_build_manager_path="${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}"
-    discovery_path="${DISCOVERY_DATA_PATH:-${OMNIA_DATA_PATH}/discovery}"
+    discovery_path="${OMNIA_DATA_PATH}/discovery"
     orchestrator_path="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
     ```
 

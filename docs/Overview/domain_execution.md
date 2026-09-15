@@ -44,16 +44,17 @@ Useful initialization variants implemented by `omnia.sh` include:
 | `./omnia.sh --check-deps` | Audit installed dependency versions against module declarations. |
 
 Initialization copies source templates from `src/<domain>/input/` to the
-domain's resolved data root:
+domain's runtime data root:
 
 ```text
-<DOMAIN_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/
+<RUNTIME_DATA_ROOT>/input/<OMNIA_PROJECT_NAME>/
 ```
 
-When a domain-specific data-path variable is unset, the initializer derives
-the root from `OMNIA_DATA_PATH`. For example, Orchestrator resolves
-`ORCHESTRATOR_DATA_PATH` first and otherwise uses
-`<OMNIA_DATA_PATH>/orchestrator`.
+For domains that implement a component-specific path, the initializer uses
+that value and otherwise derives the root from `OMNIA_DATA_PATH`. For example,
+Orchestrator resolves `ORCHESTRATOR_DATA_PATH` first and otherwise uses
+`<OMNIA_DATA_PATH>/orchestrator`. Discovery and BuildStreaM currently use
+`<OMNIA_DATA_PATH>/discovery` and `<OMNIA_DATA_PATH>/build_stream` directly.
 
 Edit the staged project inputs before running a deployment phase. Existing
 files may require confirmation before an initialization script overwrites them.
@@ -126,9 +127,9 @@ identified per module and are not deployment procedures.
 |---|---|
 | `repo_manager` | `precheck`, `credentials`, `prepare`/`deploy`, `download`/`execute`, `status`, `cleanup_pulp`/`cleanup`, `cleanup_repos`, and catalog-operation tags |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `build`/`execute`, `x86_64`, `aarch64`, `cleanup`, `cleanup_images` |
-| `discovery` | `validate`, `credentials`, `execute`, and the `discovery` execution alias; `precheck`, `prepare`, `cleanup`, `upgrade`, and `rollback` currently select placeholder flows |
-| `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
-| `telemetry` | `precheck`, `validate`/`validation`, `execute`/`deploy`, `cleanup`, source-specific cleanup tags, `external_kafka`, `external_victoria` |
+| `discovery` | `precheck`, `validate`, `credentials`, `execute`, the `discovery` execution alias, `cleanup`, and `cleanup_credentials`; `prepare`, `upgrade`, and `rollback` currently select placeholder flows |
+| `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, and `upgrade`; `rollback` is reserved and unsupported |
+| `telemetry` | `precheck`, `validate`/`validation`/`prepare`, `credentials`, `execute`/`deploy`, `cleanup`, source-specific cleanup tags, `external_kafka`, `external_victoria` |
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup` |
 | `utils` | `precheck`, `collect`, `install_os`, `backup_oim_logs`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`; running without a tag performs setup only |
 
@@ -209,11 +210,12 @@ reported state and the corresponding module log.
   `src/main`.
 - **A downstream contract is missing:** Complete the producer module and verify
   its reported success before running the consumer.
-- **Inputs are not found:** Confirm `OMNIA_DATA_PATH`, the applicable
-  domain-specific data-path variable, and `OMNIA_PROJECT_NAME`, then verify
-  the staged module input directory. For Orchestrator, check
+- **Inputs are not found:** Confirm `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
+  and any path override implemented by the affected domain, then verify the
+  staged module input directory. For Orchestrator, check
   `ORCHESTRATOR_DATA_PATH`; when it is unset, the path falls back to
-  `<OMNIA_DATA_PATH>/orchestrator`.
+  `<OMNIA_DATA_PATH>/orchestrator`. Discovery and BuildStreaM use paths below
+  `OMNIA_DATA_PATH` directly.
 - **A tag is rejected or does nothing:** Check the module entry playbook. Tags
   and default flows are not uniform, and some source tags are placeholders.
 
