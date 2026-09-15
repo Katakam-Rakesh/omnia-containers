@@ -64,29 +64,37 @@ A password-less channel is created between the management station and compute no
 ## Login Security Settings
 
 Users provide credentials to the domain that owns the corresponding service.
-The domain stores them in an encrypted Ansible Vault under its project input
-directory. For iDRAC Telemetry, the credentials are stored in
-`<OMNIA_DATA_PATH>/telemetry/input/<project>/telemetry_credentials.yml` and the
-Vault key is stored in `.telemetry_credentials_key`. The MySQL credentials are
-requested only when iDRAC metrics are enabled.
+Each credential-owning domain stores its credentials in a separate Ansible
+Vault-encrypted file under its project input directory. By default, these files
+and their corresponding Vault keys are stored in:
 
-1. iDRAC/BMC (Username / Password)
-2. Provisioning OS (Password)
-3. Slurm database (`slurm_db_password`)
-4. DockerHub (Username / Password)
-5. OpenLDAP (`openldap_db_username`, `openldap_db_password`)
-6. Telemetry (`mysqldb_user`, `mysqldb_password`, `mysqldb_root_password`)
-7. Minio S3 bucket (Password)
-8. Pulp (Password)
-9. CSI PowerScale credentials (Username / Password)
-10. LDMS Sampler (Password)
-11. Postgres (`postgres_user`, `postgres_password`)
-12. GitLab (`gitlab_root_password`)
-13. OME Discovery (`ome_username`, `ome_password`)
-14. UFM Telemetry (`ufm_username`, `ufm_password`)
-15. VAST Telemetry (`vast_username`, `vast_password`)
+`<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 
+| Domain or workflow | Credential file | Vault key | Stored credentials |
+|---|---|---|---|
+| Orchestrator | `orchestrator_credentials.yml` | `.orchestrator_credentials_key` | Provisioning: `provision_password`, `bmc_username`, `bmc_password`; Slurm: `slurm_db_password`; OpenLDAP: `openldap_db_username`, `openldap_db_password`; PowerScale CSI: `csi_username`, `csi_password` |
+| Repo Manager | `repo_manager_config_credentials.yml` | `.repo_manager_config_credentials_key` | Pulp: `pulp_username`, `pulp_password`; Docker Hub: `docker_username`, `docker_password`; credentials for configured private registries |
+| Image Build Manager | `image_build_credentials.yml` | `.image_build_credentials_key` | S3 or MinIO: `s3_access_id`, `s3_secret_key`; ARM build host: `aarch64_ssh_password` |
+| BuildStreaM | `build_stream_credentials.yml` | `.build_stream_credentials_key` | PostgreSQL: `postgres_user`, `postgres_password`; GitLab: `gitlab_root_password`, `gitlab_ssh_password`; BuildStreaM authentication: `build_stream_auth_username`, `build_stream_auth_password`. The corresponding password hash is generated internally. |
+| Discovery | `discovery_credentials.yml` | `.discovery_credentials_key` | OME: `ome_username`, `ome_password` |
+| Telemetry | `telemetry_credentials.yml` | `.telemetry_credentials_key` | iDRAC: `bmc_username`, `bmc_password`, `mysqldb_user`, `mysqldb_password`, `mysqldb_root_password`; PowerScale: `csi_username`, `csi_password`; LDMS: `ldms_sampler_password`; UFM: `ufm_username`, `ufm_password`; VAST: `vast_username`, `vast_password` |
+| Utils unattended OS installation | `install_os_credentials.yml` | `.install_os_credentials_key` | iDRAC/BMC: `bmc_username`, `bmc_password`; installed OS root account: `os_root_password` |
 
+Credential collection depends on the enabled service or workflow:
+
+- Orchestrator requests `slurm_db_password` when Slurm support is enabled and
+  PowerScale credentials when PowerScale CSI is enabled.
+- Image Build Manager requests the ARM build-host password only when an ARM
+  build host is configured.
+- Telemetry requests the iDRAC and MySQL credentials when iDRAC metrics are
+  enabled. It requests the LDMS, PowerScale, UFM, and VAST credentials only when
+  the corresponding telemetry source is enabled.
+- Utils requests its credentials as part of the unattended OS installation
+  workflow.
+
+Credentials with the same variable name in different domain files are separate.
+For example, the Orchestrator, Telemetry, and Utils domains maintain their own
+`bmc_username` and `bmc_password` values.
 
 
 

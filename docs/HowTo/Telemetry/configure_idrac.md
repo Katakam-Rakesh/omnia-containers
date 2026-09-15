@@ -6,6 +6,11 @@ iDRAC Telemetry collects hardware metrics from Dell servers using the
 integrated Dell Remote Access Controller (iDRAC). iDRAC Telemetry includes the
 following components:
 
+In multi-subnet deployments, Kubernetes control plane nodes and worker nodes
+can reside in different admin or PXE subnets. The iDRAC Telemetry service is
+deployed on Kubernetes worker nodes and collects metrics from all BMC endpoints
+defined in the `BMC_IP` column of `bmc_group_data.csv`.
+
 ### Components
 
 - **iDRAC Telemetry Receiver** -- Receives telemetry reports sent by enabled

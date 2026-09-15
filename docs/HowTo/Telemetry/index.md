@@ -52,16 +52,16 @@ before configuring the project inputs.
 | [Build Telemetry Container Images](setup_telemetry.md) | Build the iDRAC pump and receiver images and the LDMS image maintained by the Telemetry source. |
 | [Deploy the Telemetry Stack](deploy_telemetry.md) | Initialize runtime inputs, validate them, run prechecks, deploy enabled components, and inspect deployment status. |
 | [Configure iDRAC Telemetry](configure_idrac.md) | Collect Dell server BMC metrics into Kafka and VictoriaMetrics. |
-| [Prepare Worker-to-BMC Network Access](worker_node_vlan_configuration.md) | Verify the worker and Redfish network path required by the iDRAC workflow. |
+| [Worker Node VLAN Configuration for iDRAC Telemetry](worker_node_vlan_configuration.md) | Prepare the worker VLAN and Redfish network path required by the iDRAC workflow. |
 | [Configure LDMS Telemetry](configure_ldms.md) | Deploy LDMS samplers and Kubernetes aggregator/store components, with an optional Vector-to-VictoriaMetrics bridge. |
 | [Configure PowerScale Telemetry](configure_powerscale.md) | Deploy CSM Metrics PowerScale and route metrics to VictoriaMetrics; prepare the VictoriaLogs syslog target when logs are enabled. |
 | [Configure UFM Telemetry](configure_ufm.md) | Scrape an existing UFM Prometheus endpoint and prepare optional log ingestion through VLAgent. |
 | [Configure VAST Telemetry](configure_vast.md) | Scrape an existing VAST Prometheus endpoint and prepare optional log ingestion through VLAgent. |
 | [Configure OME Telemetry](telemetry_from_ome.md) | Route OME Kafka topics through Vector to VictoriaMetrics and VictoriaLogs. |
 | [Connect SFM](configure_sfm.md) | Export the VictoriaMetrics connection settings generated for SFM remote write. |
-| [Export Kafka Connection Details](configure_external_kafka.md) | Export the native Kafka mTLS endpoint, HTTP Bridge endpoint, and client certificates. |
-| [Export VictoriaMetrics Connection Details](configure_external_victoria.md) | Export VictoriaMetrics write/query endpoints and the TLS CA when enabled. |
-| [Export VictoriaLogs Connection Details](configure_external_victoria_logs.md) | Export VictoriaLogs write/query endpoints and the VLAgent syslog target. |
+| [External Kafka](configure_external_kafka.md) | Connect external Telemetry producers through the project-specific native Kafka mTLS endpoint. |
+| [External VictoriaMetrics](configure_external_victoria.md) | Send and query external metrics through project-specific VictoriaMetrics endpoints. |
+| [External VictoriaLogs](configure_external_victoria_logs.md) | Send JSON Lines or syslog records and query them through project-specific VictoriaLogs endpoints. |
 
 The domain entry point exposes these lifecycle operations:
 

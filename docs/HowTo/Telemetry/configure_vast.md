@@ -1,11 +1,59 @@
 # Configure VAST Telemetry
 
+Configure VAST Storage to securely stream Telemetry metrics and logs to the
+Service Kubernetes cluster.
+
 ## Overview
 
-Omnia integrates an existing VAST Prometheus endpoint with the shared
-VictoriaMetrics `vmagent`. It creates a `vast-external` Kubernetes Service and
-Endpoints object and, when required, a `vast-telemetry-credentials` Secret.
+VAST Telemetry collects storage metrics and logs from an existing VAST Storage
+system.
+
+### Components
+
+- **VAST Prometheus Exporter** -- Exposes storage metrics through a
+  Prometheus-compatible HTTPS endpoint. The default port is `443`.
+- **vmagent (shared)** -- Scrapes the VAST Prometheus endpoint over TLS and
+  forwards metrics to VictoriaMetrics.
+- **VMServiceScrape** -- Declares the VAST scrape target for the
+  VictoriaMetrics operator.
+- **VLAgent** -- Receives RFC 3164 or RFC 5424 syslog events from VAST and
+  forwards them to VictoriaLogs.
+- **Kubernetes Service and Endpoints** -- Represent the external VAST system
+  as the `vast-external` service in the `telemetry` namespace.
+
 Omnia does not deploy or configure the VAST system.
+
+### Data flow
+
+```text
+VAST Storage system -> VAST Prometheus Exporter -> vmagent (shared) -> VictoriaMetrics
+VAST Storage system -> syslog -> VLAgent -> VictoriaLogs
+```
+
+### Supported metrics and logs
+
+| Metrics category | Metrics collected |
+|---|---|
+| Storage performance | Read and write throughput, IOPS per volume, and latency |
+| Capacity | Total, used, and available capacity and thin-provisioning ratios |
+| Volume | Volume state, performance counters, and snapshot metrics |
+| Device | Device health, performance, and error counters |
+| Cluster health | Node status, cluster connectivity, and replication status |
+| Telemetry health | Scrape success, scrape duration, and ingestion latency |
+
+For the complete list, see the
+[VAST Metrics reference](../../Reference/Metrics/vast_metrics.md).
+
+| Log category | Logs collected |
+|---|---|
+| Storage events | Volume creation or deletion, snapshot events, and capacity threshold alerts |
+| System events | Node health, cluster state changes, and replication events |
+| Alarm events | Critical, warning, and informational alarms |
+| Labels | Hostname, severity, and facility metadata |
+
+The configuration provides separate flags for metrics and logs. In the current
+deployment workflow, keep `metrics_enabled: true` when collecting VAST logs
+because VAST source deployment is gated by the metrics flag.
 
 ## Prerequisites
 
@@ -44,23 +92,97 @@ Omnia does not deploy or configure the VAST system.
     `basic` or `none`. When `ca_signed` is selected, set
     `vast_ca_cert_path` to the PEM file.
 
-2. Run validation and deployment:
+2. Run the Telemetry precheck. Choose one execution method; do not run both
+   commands for the same operation.
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags validate
-    ./omnia.sh --run telemetry --tags deploy
-    ```
+    === "Using omnia.sh (recommended)"
 
-3. To collect VAST logs, keep metrics enabled, set `logs_enabled: true`, add
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags precheck
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags precheck
+        ```
+
+3. Validate the Telemetry inputs and collect the required credentials:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags validate
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags validate
+        ```
+
+4. Deploy the enabled Telemetry configuration:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags deploy
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags deploy
+        ```
+
+5. To run validation and deployment in one invocation, omit the tag:
+
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml
+        ```
+
+    The untagged flow does not run the opt-in precheck. Run step 2 separately
+    when an environment precheck is required.
+
+6. To collect VAST logs, keep metrics enabled, set `logs_enabled: true`, add
    `victoria_logs` to `collection_targets`, deploy Telemetry, and export the
    VLAgent target. The source role is imported only when metrics are enabled;
    a logs-only configuration is not supported.
 
-    ```bash title="Run on: OIM"
-    cd src/main
-    ./omnia.sh --run telemetry --tags external_victoria
-    ```
+    === "Using omnia.sh (recommended)"
+
+        ```bash title="Run on: OIM"
+        cd src/main
+        ./omnia.sh --run telemetry --tags external_victoria
+        ```
+
+    === "Using ansible-playbook"
+
+        ```bash title="Run on: OIM"
+        source /opt/omnia/activate-omnia.sh
+        cd src/telemetry
+        ansible-playbook playbooks/telemetry.yml --tags external_victoria
+        ```
 
     Configure the existing VAST system to send logs to the generated
     `vlagent.syslog_endpoint`. The Telemetry source exposes this endpoint but
@@ -71,18 +193,109 @@ Omnia does not deploy or configure the VAST system.
 
 ## Verification
 
-On the Kubernetes VIP, confirm that the service and endpoints were created:
+### Verify VAST Telemetry resources
 
-```bash title="Run on: Kubernetes VIP"
-kubectl get service vast-external -n telemetry
-kubectl get endpoints vast-external -n telemetry
-```
+1. Verify that the VictoriaMetrics pods are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get pods -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics pods](../../assets/images/vast_telemetry_1.png)
+
+2. Verify that the VictoriaMetrics services are running:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service -n telemetry -o wide | grep vm
+    ```
+
+    ![VictoriaMetrics services](../../assets/images/vast_telemetry_3.png)
+
+3. Check the shared vmagent logs for recent VAST scrape activity:
+
+    ```bash title="Run on: Kubernetes control plane"
+    VMAGENT_POD=$(kubectl get pods -n telemetry \
+      -l app.kubernetes.io/name=vmagent \
+      -o jsonpath='{.items[0].metadata.name}')
+    kubectl logs "$VMAGENT_POD" -n telemetry -c vmagent --tail=10
+    ```
+
+    ![vmagent logs](../../assets/images/vast_telemetry_4.png)
+
+4. Confirm that the service and endpoints for the external VAST system were
+   created:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get service vast-external -n telemetry
+    kubectl get endpoints vast-external -n telemetry
+    ```
+
+### View VAST metrics in VictoriaMetrics UI
+
+1. Identify the external `vmselect` service:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep vmselect
+    ```
+
+    ![vmselect service](../../assets/images/vast_telemetry_5.png)
+
+2. Open the URL recorded in `victoria_metrics.endpoints.vmselect.ui_url` in:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+    If the connection details have not been exported, use either method in
+    procedure step 6 to generate them.
+
+3. Query a VAST metric, such as
+   `vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count`, to confirm
+   that VAST metrics are being collected.
+
+    ![VAST metrics in VMUI](../../assets/images/vast_telemetry_7.png)
+
+### View VAST logs in VictoriaLogs
+
+Complete these steps only when VAST log collection is enabled.
+
+1. Retrieve the VLAgent LoadBalancer IP and configure the VAST system to send
+   syslog messages to it:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep -E '(vlagent|victoria-logs)'
+    ```
+
+    ![VLAgent and VictoriaLogs services](../../assets/images/view_vast_logs_1.png)
+
+2. Identify the external `vlselect` service:
+
+    ```bash title="Run on: Kubernetes control plane"
+    kubectl get svc -n telemetry | grep vlselect
+    ```
+
+    ![vlselect service](../../assets/images/view_vast_logs_3.png)
+
+3. Open the URL recorded in `victoria_logs.endpoints.vlselect.ui_url` in:
+
+    ```text
+    $OMNIA_DATA_PATH/telemetry/output/$OMNIA_PROJECT_NAME/external_victoria/external_victoria_connect_details.yml
+    ```
+
+4. Query the VAST hostnames to confirm that logs are reaching VictoriaLogs.
+   For example:
+
+    ```text
+    {hostname=~"vast-.*"}
+    ```
+
+    ![VAST logs in VictoriaLogs](../../assets/images/view_vast_logs_4.png)
 
 Confirm `sources.vast.metrics: deployed` in `telemetry_status.yml`. This status
-records the integration resource state; verify actual metric ingestion from
-VictoriaMetrics separately for an end-to-end check. When logs are enabled,
-`sources.vast.logs: deployed` records the configured log path; verify that the
-VAST system is actually sending data.
+records the integration resource state; successful metric queries provide the
+end-to-end validation. When logs are enabled, `sources.vast.logs: deployed`
+records the configured log path; a successful log query confirms that the VAST
+system is sending data.
 
 ## Next steps
 
