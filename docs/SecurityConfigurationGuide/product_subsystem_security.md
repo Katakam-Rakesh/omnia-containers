@@ -63,8 +63,6 @@ and their corresponding Vault keys are stored in:
 
 `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 
-The Main domain does not maintain a credential file.
-
 | Domain or workflow | Credential file | Vault key | Stored credentials |
 |---|---|---|---|
 | Orchestrator | `orchestrator_credentials.yml` | `.orchestrator_credentials_key` | Provisioning: `provision_password`, `bmc_username`, `bmc_password`; Slurm: `slurm_db_password`; OpenLDAP: `openldap_db_username`, `openldap_db_password`; PowerScale CSI: `csi_username`, `csi_password` |
@@ -90,7 +88,6 @@ Credential collection depends on the enabled service or workflow:
 Credentials with the same variable name in different domain files are separate.
 For example, the Orchestrator, Telemetry, and Utils domains maintain their own
 `bmc_username` and `bmc_password` values.
-
 
 
 
