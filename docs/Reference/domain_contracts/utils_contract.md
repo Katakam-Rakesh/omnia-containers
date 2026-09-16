@@ -8,7 +8,7 @@ files and artifacts used by those implemented workflows.
 ## Upstream domain contract
 
 Utils does not require another deployment domain's status output. The Slurm
-configuration workflows do, however, read the active Orchestrator
+configuration workflows do, however, use copies of the active Orchestrator
 `omnia_config.yml` and `storage_config.yml` and a YAML or CSV node mapping to
 resolve the Slurm NFS share and primary controller.
 
@@ -130,14 +130,21 @@ $OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/slurm_config_util_config.yml
 When path overrides are empty, the utility reads:
 
 ```text
-$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config.yml
-$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/storage_config.yml
-$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml
+$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/omnia_config.yml
+$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/storage_config.yml
+$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/nodes_slurm.yaml
 ```
 
-The node mapping can instead be a CSV `pxe_mapping_file.csv`. The utility
-selects the first host in a `slurm_control_node_*` functional group as the
-controller.
+Copy `omnia_config.yml` and `storage_config.yml` from the active Orchestrator
+project input. Copy `nodes_slurm.yaml` from
+`$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml`, or use the
+Orchestrator project's `pxe_mapping_file.csv` as a CSV alternative. Copy these
+files rather than creating symbolic links. Explicit configuration or
+command-line path overrides can read them from other locations.
+
+The utility selects the first host in a `slurm_control_node_*` functional
+group as the controller. It selects CSV parsing for a `.csv` mapping filename
+and YAML parsing for every other extension.
 
 The backup destination is selected from command-line `slurm_backup_path`,
 configuration `slurm_backup_path`, `OMNIA_BACKUP_PATH`, or the following

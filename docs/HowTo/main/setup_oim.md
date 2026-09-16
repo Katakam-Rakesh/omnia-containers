@@ -59,6 +59,7 @@ Infrastructure Manager (OIM).
     | `--force-deps` | Bypass the dependency cache and reinstall dependencies. |
     | `--force-env` | Replace `/etc/omnia/omnia.env` with `src/main/omnia.env`. Use only when intentionally resetting the installed environment from the source template. |
     | `--skip <domain,...>` | Skip the modules identified by the listed internal domain names during initialization. |
+    | `--dry-run` | Preview the modules that would be initialized. Environment and virtual-environment setup, catalog copying, and other setup operations still run. |
     | `--skip-catalog` | Do not copy the catalog samples. |
 
     For example:

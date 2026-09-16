@@ -17,9 +17,9 @@ from the active Omnia project.
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `omnia_config_path` | Absolute path | No | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config.yml` | Omnia configuration containing `slurm_cluster` and its `nfs_storage_name`. |
-| `storage_config_path` | Absolute path | No | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/storage_config.yml` | Storage configuration containing the matching NFS entry in `mounts`. |
-| `pxe_mapping_path` | Absolute path | No | `$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml` | YAML `nodes_slurm.yaml` or CSV `pxe_mapping_file.csv` used to find the first `slurm_control_node_*` controller. The format is selected from the filename extension. |
+| `omnia_config_path` | Absolute path | No | `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/omnia_config.yml` | Omnia configuration containing `slurm_cluster` and its `nfs_storage_name`. |
+| `storage_config_path` | Absolute path | No | `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/storage_config.yml` | Storage configuration containing the matching NFS entry in `mounts`. |
+| `pxe_mapping_path` | Absolute path | No | `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/nodes_slurm.yaml` | YAML `nodes_slurm.yaml` or CSV `pxe_mapping_file.csv` used to find the first `slurm_control_node_*` controller. The format is selected from the filename extension (`.csv` selects CSV; every other extension selects YAML). |
 | `slurm_share_dir_name` | String | No | `slurm` | Active configuration directory below the selected NFS `mount_point`. |
 | `slurm_backups_dir_name` | String | No | `slurm_backups` | Reserved directory-name setting. The current workflow selects its backup root through `slurm_backup_path`; do not use this field to change the backup destination. |
 | `nfs_storage_name` | String | No | First `slurm_cluster` entry's `nfs_storage_name` | Selects a specific `storage_config.yml` mount by name. |
@@ -54,6 +54,22 @@ The three Slurm configuration operations resolve `omnia_config_path`,
 1. Command-line extra variable.
 2. Value in `slurm_config_util_config.yml`.
 3. Project-derived default.
+
+## Input file sourcing
+
+By default, place the following files in
+`$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/`:
+
+| Utils input | Source |
+|---|---|
+| `omnia_config.yml` | Copy from `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config.yml`. |
+| `storage_config.yml` | Copy from `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/storage_config.yml`. |
+| `nodes_slurm.yaml` | Copy the OpenCHAMI-generated mapping from `$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml`. |
+| `pxe_mapping_file.csv` | As a CSV alternative, copy from `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`. |
+
+Copy the files into the Utils input directory; do not create symbolic links.
+Alternatively, set the three path parameters in this file or pass them as
+command-line extra variables to read the source files from another location.
 
 The backup destination uses a separate order:
 

@@ -67,7 +67,7 @@ cluster.
 | ☐ | Choose a server **outside** your intended cluster | The OIM must meet the required storage and system requirements. |
 | ☐ | 64 GB RAM minimum | Verify with `free -h`. Local repositories, service containers, and image-building tasks are memory-intensive. |
 | ☐ | RHEL 10.0 with Server with GUI Base Environment | Minimal installs are not supported. The GUI group pulls in required libraries used by Ansible and Podman. See [supported operating systems](../Reference/SupportMatrix/operating_systems.md). |
-| ☐ | Podman container engine installed | Verify: `podman --version`. If missing, install via `dnf install -y podman`. |
+| ☐ | Podman 5.0 or later installed | Verify with `podman --version`. If missing, install with `dnf install -y podman`. |
 | ☐ | Two active NIC ports | **NIC 1 (public):** Internet-facing, for downloading packages and container images. **NIC 2 (internal/admin):** Connected to the admin switch for PXE provisioning and cluster management. |
 | ☐ | Internet access (direct or via proxy) | Required while the Repository Manager `download` workflow synchronizes OS packages, Python modules, and container images. After synchronization, air-gapped operation is possible. |
 | ☐ | Git installed | `dnf install git -y`. Needed to clone the Omnia repository. |
@@ -185,7 +185,7 @@ TokenSmith, and metadata-service do not need to be exposed as OIM host ports.
 
 | ☑ | Requirement | Details |
 | --- | --- | --- |
-| ☐ | RHEL subscription active on OIM | `subscription-manager status` must show **Current**. Required for `AppStream`, `BaseOS`, and `codeready-builder` repos. |
+| ☐ | RHEL subscription active on OIM | `subscription-manager status` must show **Registered**. Required for `AppStream`, `BaseOS`, and `codeready-builder` repos. |
 | ☐ | Docker Hub credentials available | Provide Docker Hub credentials to Repository Manager when anonymous pulls would exceed registry limits or the selected catalog uses private content. |
 | ☐ | OIM has access to public network | Required to download and store packages/images to the desired NFS share. |
 | ☐ | Certificates stored using Ansible Vault | Ensure all required certificates are stored using Ansible Vault for confidentiality and integrity within the cluster. |
@@ -226,7 +226,7 @@ via iDRAC or BIOS Setup (F2 at POST).
 | ☐ | Minimum 3 Kubernetes controller nodes allocated | Kubernetes HA requires an odd number of control-plane nodes (3 or 5). Each must have 64 GB RAM minimum. |
 | ☐ | At least 1 kube node allocated | Kube nodes run telemetry collectors and monitoring services such as VictoriaMetrics. 64 GB RAM minimum. |
 | ☐ | Dedicated IP range for K8s pod and service networks | Defaults: pod CIDR `10.244.0.0/16`, service CIDR `10.96.0.0/12`. These must not overlap with admin or BMC subnets. |
-| ☐ | Virtual IP (VIP) reserved for K8s API HA | A single unused IP on the admin network that `kube-vip` will float across control-plane nodes. |
+| ☐ | Virtual IP (VIP) reserved for K8s API HA | A single unused IP on the admin network that will float across control-plane nodes. |
 
 ## Slurm Prerequisites
 
@@ -362,7 +362,4 @@ dnf repolist
     deep in the Ansible playbook execution.
 
 You are now ready to choose your deployment path. Return to [Get Started Index](index.md).
-
-
-
 

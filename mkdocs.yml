@@ -323,6 +323,8 @@ nav:
       - Update Repositories after Catalog Changes: Operations/repo_manager/updating_local_repositories.md
       - Resynchronize Local RPM Repositories: Operations/repo_manager/local_repository_resync.md
       - Pulp Cleanup: Operations/pulp_cleanup.md
+    - Image Build Manager:
+      - Clean Up Built Images: Operations/cleanup_built_images.md
     - BuildStreaM:
       - Add Nodes through BuildStreaM: Operations/build_stream/add_nodes.md
       - Update the Catalog: Operations/build_stream/update_catalog.md

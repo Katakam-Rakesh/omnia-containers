@@ -73,7 +73,7 @@ the Kubernetes cluster and Telemetry deployment.
 
 - Use an Omnia source checkout on the OIM.
 - For the Telemetry module, use Python 3.12 or later, Ansible 2.20 or later,
-  and RHEL or Rocky Linux 10.x on the OIM.
+  and RHEL 10.x on the OIM.
 - Set `SYSTEM_ADMIN_NIC_IPV4` in `src/main/omnia.env` to an IPv4 address
   assigned to an OIM interface. Review the project name, shared data path,
   hostname, domain, Omnia version, and catalog path in the same file.
@@ -143,6 +143,35 @@ For all environment and setup options, see
     Ensure the selected catalog includes the service Kubernetes functional
     layers and that each selected package source resolves through the
     configured RPM repository, container registry, or artifact URL.
+
+    At minimum, this Kubernetes and Telemetry path requires both of these
+    x86_64 functional layers for the selected operating-system version:
+
+    | Required functional layer | Required Kubernetes components |
+    |---|---|
+    | `service_kube_control_plane_rhel_<major>_<minor>_x86_64` | `service_k8s_common_group`, `service_k8s_telemetry_group`, `service_k8s_cluster_group`, and `service_kube_control_plane_group` |
+    | `service_kube_node_rhel_<major>_<minor>_x86_64` | `service_k8s_common_group`, `service_k8s_telemetry_group`, and `service_kube_node_group` |
+
+    For example, an RHEL 10.2 deployment requires
+    `service_kube_control_plane_rhel_10_2_x86_64` and
+    `service_kube_node_rhel_10_2_x86_64`. Select the shipped
+    `src/main/samples/catalogs/10.2/service_k8s_x86_64.json` catalog for this
+    path; use the file under `10.0/` for RHEL 10.0. Do not create a catalog
+    containing only the groups shown in this table; the shipped catalog
+    includes the complete base OS, dependency, and package definitions.
+
+    !!! warning
+
+        Without the service Kubernetes functional layers, Orchestrator does
+        not enable service Kubernetes or generate the Kubernetes inventory
+        required by this Telemetry deployment path.
+
+    Verify the selected catalog before continuing:
+
+    ```bash title="Run on: OIM host"
+    jq -r '.catalog.functionallayer[] | [.name, (.components | join(","))] | @tsv' \
+      "$CATALOG_FILE_PATH"
+    ```
 
 2. Run the complete standard Repo Manager flow from `src/main`:
 
