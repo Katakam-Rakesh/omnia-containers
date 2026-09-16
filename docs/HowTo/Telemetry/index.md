@@ -35,7 +35,7 @@ collection.
 
 | Requirement | Supported value |
 |---|---|
-| OIM operating system | RHEL or Rocky Linux 10.x |
+| OIM operating system | RHEL 10.x |
 | Python | 3.12 or later |
 | Ansible | 2.20 or later |
 | Kubernetes | A deployed service cluster reachable through `kube_vip` |

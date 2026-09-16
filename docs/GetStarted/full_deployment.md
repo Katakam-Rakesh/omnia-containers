@@ -7,9 +7,10 @@ and deploy Omnia Telemetry.
 
 The workflow prepares the Omnia Infrastructure Manager (OIM), synchronizes
 catalog content with Repository Manager, and builds the required node images
-with Image Build Manager. After you provide a reviewed PXE mapping,
-Orchestrator provisions the Slurm and Kubernetes functional groups in the same
-run and generates the combined inventory required by Telemetry. The final
+with Image Build Manager. After you provide a reviewed PXE mapping file (or
+optionally use OME discovery to discover nodes), Orchestrator provisions the
+Slurm and Kubernetes functional groups in the same run and generates the
+combined inventory required by Telemetry. The final
 stages deploy the enabled telemetry components and verify both clusters and
 the Telemetry deployment.
 
@@ -74,26 +75,32 @@ the Telemetry deployment.
 
 - Use an Omnia source checkout on the OIM.
 - For the Telemetry module, use Python 3.12 or later, Ansible 2.20 or later,
-  and RHEL or Rocky Linux 10.x on the OIM.
+  and RHEL 10.x on the OIM.
 - Set `SYSTEM_ADMIN_NIC_IPV4` in `src/main/omnia.env` to an IPv4 address
   assigned to an OIM interface. Review the project name, shared data path,
   hostname, domain, Omnia version, and catalog path in the same file.
 - Select a catalog whose functional layers include Slurm and service
   Kubernetes. For an offline Telemetry deployment, ensure its package-manifest
   artifacts are available through the Pulp repository configured in
-  `telemetry_packages.yml`.
+  `telemetry_packages.yml`. For guidance on updating catalogs, see
+  [Update Catalog](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/HowTo/main/update_catalog.html?h=update+cata).
 - Prepare the admin-network values required by Orchestrator. The deployment
   needs Slurm controller and compute groups plus service Kubernetes
-  control-plane and worker groups.
+  control-plane and worker groups. For configuration guidance, see
+  [Network Specification](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/network_spec.html?h=).
 - Prepare the shared storage referenced by both cluster configurations.
   Telemetry requires the Kubernetes shared mount; LDMS also requires a shared
-  path on the Slurm nodes.
+  path on the Slurm nodes. For configuration guidance, see
+  [Storage Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/storage_config.html?h=).
 - Prepare the credentials and source-specific inputs for each enabled
   Telemetry source. Supported source configuration is provided for iDRAC,
-  LDMS, PowerScale, UFM, VAST, OME, and SFM.
+  LDMS, PowerScale, UFM, VAST, OME, and SFM. For configuration guidance, see
+  [Telemetry Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/telemetry_config.html?h=).
 - For OME discovery, have the OME address and credentials available. For
   automated PXE boot, the mapping must contain the applicable BMC information
-  and Orchestrator must be able to collect the BMC credentials.
+  and Orchestrator must be able to collect the BMC credentials. For discovery
+  guidance, see
+  [Discovery](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/HowTo/discovery/index.html).
 
 ## Procedure
 
@@ -143,7 +150,8 @@ For all environment and setup options, see
 
     - `$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`
     - `$repo_manager_path/input/$OMNIA_PROJECT_NAME/repo_manager_endpoint_config.yml`
-    - The catalog JSON identified by `CATALOG_FILE_PATH`
+    - The catalog JSON identified by `CATALOG_FILE_PATH` in the `omnia.env`
+      file
 
     Ensure the selected catalog includes the Slurm and service Kubernetes
     functional layers and that every selected package source resolves through
@@ -212,7 +220,9 @@ Choose one method. Orchestrator consumes the reviewed file as
 
     1. Configure `discovery_config.yml` and `network_spec.yml` under
        `$discovery_path/input/$OMNIA_PROJECT_NAME/`. Set
-       `enable_bmc_discovery: true` and provide `ome_ip`.
+       `enable_bmc_discovery: true` and provide `ome_ip`. For field definitions,
+       see [Discovery Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/discovery_config.html?h=)
+       and [Network Specification](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/network_spec.html?h=).
 
     2. Run Discovery:
 
@@ -251,10 +261,10 @@ Choose one method. Orchestrator consumes the reviewed file as
 
     Assign nodes to functional groups beginning with:
 
-    - `slurm_control_node` for the Slurm controller.
-    - `slurm_node` for Slurm compute nodes.
-    - `service_kube_control_plane` for Kubernetes control-plane nodes.
-    - `service_kube_node` for Kubernetes worker nodes.
+    - `slurm_control_node[arch]` for the Slurm controller.
+    - `slurm_node[arch]` for Slurm compute nodes.
+    - `service_kube_control_plane[arch]` for Kubernetes control-plane nodes.
+    - `service_kube_node[arch]` for Kubernetes worker nodes.
 
     Login and login/compiler groups are optional. The LDMS precheck requires at
     least one populated Slurm controller group and one populated Slurm compute
@@ -273,8 +283,8 @@ For the complete mapping schema and OME procedure, see
     |---|---|
     | `orchestrator_config.yml` | Confirm the mapping, Repo Manager, Image Build Manager, catalog, and PXE-boot settings. |
     | `network_spec.yml` | Configure the OIM interface, admin subnet, DHCP range, router, and any required additional or InfiniBand networks. |
-    | `omnia_config.yml` | Configure `slurm_cluster` and select exactly one `service_k8s_cluster` entry with `deployment: true`. Configure their storage references and the Kubernetes network settings. Set `enable_powerscale_csi: true` only when CSI is required; both CSI file paths then become mandatory. |
-    | `high_availability_config.yml` | Provide a `service_k8s_cluster_ha` entry whose `cluster_name` matches the selected Kubernetes cluster. |
+    | `omnia_config.yml` | Configure `slurm_cluster` and select exactly one `service_k8s_cluster` entry with `deployment: true`. Configure their storage references and the Kubernetes network settings, including `pod_external_ip_range`. Set `enable_powerscale_csi: true` only when CSI is required; both CSI file paths then become mandatory. |
+    | `high_availability_config.yml` | Provide a `service_k8s_cluster_ha` entry whose `cluster_name` matches the selected Kubernetes cluster and a `virtual_ip_address` in the admin NIC subnet range. |
     | `storage_config.yml` | Define every mount named by the Slurm and Kubernetes cluster entries. The applicable storage must be reachable from the OIM where configured. |
     | `pxe_mapping_file.csv` | Assign nodes to the Slurm and service Kubernetes functional groups and ensure corresponding images exist in `build_status.yml`. |
     | `security_config.yml` | Configure this file when the selected catalog enables OpenLDAP. |
