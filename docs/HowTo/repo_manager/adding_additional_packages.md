@@ -74,8 +74,9 @@ duplicate component references.
 
 ## Procedure
 
-1. Create an INI-like additions file. This example adds two RPMs to an existing
-   group and ensures the group is part of an existing functional layer:
+1. Create an INI-like additions file. The following example adds RPM packages, a
+   tarball, and a container image, and references each group in an existing
+   functional layer:
 
     ~~~ini
     [defaults]
@@ -85,8 +86,16 @@ duplicate component references.
     openldap, rpm, openldap, baseos
     openldap_clients, rpm, openldap-clients, baseos
 
+    [custom_tarball_group | description=Custom tarball artifacts]
+    my_app, tarball, my_app.tar.gz, https://example.com/artifacts/my_app.tar.gz
+
+    [custom_container_group | description=Custom container images]
+    ubuntu_2204, image, <registry_host>:443/library/ubuntu, harbor_registry, 22.04
+
     [slurm_control_node_rhel_10_0_x86_64 | type=functional_layer]
     "openldap_group"
+    "custom_tarball_group"
+    "custom_container_group"
     ~~~
 
     Replace `slurm_control_node_rhel_10_0_x86_64` with the exact existing
@@ -99,6 +108,18 @@ duplicate component references.
     | RPM | `key, rpm, package_name, reponame` |
     | Tarball | `key, tarball, artifact_name, https_url` |
     | Container image | `key, image, registry/image_path, registry, tag` |
+
+    Each line is comma-separated. The fields are:
+
+    - `key` — the package identifier in the catalog.
+    - `type` — `rpm`, `tarball`, or `image`.
+    - RPM: `package_name` is the RPM name and `reponame` is the catalog source
+      repository key.
+    - Tarball: `artifact_name` is the artifact key and `https_url` is the
+      download URL.
+    - Container image: `registry/image_path` is the full image reference,
+      `registry` is the key configured in `repo_manager_config.yml`, and `tag`
+      is the image tag.
 
     A line can end with `arch=`, `os=`, or `os_version=` overrides.
 

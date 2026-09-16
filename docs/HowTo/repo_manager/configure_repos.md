@@ -216,9 +216,188 @@ mappings. If the runtime inputs are missing, run `./domain-init.sh` from
 
 ### 7. Deploy Pulp, synchronize content, and generate status
 
+#### Run without tags
+
+For a complete run, use the playbook without tags. An untagged run executes
+setup, environment precheck, credential collection, Pulp deployment, input
+validation, content download and synchronization, and `repo_status.yml`
+generation, in that order:
+
 ```bash title="Run on: OIM host"
+cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
+ansible-playbook repo_manager.yml
+```
+
+Or using the `omnia.sh` wrapper:
+
+```bash title="Run on: OIM host"
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run repo_manager
+```
+
+Cleanup and catalog operations are not included in the untagged run and must
+be selected explicitly with `--tags`.
+
+#### Run with tags
+
+To control each phase individually, pass one or more tags. Tags can be
+combined in the order implemented by the entry playbook:
+
+```bash title="Run on: OIM host"
+cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
 ansible-playbook repo_manager.yml \
   --tags "prepare,precheck,download,status"
+```
+
+Or using the `omnia.sh` wrapper:
+
+```bash title="Run on: OIM host"
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run repo_manager --tags "prepare,precheck,download,status"
+```
+
+The following table describes each supported tag:
+
+| Tag | What it does |
+|---|---|
+| `precheck` | Validates the system environment (`SYSTEM_ADMIN_NIC_IPV4`, `CATALOG_FILE_PATH`, network reachability) and validates `repo_manager_config.yml` syntax, catalog source mappings, RHEL subscription access, and repository URLs against the selected catalog contexts. |
+| `credentials` | Collects and encrypts Pulp administrator and private-registry credentials into an Ansible Vault file without deploying Pulp. |
+| `prepare`  | Validates the Pulp endpoint configuration, collects or reuses credentials, configures SELinux and firewall rules, deploys or updates the Pulp HTTPS container and Quadlet service, configures the Pulp CLI for secure access, and verifies Pulp health. |
+| `download` / `execute` | Loads credentials, validates Pulp health, synchronizes catalog-required RPM repositories, downloads or validates catalog packages (per the resolved content policy), synchronizes container images, File artifacts, and Python packages, and generates a terminal `repo_status.yml`. Use `-e "resync_repos=all"` to force all RPM repositories to check upstream, or `-e "resync_repos=<name>[,<name>]"` to target specific repositories. |
+| `status` | Reads the current Pulp distributions and generates `repo_status.yml` from the synchronized content without downloading anything. |
+| `cleanup` | Removes the Pulp container, image, Quadlet service, runtime data directories, CLI configuration, and host trust anchor. Credentials are deleted by default; use `-e "cleanup_credentials=false"` to preserve them. Use `-e "cleanup_logs=false"` to preserve runtime logs. |
+| `cleanup_repos` | Selectively removes RPM repositories, container tags, or File/Python artifacts from Pulp. Requires one or more of `-e "cleanup_repos=<name>"`, `-e "cleanup_containers=<ref>"`, or `-e "cleanup_files=<name>"`. Prompts for confirmation unless `-e "force=true"` is set. Use `all` to remove every artifact of that type. |
+| `catalog_generate` | Generates a catalog JSON file from a package definition file specified with `-e "input_file=<path>"`. |
+| `catalog_add` | Adds or updates packages and groups in the active catalog from a definition file specified with `-e "input_file=<path>"`. |
+| `catalog_delete` | Removes package references from the active catalog using a definition file specified with `-e "input_file=<path>"`. A package object is removed only when no other group references it. |
+| `catalog_validate` | Validates the active catalog structure, group references, package sources, and functional-layer consistency without modifying it. |
+
+#### Adding custom container images to the catalog
+
+Use `catalog_add` to add container images from private registries.
+User registries may be hosted on the OIM or on an external server, and both
+HTTP and HTTPS registries are supported. To set up a registry before adding
+images to the catalog:
+
+- [Set Up an HTTP User Registry](../../html/setup_http_user_registry.html)
+- [Set Up an HTTPS User Registry](../../html/setup_https_user_registry.html)
+
+The input-line format for a container image is:
+
+```text
+key, image, <host>:<port>/image_path, registry_key, tag
+```
+
+The image `name` must start with the actual configured `host:port`. The
+`registry_key` must match a key under `registries` in
+`repo_manager_config.yml`. Each unique image-tag combination is a separate
+catalog entry.
+
+The resulting catalog entries look like this:
+
+```json
+{
+  "<registry_host>:443/library/ubuntu-22.04": {
+    "name": "<registry_host>:443/library/ubuntu",
+    "packagetype": "image",
+    "sources": [
+      {
+        "architecture": "x86_64",
+        "name": "rhel",
+        "version": ["10.0"],
+        "registry": "harbor_registry"
+      }
+    ],
+    "tag": "22.04"
+  },
+  "<registry_host>:443/library/ubuntu-24.04": {
+    "name": "<registry_host>:443/library/ubuntu",
+    "packagetype": "image",
+    "sources": [
+      {
+        "architecture": "x86_64",
+        "name": "rhel",
+        "version": ["10.0"],
+        "registry": "harbor_registry"
+      }
+    ],
+    "tag": "24.04"
+  },
+  "<registry_host>:<registry_port>/library/nginx-1.25.2-alpine-slim": {
+    "name": "<registry_host>:<registry_port>/library/nginx",
+    "packagetype": "image",
+    "sources": [
+      {
+        "architecture": "x86_64",
+        "name": "rhel",
+        "version": ["10.0"],
+        "registry": "private_registry"
+      }
+    ],
+    "tag": "1.25.2-alpine-slim"
+  }
+}
+```
+
+To add these images, create an input file that references the matching
+registry keys configured in `repo_manager_config.yml`:
+
+```ini
+[defaults]
+arch=x86_64, os=rhel, os_version=10.0
+
+[custom_container_group | description=Custom container images]
+ubuntu_22_04, image, <registry_host>:443/library/ubuntu, harbor_registry, 22.04
+ubuntu_24_04, image, <registry_host>:443/library/ubuntu, harbor_registry, 24.04
+nginx_alpine, image, <registry_host>:<registry_port>/library/nginx, private_registry, 1.25.2-alpine-slim
+
+[slurm_control_node_rhel_10_0_x86_64 | type=functional_layer]
+"custom_container_group"
+```
+
+The matching `repo_manager_config.yml` entries:
+
+```yaml
+registries:
+  harbor_registry:
+    base_url: "https://<registry_host>"
+    port: 443
+    auth:
+      type: basic
+      credentials:
+        vault_path: "registries/harbor_registry"
+    tls:
+      ca_path: "/data/cert/harbor.crt"
+      client_cert_path: ""
+      client_key_path: ""
+      insecure: false
+
+  private_registry:
+    base_url: "http://<registry_host>"
+    port: 3445
+    auth:
+      type: none
+    tls:
+      insecure: true
+```
+
+Catalog operations use the `never` tag and must be run separately with
+`--tags` before the main workflow. The following three-step sequence adds the
+images, validates the catalog, and then runs the full untagged workflow to
+prepare, precheck, download, and generate status:
+
+```bash title="Run on: OIM host"
+cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
+
+# Step 1: Add the container images to the catalog.
+ansible-playbook repo_manager.yml --tags catalog_add \
+  -e "input_file=/absolute/path/to/container_additions.txt"
+
+# Step 2: Validate the updated catalog.
+ansible-playbook repo_manager.yml --tags catalog_validate
+
+# Step 3: Run the full workflow (prepare, precheck, download, status).
+ansible-playbook repo_manager.yml
 ```
 
 Credentials are stored in
