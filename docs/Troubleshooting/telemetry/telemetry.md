@@ -836,14 +836,14 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
 
         ```bash title="Run on: OIM"
         cd src/main
-        ./omnia.sh --run telemetry --tags cleanup_idrac
+        ./omnia.sh --run telemetry --tags cleanup_idrac -e delete_sinks_volume=true
         ./omnia.sh --run telemetry --tags deploy
         ```
 
-    The cleanup command permanently removes the MySQL service inventory. Back
-    up all required data first. With only iDRAC enabled in
-    `telemetry_config.yml`, the deployment workflow deploys iDRAC telemetry and
-    its selected sinks without deploying the other telemetry sources.
+    The cleanup command permanently removes the MySQL service inventory. With
+    only iDRAC telemetry enabled, the deployment workflow deploys the iDRAC
+    telemetry component without disturbing already deployed telemetry
+    components.
 
 
 !!! info
@@ -851,10 +851,6 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
     - [Setup Telemetry](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry pipeline setup.
     - [Telemetry Setup](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry sources and configuration.
     - [Log Management](../../Operations/log_management.md) -- Log locations for telemetry services.
-
-
-
-
 
 
 
