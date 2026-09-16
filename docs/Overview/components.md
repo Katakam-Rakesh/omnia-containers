@@ -21,7 +21,7 @@ and execution commands.
 
 ## OpenCHAMI
 
-**OpenCHAMI** (Open Composable Heterogeneous Adaptable Management
+[OpenCHAMI](https://openchami.org/) (Open Composable Heterogeneous Adaptable Management
 Infrastructure) is the provisioning engine at the core of Omnia's bare-metal
 lifecycle management. OpenCHAMI provides an API-driven approach to discovering,
 inventorying, and provisioning servers.
@@ -111,7 +111,9 @@ contract when it creates OpenCHAMI boot configurations.
 
 Pulp can mirror the following repository types:
 
-- **RPM repositories** -- RHEL BaseOS, AppStream, EPEL, CUDA, ROCm, Slurm, and any custom RPM repositories.
+- **RPM repositories** -- RHEL BaseOS/AppStream/CodeReady Builder, EPEL, CUDA,
+  NVIDIA HPC SDK, Kubernetes, CRI-O, DOCA, Docker CE, and user-required
+  repositories (`slurm_custom`, `ldms`, and `vast`).
 - **Container images** -- OCI container images required by Kubernetes services and Omnia's own containers.
 
 The Repository Manager workflow configures Pulp mirroring from the selected
@@ -120,7 +122,10 @@ catalog and the project-scoped `repo_manager_config.yml`. Run it through
 
 !!! note
 
-    Pulp runs as a Podman container on the OIM and stores mirrored content on local or NFS-shared disk. Plan disk capacity accordingly---a full RHEL + EPEL + CUDA mirror can require significant storage.
+    Pulp runs as a Podman container on the OIM and stores mirrored content on
+    local or NFS-shared disk. Plan disk capacity accordingly---a full RHEL +
+    EPEL + CUDA mirror can require significant storage. For sizing guidance,
+    see [Disk Space Requirements](../Reference/ClusterRequirements/disk_space.md).
 
 ## Omnia Auth
 
@@ -168,8 +173,6 @@ playbook execution pipeline for catalog-driven deployments. When enabled
 !!! info "Related Pages"
 
     - [Architecture](architecture.md) -- Visual diagram of how components are deployed across the OIM and cluster nodes.
-
-
 
 
 
