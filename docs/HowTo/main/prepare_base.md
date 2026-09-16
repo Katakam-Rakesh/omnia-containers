@@ -118,6 +118,11 @@ Services for a skipped domain are not expected to be prepared by this command.
 
 ## Next steps
 
+!!! note
+
+    Skip this section for the BuildStreaM workflow. The respective BuildStreaM
+    pipelines perform these steps.
+
 After configuring the catalog and repository sources, continue from the Main
 source directory:
 

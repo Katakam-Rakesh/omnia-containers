@@ -46,10 +46,9 @@ logs, and cleaning up domains or the OIM environment.
   workflow.
 - [Back up OIM logs](../HowTo/utils/backup_oim_logs.md) with the Utils
   `backup_oim_logs` workflow to local or NFS storage.
-- Review the [Slurm configuration roles](slurm_configuration_roles.md) before
-  integrating the source roles into an administrator-maintained playbook.
+- Use the [Slurm configuration utilities](../HowTo/utils/backup_slurm_config.md)
+  to back up, remove, or restore the active Slurm configuration.
 - Use [Log Management](log_management.md) for general log inspection.
-
 
 
 

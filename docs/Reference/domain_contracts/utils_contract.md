@@ -1,14 +1,16 @@
 # Utils Domain Contract
 
 The Utils module provides cluster-log collection, unattended operating-system
-installation, and OIM domain-log backup through its `playbooks/utils.yml`
-entry point. This contract describes the files and artifacts used by those
-implemented workflows.
+installation, OIM domain-log backup, and Slurm configuration management
+through its `playbooks/utils.yml` entry point. This contract describes the
+files and artifacts used by those implemented workflows.
 
 ## Upstream domain contract
 
-Utils does not require another deployment domain's status output for its
-implemented workflows.
+Utils does not require another deployment domain's status output. The Slurm
+configuration workflows do, however, read the active Orchestrator
+`omnia_config.yml` and `storage_config.yml` and a YAML or CSV node mapping to
+resolve the Slurm NFS share and primary controller.
 
 ## Output contract
 
@@ -114,20 +116,57 @@ requested log directory exists. Files ending in `.tmp`, `.temp`, and `.bak`
 are excluded.
 
 `cleanup_backup_oim_logs` uses the same destination resolution and removes
-all matching `omnia_oim_logs_*` directories. It is not included in the general
+all matching `omnia_oim_logs_*` directories. It is included in the general
 Utils `cleanup` tag.
 
-### Standalone Slurm role artifacts
+### Slurm configuration artifacts
 
-The Slurm configuration roles are not invoked by `playbooks/utils.yml`. When
-integrated into an administrator-maintained playbook:
+The Slurm configuration workflows read the optional project input:
 
-- `slurm_config_backup` copies `etc/slurm`, `etc/munge`, and `etc/my.cnf.d`
-  from the first controller in `ctld_list` to
-  `<share_path>/slurm_backups/<name_and_timestamp>/<controller>/`.
-- `slurm_cleanup` can remove `<share_path>/slurm` after confirmation.
-- `slurm_config_rollback` restores a selected backup for the first controller
-  in `ctld_list` and reconfigures the Slurm controller.
+```text
+$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/slurm_config_util_config.yml
+```
+
+When path overrides are empty, the utility reads:
+
+```text
+$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config.yml
+$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/storage_config.yml
+$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml
+```
+
+The node mapping can instead be a CSV `pxe_mapping_file.csv`. The utility
+selects the first host in a `slurm_control_node_*` functional group as the
+controller.
+
+The backup destination is selected from command-line `slurm_backup_path`,
+configuration `slurm_backup_path`, `OMNIA_BACKUP_PATH`, or the following
+default, in that order:
+
+```text
+$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/slurm_config_util/
+└── <backup_base_name>_<YYYYMMDD-HHMMSS>/
+    ├── <controller-hostname>/
+    │   ├── etc/slurm/
+    │   ├── etc/munge/
+    │   └── etc/my.cnf.d/
+    └── metadata.json
+```
+
+The destination can be an absolute local path or a raw NFS export in
+`server:/export/path` format. `metadata.json` contains `backup_id`,
+`backup_generated_at_utc`, `controller_hostname`, `source_path`,
+`backup_location`, `directories_included`, and `file_checksums_sha256`.
+
+- `slurm_config_backup` creates a timestamped backup for the selected
+  controller.
+- `slurm_config_cleanup` offers a pre-cleanup backup and then removes the
+  complete active Slurm share directory after exact-token confirmation.
+- `slurm_config_rollback` restores a selected backup, repairs required file
+  permissions and stale controller mounts, restarts `slurmdbd` when its
+  configuration changed, and runs `scontrol reconfigure`.
+- `cleanup_slurm_config_backups` removes every depth-one run directory from
+  the resolved backup destination without retention or confirmation.
 
 ## Workflow tags
 
@@ -138,10 +177,14 @@ integrated into an administrator-maintained playbook:
 | `collect` | Collects and bundles cluster logs. |
 | `install_os` | Runs the complete ISO build and iDRAC deployment workflow. |
 | `backup_oim_logs` | Archives selected OIM domain logs to local or NFS storage. |
+| `slurm_config_backup` | Backs up the active Slurm controller configuration and writes checksummed metadata. |
+| `slurm_config_cleanup` | Optionally backs up and then deletes the active Slurm configuration after confirmation. |
+| `slurm_config_rollback` | Restores a selected backup and reconfigures the Slurm controller. |
 | `cleanup_logs` | Applies log archive retention and removes collection workspaces. |
 | `cleanup_install_os` | Removes temporary installation files and optionally credentials. |
 | `cleanup_backup_oim_logs` | Removes all OIM log-backup run directories from the resolved destination. |
-| `cleanup` | Runs log-collection and OS-installation cleanup; it excludes OIM log backups. |
+| `cleanup_slurm_config_backups` | Removes all Slurm configuration backup-run directories from the resolved destination. |
+| `cleanup` | Runs log, OS-installation, OIM log-backup, and Slurm configuration backup cleanup. |
 | `upgrade` | Unsupported placeholder; it only prints a message and performs no upgrade. |
 | `rollback` | Unsupported placeholder; it only prints a message and performs no rollback. |
 
@@ -153,6 +196,7 @@ The installation playbook also supports the direct stage tags `credentials`,
 - [Utils overview](../../HowTo/utils/index.md)
 - [Install an OS unattended](../../HowTo/utils/install_os_unattended.md)
 - [Back up OIM logs](../../HowTo/utils/backup_oim_logs.md)
+- [Slurm configuration utilities](../../HowTo/utils/backup_slurm_config.md)
+- [Slurm config utility configuration](../Configuration/slurm_config_util_config.md)
 - [Clean up Utils](../../HowTo/utils/cleanup_utils.md)
 - [Collect cluster logs](../../Operations/collect_cluster_logs.md)
-- [Use the Slurm configuration roles](../../Operations/slurm_configuration_roles.md)

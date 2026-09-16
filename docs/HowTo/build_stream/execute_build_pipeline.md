@@ -56,9 +56,9 @@ src/main/samples/catalogs/10.0/
 See [Select or update the catalog](../main/update_catalog.md) for the available
 Slurm, service Kubernetes, combined, and `_no_vast` variants. Before starting
 the pipeline, configure each repository referenced by the selected catalog in
-`$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`.
+`input/repo_manager/repo_manager_config.yml`.
 Configure the Pulp service endpoint in
-`$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_endpoint_config.yml`.
+`input/repo_manager/repo_manager_endpoint_config.yml`.
 
 | Repository content | Prerequisite |
 |---|---|
@@ -176,8 +176,6 @@ After the pipeline completes:
   `repo_manager_endpoint_config.yml`.
 - **Build-Image stage failing**: Ensure the catalog has valid functional groups.
 - For additional issues, see [BuildStreaM Troubleshooting](../../Troubleshooting/build_stream/build_stream.md).
-
-
 
 
 
