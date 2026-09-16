@@ -145,6 +145,32 @@ and [Set up the OIM](../HowTo/main/setup_oim.md).
     and that each selected package source resolves through the configured RPM
     repository, container registry, or artifact URL.
 
+    At minimum, the catalog must provide both of these functional layers for
+    every operating-system version and architecture used by the mapped nodes:
+
+    | Required functional layer | Required Slurm component |
+    |---|---|
+    | `slurm_control_node_rhel_<major>_<minor>_<arch>` | `slurm_custom_group` and `slurm_control_node_group` |
+    | `slurm_node_rhel_<major>_<minor>_<arch>` | `slurm_custom_group` and `slurm_node_group` |
+
+    For example, an x86_64 RHEL 10.2 deployment requires
+    `slurm_control_node_rhel_10_2_x86_64` and
+    `slurm_node_rhel_10_2_x86_64`. The `slurm_custom_group` component is
+    mandatory in both layers. Select `slurm_x86_64.json` or
+    `slurm_x86_64_no_vast.json` from
+    `src/main/samples/catalogs/<RHEL-version>/` for this topology. For
+    aarch64 or mixed-architecture nodes, select the corresponding shipped
+    Slurm catalog instead. Do not create a catalog containing only the groups
+    shown in this table; the shipped catalogs include the complete base OS,
+    dependency, and package definitions required by the deployment.
+
+    Verify the selected catalog before continuing:
+
+    ```bash title="Run on: OIM host"
+    jq -r '.catalog.functionallayer[] | [.name, (.components | join(","))] | @tsv' \
+      "$CATALOG_FILE_PATH"
+    ```
+
 2. Run the complete standard Repo Manager flow from `src/main`:
 
     ```bash title="Run on: OIM host"

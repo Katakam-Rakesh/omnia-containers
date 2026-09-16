@@ -23,6 +23,27 @@ operational cluster.
     Before selecting a path, complete the [Prerequisites Checklist](prerequisites_checklist.md) to
     ensure your hardware, networking, and software environment are ready.
 
+!!! important "Select a catalog for the deployment path"
+
+    Catalog selection is mandatory because it determines which functional
+    groups, software groups, packages, operating-system versions, and node
+    architectures Omnia builds and provisions.
+
+    - **Slurm Quickstart** requires Slurm controller and compute functional
+      layers, including the mandatory `slurm_custom_group` component.
+    - **K8S Telemetry Only** requires service Kubernetes control-plane and
+      worker functional layers with the service Kubernetes and Telemetry
+      components.
+    - **Full Deployment** requires a combined catalog containing both Slurm
+      and service Kubernetes functional layers.
+    - **BuildStreaM Deployment** requires a catalog that matches every
+      functional group requested by its automated workflow.
+
+    See [Select or update the catalog](../HowTo/main/update_catalog.md) for the
+    shipped catalog choices. The [Slurm Quickstart](slurm_quickstart.md) and
+    [K8S Telemetry Only](k8s_telemetry_only.md) paths provide the exact minimum
+    layer names, required components, and verification commands.
+
 ## Deployment Paths at a Glance
 
 
