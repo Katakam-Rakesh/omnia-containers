@@ -810,8 +810,8 @@ state problems, job submission errors, and GPU detection.
        sinfo
        ```
 
-       See [Slurm Configuration Roles](../../Operations/slurm_configuration_roles.md)
-       for the current source limitations and verification steps.
+       See [Slurm Configuration Utilities](../../HowTo/utils/backup_slurm_config.md)
+       for rollback behavior, recovery guidance, and verification steps.
 
 ## New Nodes Show DOWN After Adding
 

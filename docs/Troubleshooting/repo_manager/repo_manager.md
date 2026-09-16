@@ -233,6 +233,71 @@ synchronization.
         `always` and set `caching` to `false` for the EPEL repository so that
         Pulp synchronizes its content for offline use.
 
+## CRI-O repository URL is unreachable from OIM
+
+???+ note "Symptom"
+
+    The Repository Manager `download` phase fails for the `cri-o-v1-35`
+    repository.
+
+??? note "Cause"
+
+    The configured CRI-O repository URL is unreachable due to DNS failure,
+    geographic mirror redirection, or network restrictions. The default CRI-O
+    repository may be inaccessible from the OIM host.
+
+??? note "Resolution"
+
+    1. Remove stale Pulp objects for the affected architecture:
+
+        ```bash title="Run on: OIM host"
+        source /opt/omnia/activate-omnia.sh
+        pulp rpm distribution destroy --name "x86_64_rhel_10.0_cri-o-v1-35"
+        pulp rpm repository destroy --name "x86_64_rhel_10.0_cri-o-v1-35"
+        pulp rpm remote destroy --name "x86_64_rhel_10.0_cri-o-v1-35"
+        ```
+
+        For aarch64, use `aarch64_rhel_10.0_cri-o-v1-35`.
+
+    2. Verify accessibility of the primary CRI-O repository URL:
+
+        ```bash title="Run on: OIM host"
+        CRIO_REPO_URL='https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/'
+        curl --fail --silent --show-error --head "$CRIO_REPO_URL"
+        curl --fail --silent --show-error --head "${CRIO_REPO_URL}repodata/repomd.xml"
+        ```
+
+    3. If the primary URL is unreachable, verify the alternative mirror:
+
+        ```bash title="Run on: OIM host"
+        CRIO_REPO_URL='https://ftp.gwdg.de/pub/opensuse/repositories/isv:/cri-o:/stable:/v1.35/rpm/'
+        curl --fail --silent --show-error --head "$CRIO_REPO_URL"
+        curl --fail --silent --show-error --head "${CRIO_REPO_URL}repodata/repomd.xml"
+        ```
+
+    4. Update the CRI-O URL in
+        `$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`
+        under the applicable OS version and architecture:
+
+        ```yaml title="File: /opt/omnia/repo_manager/input/project_default/repo_manager_config.yml"
+        repositories:
+          "10.0":
+            x86_64:
+              cri-o-v1-35:
+                url: "https://ftp.gwdg.de/pub/opensuse/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
+                gpgkey: "https://ftp.gwdg.de/pub/opensuse/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        ```
+
+    5. Rerun the Repository Manager `download` phase:
+
+        ```bash title="Run on: OIM host"
+        cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
+        ansible-playbook repo_manager.yml --tags download
+        ```
+
+    6. Rerun the `status` phase and verify that `repo_status.yml` reports
+       `overall_status: success`.
+
 ## Intermittent Local Repository Sync Failure Due to Non-Persistent Iptables Rules
 
 ???+ note "Symptom"
@@ -600,7 +665,7 @@ synchronization.
         pulp rpm repository list --field name
         ```
 
-        The output lists repository names such as `x86_64_rhel_10.0_cuda`, `aarch64_rhel_10.0_cuda`, etc. Use the appropriate name as the `--repoid` value and for `cleanup_repos` in `pulp_cleanup.yml` in the following steps.
+        The output lists repository names such as `x86_64_rhel_10.0_cuda`, `aarch64_rhel_10.0_cuda`, etc. Use the appropriate name as the `--repoid` value and as the value of `cleanup_repos` when running `repo_manager.yml` with the `cleanup_repos` tag in the following steps.
 
     2. Clean up the affected repositories in Pulp before re-syncing. This removes any corrupted or partially synced content from previous failed attempts. Run this for both x86_64 and aarch64 repositories:
 

@@ -20,7 +20,6 @@ The default location is
 | `caching_policy` | boolean | No | Global Pulp caching behavior. The source value is `true`. |
 | `repositories` | object | Yes | Repository definitions organized by OS version and architecture. |
 | `registries` | object or null | No | Container registries keyed by registry name. |
-| `catalog_config` | object | No | Compatibility catalog reference; runtime selection uses the shared environment. |
 
 Unknown top-level and nested properties are rejected.
 
@@ -50,6 +49,9 @@ A registry requires `base_url`, `port`, and `auth`. `auth.type` is `none` or
 `auth.credentials.vault_path`, which selects an entry from the encrypted Repo
 Manager credential file. The optional `tls` mapping supports `ca_path`,
 `client_cert_path`, `client_key_path`, and `insecure`.
+
+A catalog image source that uses the `registry` field must have a `name` that
+starts with the configured registry authority, i.e. `<host>[:<port>]/<image_path>`.
 
 ## Usage example
 
@@ -81,4 +83,3 @@ in `repo_manager_config_credentials.yml` with the matching
 
 - [Repo Manager endpoint](repo_manager_endpoint_config.md)
 - [Repo Manager contract](../domain_contracts/repo_manager_contract.md)
-

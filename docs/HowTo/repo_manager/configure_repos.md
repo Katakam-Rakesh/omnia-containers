@@ -8,8 +8,8 @@ and provisioning workflows. It reads three customer inputs:
 | Input | Purpose |
 |---|---|
 | Catalog JSON from `CATALOG_FILE_PATH` | Selects functional layers, groups, packages, OS versions, architectures, and sources |
-| `repo_manager_config.yml` | Maps catalog RPM sources and private registries to reachable upstream endpoints |
-| `repo_manager_endpoint_config.yml` | Sets the host-facing Pulp IP and HTTPS port |
+| [`repo_manager_config.yml`](../../Reference/Configuration/repo_manager_config.md) | Maps catalog RPM sources and private registries to reachable upstream endpoints |
+| [`repo_manager_endpoint_config.yml`](../../Reference/Configuration/repo_manager_endpoint_config.md) | Sets the host-facing Pulp IP and HTTPS port |
 
 Repo Manager processes catalog contexts in ascending OS minor-version order.
 For each context, a catalog RPM source is matched by `version`, `architecture`,
@@ -23,6 +23,7 @@ and `reponame`; an image source is matched by `registry`.
   reference exactly one group with `type: "base_os"`, and every group and
   package reference must resolve.
 - Ensure all selected source URLs are reachable from the OIM.
+- [CRI-O repository URL is unreachable from OIM](../../Troubleshooting/repo_manager/repo_manager.md#cri-o-repository-url-is-unreachable-from-oim).
 - [EPEL Repository Unavailable/Unstable/Too Slow](../../Troubleshooting/repo_manager/repo_manager.md#epel-repository-unavailableunstabletoo-slow).
 - Have credentials available for the Pulp administrator and for any private
   registries that use basic authentication. Docker Hub credentials are
@@ -60,7 +61,11 @@ runtime root for playbook execution.
 
 ### 2. Configure RPM repositories
 
-Edit `src/repo_manager/input/repo_manager_config.yml`. The minimum structure is:
+Edit the staged runtime input
+`$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`
+(default `/opt/omnia/repo_manager/input/project_default/repo_manager_config.yml`).
+If the file does not exist, run `domain-init.sh` to stage the source templates
+from `src/repo_manager/input/`. The minimum structure is:
 
 ```yaml
 repo_config: partial
@@ -107,15 +112,35 @@ through 100.
 
 ### 3. Choose the RPM content policy
 
-Global settings apply unless a repository overrides them:
+Repo Manager combines two independent settings to decide what Pulp mirrors and
+what `dnf` does on the OIM:
 
-| `repo_config` or repository `policy` | `caching` | Pulp policy |
-|---|---:|---|
-| `always` | `false` | `immediate` |
-| `always` | `true` | `on_demand` |
-| `partial` | `false` | `streamed` |
-| `partial` | `true` | `on_demand` |
+- `repo_config` and `caching_policy` are the global defaults that apply to
+  every repository.
+- A repository entry under `repositories.<version>.<arch>.<repo_name>` can
+  override them with `policy` and `caching`.
 
+Each combination maps to a Pulp download policy (`immediate`, `on_demand`, or
+`streamed`) that controls what Pulp synchronizes. `dnf` always operates on the
+catalog-selected packages; it either downloads them with dependencies into the
+Repo Manager RPM directory or validates them against Pulp, based on the
+resolved Pulp policy.
+
+#### Global `repo_config` + `caching_policy`
+
+| `repo_config` | `caching_policy` | Pulp policy | What Repo Manager does per catalog-selected package | Use when |
+|---|---|---|---|---|
+| `always` | `false` | `immediate` | Runs `dnf download <pkg>` and its dependencies from the local Pulp copy into the Repo Manager RPM directory. | Air-gapped or fully offline deployments requiring a complete local mirror. |
+| `partial` | `true` | `on_demand` | Runs `dnf download <pkg>` and its dependencies; Pulp fetches and retains the RPMs. | Selective sync with retention. |
+| `partial` | `false` | `streamed` | Runs `dnf info <pkg>` to validate metadata against the Pulp mirror; no RPMs are downloaded. | Validation only; upstream must remain reachable at install time. |
+
+#### Per-repository `policy` + `caching`
+
+| `policy` | `caching` | Pulp policy | What Repo Manager does per catalog-selected package | Use when |
+|---|---|---|---|---|
+| `always` | `false` | `immediate` | Runs `dnf download <pkg>` and its dependencies from local Pulp. | This repository must be fully self-contained offline. |
+| `partial` | `true` | `on_demand` | Runs `dnf download <pkg>` and its dependencies; Pulp fetches and retains the RPMs. | Only catalog-selected packages from this repository are needed. |
+| `partial` | `false` | `streamed` | Runs `dnf info <pkg>` to validate metadata; no RPMs are downloaded. | Selected packages are validated only; upstream reachable at install time. |
 
 A catalog item with `packagetype: "rpm_repo"` requires retained content and
 must not resolve to `streamed`. Container synchronization uses an independent
@@ -129,28 +154,45 @@ registry, add a mapping such as:
 ```yaml
 registries:
   private_registry:
-    base_url: "https://harbor.example.com"
+    base_url: "https://<registry_host>"
     port: 443
     auth:
       type: basic
       credentials:
-        vault_path: "registries/harbor-production"
+        vault_path: "registries/<registry_key>"
     tls:
-      ca_path: "/path/to/harbor-ca.crt"
+      ca_path: "/path/to/<registry_ca>.crt"
       client_cert_path: ""
       client_key_path: ""
       insecure: false
+
+  insecure_registry:
+    base_url: "http://<registry_host>"
+    port: <registry_port>
+    auth:
+      type: none
+    tls:
+      insecure: true
 ```
+
+Replace `<registry_host>` with the registry IP address or FQDN, `<registry_port>`
+with the actual port, and `<registry_ca>.crt` with the path to the CA
+certificate. `auth.type` is `none` or `basic`; basic authentication requires a
+`vault_path` that Repo Manager collects during `prepare` and stores in an
+Ansible Vault file. Do not put credentials in the catalog or repository
+configuration.
 
 The image's catalog source must use `registry: "private_registry"`, while its
 package `name` must start with the actual configured `host[:port]`, for example
-`harbor.example.com:443/library/image`. Repo Manager collects the credentials
-for the `vault_path` during `prepare` and stores them in an Ansible Vault file;
-do not put credentials in the catalog or repository configuration.
+`<registry_host>:<registry_port>/library/image`.
 
 ### 5. Configure the Pulp endpoint
 
-Edit `src/repo_manager/input/repo_manager_endpoint_config.yml`:
+Edit the staged runtime input
+`$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_endpoint_config.yml`
+(default `/opt/omnia/repo_manager/input/project_default/repo_manager_endpoint_config.yml`).
+If the file does not exist, run `domain-init.sh` to stage the source templates
+from `src/repo_manager/input/`.
 
 ```yaml
 pulp_server_port: 2225
@@ -161,19 +203,16 @@ pulp_server_port: 2225
 The selected host port maps to port `443` in the Pulp container. HTTPS is
 mandatory, and certificate paths are derived automatically.
 
-### 6. Stage and validate the inputs
+### 6. Validate the inputs
 
 ```bash title="Run on: OIM host"
-cd <OMNIA_SOURCE_PATH>/src/repo_manager
-./domain-init.sh
-cd playbooks
+cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
 ansible-playbook repo_manager.yml --tags precheck
 ```
 
-`domain-init.sh` copies the flat source YAML inputs to
-`<OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/`. It prompts before
-overwriting existing project files; use `--force` only after reviewing the
-files that will be replaced.
+Run `precheck` against the staged runtime inputs, catalog, and subscription
+mappings. If the runtime inputs are missing, run `./domain-init.sh` from
+`src/repo_manager/` first to stage the source templates.
 
 ### 7. Deploy Pulp, synchronize content, and generate status
 

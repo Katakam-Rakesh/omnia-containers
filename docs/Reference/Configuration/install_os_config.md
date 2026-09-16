@@ -35,20 +35,20 @@ During ISO creation, `custom_iso_path` must meet these requirements:
 | `target_hostname` | Empty | Hostname assigned by Kickstart; required for a usable generated static-network configuration. |
 | `target_admin_ip` | Empty | Admin-network IP assigned by Kickstart and used for SSH verification; required for build, Kickstart generation, and deployment. |
 | `target_architecture` | Empty | `x86_64` or `aarch64`; set this explicitly when the source ISO filename does not contain the architecture. |
-| `network_device` | Empty | Installation NIC; empty uses the first active link. |
+| `network_device` | Empty | Installation NIC; empty uses the first active link. For a Belton `aarch64` node, use `enP6s3f0np0`. |
 | `netmask` | `255.255.255.0` | Target network mask. |
-| `gateway` | Empty | Target default gateway. |
+| `gateway` | Empty | Target default gateway. Set this explicitly for a Belton `aarch64` node. |
 | `dns_server` | Empty | Target DNS server. |
 | `ssh_public_key_path` | Empty | Public key injected into kickstart; empty defaults to `/root/.ssh/id_rsa.pub`. |
-| `install_disk` | `sda` | Target installation disk. |
+| `install_disk` | `sda` | Target installation disk. For a Belton `aarch64` node, use `nvme0n1`. |
 | `timezone` | `UTC` | Installed operating-system timezone. |
 
 ## Execution controls
 
 | Parameter | Source value | Description |
 |---|---|---|
-| `rebuild_iso` | `false` | Rebuild the custom ISO when it already exists. |
-| `force_reinstall` | `false` | Reinstall even when the target is reachable over SSH. |
+| `rebuild_iso` | `false` | Rebuild the custom ISO when it already exists. Set this to `true` after changing Kickstart-backed configuration. |
+| `force_reinstall` | `false` | Reinstall even when the target is reachable over SSH. Set this to `true` only for an intentional reinstall. |
 | `ssh_verify_enabled` | `true` | Verify the installed node using SSH. |
 | `ssh_verify_retries` | `60` | Multiplier used with `ssh_verify_delay` to calculate the SSH wait timeout. |
 | `ssh_verify_delay` | `30` | Initial delay before the SSH check and multiplier used in the total timeout calculation, in seconds. |

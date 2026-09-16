@@ -21,8 +21,9 @@ modules: `build_stream`, `discovery`, `repo_manager`, `image_build_manager`,
 `orchestrator`, `telemetry`, or `utils`. Main installs the shared environment
 instead of using this module input layout.
 
-For Utils OIM log backups, see the
-[OIM Log Backup Configuration](Configuration/backup_oim_logs_config.md).
+For Utils-specific configuration, see the
+[OIM Log Backup Configuration](Configuration/backup_oim_logs_config.md) and
+[Slurm Config Utility Configuration](Configuration/slurm_config_util_config.md).
 
 ## Module Contracts
 
@@ -66,7 +67,6 @@ Complete catalog of telemetry metrics collected and exposed by Omnia. Metrics ar
 ## Appendices
 
 Supplementary reference information, including naming conventions, filesystem layouts, directory structures, configuration standards, and other supporting technical specifications.
-
 
 
 

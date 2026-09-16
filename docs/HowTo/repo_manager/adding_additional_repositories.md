@@ -29,7 +29,10 @@ values must match.
 ## Procedure
 
 1. Add the repository below the matching version and architecture in
-   `src/repo_manager/input/repo_manager_config.yml`:
+   `$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/repo_manager_config.yml`
+   (default `/opt/omnia/repo_manager/input/project_default/repo_manager_config.yml`).
+   If the staged file does not exist, run `domain-init.sh` from
+   `src/repo_manager/` first:
 
     ~~~yaml
     repositories:
@@ -68,20 +71,10 @@ values must match.
     functional layer. See
     [Configure Catalog Content](adding_additional_packages.md).
 
-3. Stage the updated YAML input:
+3. Validate, synchronize, and publish a new status file:
 
     ~~~bash title="Run on: OIM host"
-    cd <OMNIA_SOURCE_PATH>/src/repo_manager
-    ./domain-init.sh
-    ~~~
-
-    If the active runtime file has customer changes that are not present in the
-    source file, reconcile them before accepting the overwrite prompt.
-
-4. Validate, synchronize, and publish a new status file:
-
-    ~~~bash title="Run on: OIM host"
-    cd playbooks
+    cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
     ansible-playbook repo_manager.yml \
       --tags "precheck,download,status"
     ~~~

@@ -81,16 +81,7 @@ ansible-vault edit "$credential_dir/orchestrator_credentials.yml" \
   --vault-password-file "$credential_dir/.orchestrator_credentials_key"
 ```
 
-For example, to view the Orchestrator credentials:
-
-```bash
-cd "$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME"
-ansible-vault view orchestrator_credentials.yml \
-  --vault-password-file .orchestrator_credentials_key
-```
-
 If you have any feedback about Omnia documentation, please reach out at [omnia.readme@dell.com](mailto:omnia.readme@dell.com).
-
 
 
 
