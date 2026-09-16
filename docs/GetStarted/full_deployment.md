@@ -83,24 +83,24 @@ the Telemetry deployment.
   Kubernetes. For an offline Telemetry deployment, ensure its package-manifest
   artifacts are available through the Pulp repository configured in
   `telemetry_packages.yml`. For guidance on updating catalogs, see
-  [Update Catalog](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/HowTo/main/update_catalog.html?h=update+cata).
+  [Update Catalog](../HowTo/main/update_catalog.md).
 - Prepare the admin-network values required by Orchestrator. The deployment
   needs Slurm controller and compute groups plus service Kubernetes
   control-plane and worker groups. For configuration guidance, see
-  [Network Specification](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/network_spec.html?h=).
+  [Network Specification](../Reference/Configuration/network_spec.md).
 - Prepare the shared storage referenced by both cluster configurations.
   Telemetry requires the Kubernetes shared mount; LDMS also requires a shared
   path on the Slurm nodes. For configuration guidance, see
-  [Storage Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/storage_config.html?h=).
+  [Storage Configuration](../Reference/Configuration/storage_config.md).
 - Prepare the credentials and source-specific inputs for each enabled
   Telemetry source. Supported source configuration is provided for iDRAC,
   LDMS, PowerScale, UFM, VAST, OME, and SFM. For configuration guidance, see
-  [Telemetry Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/telemetry_config.html?h=).
+  [Telemetry Configuration](../Reference/Configuration/telemetry_config.md).
 - For OME discovery, have the OME address and credentials available. For
   automated PXE boot, the mapping must contain the applicable BMC information
   and Orchestrator must be able to collect the BMC credentials. For discovery
   guidance, see
-  [Discovery](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/HowTo/discovery/index.html).
+  [Discovery](../HowTo/discovery/index.md).
 
 ## Procedure
 
@@ -221,8 +221,8 @@ Choose one method. Orchestrator consumes the reviewed file as
     1. Configure `discovery_config.yml` and `network_spec.yml` under
        `$discovery_path/input/$OMNIA_PROJECT_NAME/`. Set
        `enable_bmc_discovery: true` and provide `ome_ip`. For field definitions,
-       see [Discovery Configuration](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/discovery_config.html?h=)
-       and [Network Specification](https://omnia.readthedocs.io/en/v2.3.0.0-rc1/Reference/Configuration/network_spec.html?h=).
+       see [Discovery Configuration](../Reference/Configuration/discovery_config.md)
+       and [Network Specification](../Reference/Configuration/network_spec.md).
 
     2. Run Discovery:
 
@@ -261,10 +261,12 @@ Choose one method. Orchestrator consumes the reviewed file as
 
     Assign nodes to functional groups beginning with:
 
-    - `slurm_control_node[arch]` for the Slurm controller.
-    - `slurm_node[arch]` for Slurm compute nodes.
-    - `service_kube_control_plane[arch]` for Kubernetes control-plane nodes.
-    - `service_kube_node[arch]` for Kubernetes worker nodes.
+    - `slurm_control_node_rhel_<major>_<minor>_<arch>` for the Slurm controller.
+    - `slurm_node_rhel_<major>_<minor>_<arch>` for Slurm compute nodes.
+    - `service_kube_control_plane_rhel_<major>_<minor>_<arch>` for Kubernetes
+      control-plane nodes.
+    - `service_kube_node_rhel_<major>_<minor>_<arch>` for Kubernetes worker
+      nodes.
 
     Login and login/compiler groups are optional. The LDMS precheck requires at
     least one populated Slurm controller group and one populated Slurm compute
