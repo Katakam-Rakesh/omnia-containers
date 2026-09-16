@@ -112,7 +112,11 @@ synchronization.
         pulp rpm remote show --name x86_64_rhel_10.0_epel
         ```
 
-    3. Identify the failed EPEL package in the Omnia logs:
+    3. Identify the failed EPEL package in the Omnia logs. The Ansible log
+       is at `/var/log/omnia/repo_manager/repo_manager.log`. Runtime status
+       files are under
+       `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/<architecture>/`
+       (default `/opt/omnia/repo_manager/log/`):
 
         ```bash title="Run on: OIM host"
         grep -i "epel" /var/log/omnia/repo_manager/repo_manager.log
@@ -441,7 +445,10 @@ synchronization.
 
     3. If user registries are configured, verify connectivity on the OIM.
 
-    4. Check the logs for specific error messages:
+    4. Check the logs for specific error messages. The Ansible log is at
+       `/var/log/omnia/repo_manager/repo_manager.log`. Runtime status files
+       are under `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/<architecture>/`
+       (default `/opt/omnia/repo_manager/log/`):
 
         ```bash title="Run on: OIM host"
         grep -i "unreachable" /var/log/omnia/repo_manager/repo_manager.log
@@ -676,8 +683,9 @@ synchronization.
           -e "cleanup_repos=x86_64_rhel_10.0_cuda,aarch64_rhel_10.0_cuda"
         ```
 
-    3. Update the affected entry in
-       `/opt/omnia/repo_manager/input/project_default/repo_manager_config.yml`,
+    3. Update the affected entry in the project-scoped configuration file
+       at `<REPO_MANAGER_DATA_PATH>/input/<project>/repo_manager_config.yml`
+       (default `/opt/omnia/repo_manager/input/project_default/repo_manager_config.yml`),
        then run the Repository Manager `download` phase:
 
         ```yaml title="Example: CUDA repository entries with caching: true"

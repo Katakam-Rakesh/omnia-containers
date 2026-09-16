@@ -173,8 +173,8 @@ The `systemd` source uses `version=[10.0]`, `architecture=x86_64`, and
 `repositories."10.0".x86_64.baseos`.
 
 Repository names may be defined directly under the architecture or inside its
-`user_repos` or `additional_repos` section. Repository Manager resolves those
-sections as one lookup map while preserving their runtime behavior. For the
+`user_repos` section. Repository Manager resolves both locations as one lookup
+map while preserving their runtime behavior. For the
 detailed repository procedure, see
 [Add an RPM Repository and Packages](adding_additional_repositories.md).
 

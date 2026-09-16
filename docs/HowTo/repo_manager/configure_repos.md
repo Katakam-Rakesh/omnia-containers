@@ -57,7 +57,8 @@ For catalog choices and the persistent environment configuration, follow
 
 `OMNIA_DATA_PATH` defaults to `/opt/omnia`, and `OMNIA_PROJECT_NAME` defaults
 to `project_default`. `REPO_MANAGER_DATA_PATH` can override the Repo Manager
-runtime root for playbook execution.
+runtime root for playbook execution. When unset, it defaults to
+`${OMNIA_DATA_PATH}/repo_manager` (default `/opt/omnia/repo_manager`).
 
 ### 2. Configure RPM repositories
 

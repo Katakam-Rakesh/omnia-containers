@@ -7,9 +7,9 @@ the same name from a selected catalog package. Repository mappings are scoped by
 OS minor version and architecture.
 
 Use `user_repos` for independent custom repositories. Repository names may
-also be defined directly under the architecture or inside an
-`additional_repos` section; all three locations are resolved as one lookup
-map. `user_repos` is the recommended location for new custom repositories.
+also be defined directly under the architecture. Both locations are resolved
+as one lookup map. `user_repos` is the recommended location for new custom
+repositories.
 
 ## Prerequisites
 
