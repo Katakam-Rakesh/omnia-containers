@@ -50,6 +50,10 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
 ## Prerequisites
 
 - Complete the common [Telemetry deployment prerequisites](deploy_telemetry.md#prerequisites).
+- Ensure Redfish is enabled in iDRAC.
+- Update the iDRAC firmware to the latest version.
+- Install an iDRAC Datacenter license on the nodes. An Enterprise license is
+  not sufficient for streaming telemetry.
 - Provide the following input file with the header
   `BMC_IP,GROUP_NAME,PARENT`, and set its path in
   `idrac_telemetry_configurations.bmc_group_data_path`:
