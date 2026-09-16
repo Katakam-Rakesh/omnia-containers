@@ -170,7 +170,7 @@ After the pipeline completes:
 
 ## Troubleshooting
 
-- **Parse-Catalog stage failing**: Ensure the JSON is aligned with the expected schema. See catalog examples at [https://github.com/dell/omnia/tree/pub/build_stream/examples/catalog](https://github.com/dell/omnia/tree/pub/build_stream/examples/catalog).
+- **Parse-Catalog stage failing**: Ensure the JSON is aligned with the expected schema. See catalog examples at [https://github.com/dell/omnia/tree/issue-4849-omnia-modernization/src/main/samples/catalogs](https://github.com/dell/omnia/tree/issue-4849-omnia-modernization/src/main/samples/catalogs).
 - **Repository Manager stage failing**: Check the log path from the API
   response and verify the selected catalog, `repo_manager_config.yml`, and
   `repo_manager_endpoint_config.yml`.
