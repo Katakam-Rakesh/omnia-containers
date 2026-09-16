@@ -37,6 +37,10 @@ requires the source ISO filename to contain `x86_64` or `aarch64`.
   must be able to mount the export, and the target BMC must be able to access it.
 - Configure the target server for UEFI boot. The workflow requests a one-time
   boot from the virtual CD presented through iDRAC.
+- Configure the target node's BIOS boot order so that `Remote File Share 1`
+  and `Remote File Share 2` (Virtual Media) are the first and second boot
+  priorities, respectively, ahead of the hard drive. This is required for the
+  server to boot from the mounted ISO during installation.
 - For a Belton `aarch64` node, ensure that `Virtual Network File` is available
   in the UEFI boot sequence. This option may appear only after virtual media is
   connected during the installation workflow. Disable the other UEFI boot
