@@ -2,10 +2,11 @@
 
 ## Overview
 
-Image Build Manager builds RHEL images for `x86_64` and
-`aarch64` HPC cluster provisioning by using OpenCHAMI. It deploys MinIO S3 and
-a local OCI registry, builds an image for each functional group, and writes
-`build_status.yml` for the Orchestrator provisioning workflow.
+Image Build Manager builds RHEL images for `x86_64` and `aarch64` cluster-node
+provisioning by using OpenCHAMI. It uses the configured S3 backend, deploying
+MinIO when selected, and deploys a local OCI registry. It builds an image for
+each selected functional group and writes `build_status.yml` for the
+Orchestrator provisioning workflow.
 
 Image Build Manager runs on the Omnia Infrastructure Manager (OIM). Tasks run
 locally except for `aarch64` builds, which use SSH to run on a remote ARM host.
@@ -19,8 +20,8 @@ locally except for `aarch64` builds, which use SSH to run on a remote ARM host.
   |                      |     |          -> build -> write_status    |     | provision workflow   |
   +----------------------+     +--------------------------------------+     +----------------------+
                                          |              |
-                                    MinIO S3       OCI Registry
-                                   (boot-images)    (+ regctl)
+                                   S3 storage      OCI Registry
+                              (MinIO or PowerScale)  (+ regctl)
 ```
 
 ## Prerequisites
