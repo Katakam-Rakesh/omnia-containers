@@ -39,8 +39,7 @@ supports the following fields:
 | `sslclientkey` | string or null | mTLS client-key path. |
 | `sslclientcert` | string or null | mTLS client-certificate path. |
 
-`user_repos` and `additional_repos` contain named repository entries using the
-same fields.
+`user_repos` contains named repository entries using the same fields.
 
 ## Registry entries
 

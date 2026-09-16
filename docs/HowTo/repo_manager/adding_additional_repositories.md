@@ -6,14 +6,10 @@ Add an RPM source by defining it in `repo_manager_config.yml` and referencing
 the same name from a selected catalog package. Repository mappings are scoped by
 OS minor version and architecture.
 
-Use `user_repos` for independent custom repositories. Use
-`additional_repos` when several upstream repositories must be exposed through
-one aggregate Pulp distribution for an architecture.
-
-All `additional_repos` entries for an architecture are published through that
-single aggregate repository and must use the same effective DNF priority. An
-omitted priority resolves to `99`; if priorities are specified, their effective
-values must match.
+Use `user_repos` for independent custom repositories. Repository names may
+also be defined directly under the architecture. Both locations are resolved
+as one lookup map. `user_repos` is the recommended location for new custom
+repositories.
 
 ## Prerequisites
 
