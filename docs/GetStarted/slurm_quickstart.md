@@ -65,12 +65,13 @@ shown because each stage supplies input to the next stage.
 
 ## Prerequisites
 
+- Run the entire workflow as the `root` user on the OIM.
 - Use an Omnia source checkout on the OIM.
 - Use Python 3.11 or later. The setup script checks for Python 3.12, then
   Python 3.11, and then Python 3.
-- Set `SYSTEM_ADMIN_NIC_IPV4` in `src/main/omnia.env` to an IPv4 address
-  assigned to an OIM interface. Review the project name, shared data path,
-  hostname, domain, Omnia version, and catalog path in the same file.
+- For the initial setup, set `SYSTEM_ADMIN_NIC_IPV4` in `src/main/omnia.env` to
+  an IPv4 address assigned to an OIM interface. Review the project name, shared
+  data path, hostname, domain, Omnia version, and catalog path in the same file.
 - Select a catalog whose functional layers include Slurm. The catalog package
   sources must map to repositories configured for Repo Manager.
 - Prepare the admin-network values required by Orchestrator and the shared
@@ -81,12 +82,19 @@ shown because each stage supplies input to the next stage.
 
 ## Procedure
 
+Before starting the workflow, change to the working directory. Run this command
+once and remain in this directory for all subsequent OIM steps:
+
+```bash title="Run on: OIM host"
+cd /src/main
+```
+
 ### 1. Configure and set up the OIM
 
-1. Edit the environment configuration from the Omnia source tree:
+1. For the initial setup only, edit the environment configuration from the
+   Omnia source tree:
 
     ```bash title="Run on: OIM host"
-    cd src/main
     vi omnia.env
     ```
 
@@ -96,6 +104,12 @@ shown because each stage supplies input to the next stage.
     ```bash title="Run on: OIM host"
     ./omnia.sh --setup-venv
     ```
+
+    Initial setup installs `src/main/omnia.env` as `/etc/omnia/omnia.env`. After
+    setup, `/etc/omnia/omnia.env` is the authoritative environment file and is
+    preserved by subsequent setup runs. Edit the installed file for normal
+    configuration changes. Use `./omnia.sh --setup-venv --force-env` only when
+    you intend to replace the installed file with `src/main/omnia.env`.
 
     This command runs each selected module's `domain-init.sh`. Do not run the
     individual initialization scripts again unless a module was skipped or
@@ -166,7 +180,6 @@ For the configuration and credential procedure, see
 2. Run the complete standard image-build flow:
 
     ```bash title="Run on: OIM host"
-    cd src/main
     ./omnia.sh --run image_build_manager
     ```
 
@@ -198,7 +211,6 @@ Choose one method. Orchestrator consumes the reviewed file as
     2. Run Discovery:
 
         ```bash title="Run on: OIM host"
-        cd src/main
         ./omnia.sh --run discovery
         ```
 
@@ -240,7 +252,8 @@ For the complete mapping schema and OME procedure, see
 
     | Input | Slurm quick-start requirement |
     |---|---|
-    | `orchestrator_config.yml` | Confirm the mapping, Repo Manager, Image Build Manager, catalog, and PXE-boot settings. |
+    | `orchestrator_config.yml` | Controls `pxe_mapping_file_path`, `repo_manager_output_path`, `image_build_manager_output_path`, `catalog_file_path`, and `enable_pxe_boot`. |
+    | `set_pxe_boot_config.yml` | Controls server restart behavior, force-restart behavior, the PXE override mode, the PXE target device, and node-registration verification timing. |
     | `network_spec.yml` | Configure the OIM interface, admin subnet, DHCP range, router, and any optional InfiniBand network. |
     | `omnia_config.yml` | Configure `slurm_cluster`, including its cluster name and storage references. |
     | `storage_config.yml` | Define the mounts named by `slurm_cluster`; the referenced storage must be reachable where configured. |
@@ -250,10 +263,26 @@ For the complete mapping schema and OME procedure, see
     Orchestrator derives Slurm support and the cluster OS metadata from the
     catalog.
 
+    The storage references in
+    `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/omnia_config.yml` must
+    match mount names defined in
+    `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/storage_config.yml`:
+
+    - Each `slurm_cluster[].nfs_storage_name` value must match a
+      `mounts[].name` value.
+    - Each non-empty `slurm_cluster[].vast_storage_name` value must match a
+      `mounts[].name` value.
+
+    !!! warning
+
+        The default configuration enables PXE booting, force-restarts mapped
+        servers, and applies the PXE override continuously. If only one
+        provisioning cycle is required, set
+        `boot_source_override_enabled: once` in `set_pxe_boot_config.yml`.
+
 2. Run the complete standard Orchestrator flow:
 
     ```bash title="Run on: OIM host"
-    cd src/main
     ./omnia.sh --run orchestrator
     ```
 
@@ -285,12 +314,21 @@ For detailed Slurm and provisioning settings, see
     cat "$orchestrator_path/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yaml"
     ```
 
-3. On the Slurm controller, verify the services and node state:
+    Node-registration verification must be enabled in
+    `set_pxe_boot_config.yml` by setting `enable_node_registration: true`.
+    Confirm that `orchestrator_status.yml` reports
+    `verification_enabled: true` and `unverified_count: 0`. The cluster is not
+    ready for use while any node remains unverified.
+
+3. On the Slurm controller, verify the services, controller connectivity, node
+   state, and job execution:
 
     ```bash title="Run on: Slurm controller"
     systemctl is-active slurmctld
     systemctl is-active slurmdbd
+    scontrol ping
     sinfo
+    srun -N 1 hostname
     ```
 
 4. On each Slurm compute node, verify the node daemon:
