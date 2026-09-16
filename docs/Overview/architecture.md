@@ -74,7 +74,9 @@ components:
 - **Shared catalog** — defines functional layers, functional groups, packages,
   and content sources consumed by Repository Manager, Image Build Manager, and
   Orchestrator. The catalog is a shared input contract rather than a deployment
-  module.
+  module. Default Kubernetes and Slurm catalogs are available from
+  [`src/main/samples/catalogs`](https://github.com/dell/omnia/tree/issue-4849-omnia-modernization/src/main/samples/catalogs)
+  in the Omnia source repository.
 
 ## Deployment module responsibilities
 
@@ -194,19 +196,19 @@ for the source-backed input fields.
 
 ![Omnia Kubernetes Stack](../assets/images/omnia-k8s.svg)
 
-Orchestrator provisions service Kubernetes only when the catalog and
-`omnia_config.yml` select the service Kubernetes functional groups. The source
-configures CRI-O storage for these nodes. Telemetry subsequently uses the
-generated Orchestrator inventory and Kubernetes control-plane virtual IP to
-deploy its selected workloads.
+Orchestrator provisions the service Kubernetes control-plane and worker
+functional groups selected through the catalog and PXE mapping. It configures
+CRI-O storage for these nodes. Telemetry subsequently uses the generated
+Orchestrator inventory and Kubernetes control-plane virtual IP to deploy its
+selected workloads.
 
 ## Slurm stack
 
 ![Omnia Slurm Stack](../assets/images/omnia-slurm.svg)
 
 Orchestrator provisions the Slurm control, compute, login, and login-compiler
-functional groups selected by the catalog and mapping. It configures the
-applicable shared storage, Slurm services, authentication, optional GPU and
+functional groups selected through the catalog and PXE mapping. It configures
+the applicable shared storage, Slurm services, authentication, optional GPU and
 fabric software, and generated inventory. LDMS Telemetry additionally requires
 reachable Slurm control and compute nodes.
 
