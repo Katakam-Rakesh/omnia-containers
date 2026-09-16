@@ -20,7 +20,6 @@ The default location is
 | `caching_policy` | boolean | No | Global Pulp caching behavior. The source value is `true`. |
 | `repositories` | object | Yes | Repository definitions organized by OS version and architecture. |
 | `registries` | object or null | No | Container registries keyed by registry name. |
-| `catalog_config` | object | No | Compatibility catalog reference; runtime selection uses the shared environment. |
 
 Unknown top-level and nested properties are rejected.
 
@@ -84,4 +83,3 @@ in `repo_manager_config_credentials.yml` with the matching
 
 - [Repo Manager endpoint](repo_manager_endpoint_config.md)
 - [Repo Manager contract](../domain_contracts/repo_manager_contract.md)
-
