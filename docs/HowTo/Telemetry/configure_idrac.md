@@ -419,23 +419,19 @@ deployment scales the `idrac-telemetry` StatefulSet to zero replicas. The MySQL
 PVC is preserved so the service inventory remains available when iDRAC
 telemetry is enabled again.
 
-To remove only the iDRAC Telemetry resources while preserving the MySQL PVC:
+To remove the iDRAC Telemetry resources and the source-owned MySQL PVC:
 
 ```bash title="Run on: OIM"
 cd src/main
 ./omnia.sh --run telemetry --tags cleanup_idrac
 ```
 
-Delete the MySQL PVC only when a complete iDRAC telemetry data reset is
-intended:
-
-```bash title="Run on: OIM"
-./omnia.sh --run telemetry --tags cleanup_idrac -e Delete_volume=true
-```
-
 !!! warning
 
-    `Delete_volume=true` permanently removes the MySQL service inventory.
+    The `cleanup_idrac` workflow permanently removes the MySQL service
+    inventory. The `delete_sinks_volume` option does not apply to this
+    source-owned volume; it controls only Kafka, VictoriaMetrics, and
+    VictoriaLogs sink volumes during full cleanup.
 
 ## Next steps
 

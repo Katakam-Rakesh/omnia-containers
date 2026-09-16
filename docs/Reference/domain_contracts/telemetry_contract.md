@@ -150,7 +150,7 @@ Cleanup rewrites the same file with `type: cleanup`. The deployment-only
 
 | Field | Type | Purpose |
 |---|---|---|
-| `volumes.delete_requested` | Boolean | Whether cleanup was requested to delete persistent volumes. |
+| `volumes.delete_requested` | Boolean | Whether cleanup was requested to delete sink persistent volumes. |
 | `volumes.status` | String | Aggregate volume result: `cleaned`, `preserved`, `failed`, or `skipped`. |
 | `volumes.components` | Object | Volume result for every source and sink component. Components without persistent storage are `skipped`. |
 | `cleanup_components` | Object | Cleanup result for each source, the source-drain phase, and each sink. |
@@ -161,14 +161,16 @@ Cleanup result values under `sinks`, `sources`, `bridges`, and
 is `skipped` when that capability was not enabled, even if another channel or
 the source component itself was cleaned.
 
-The `Delete_volume` or `delete_volume` Boolean extra variable controls whether
-persistent volume claims are deleted or preserved. The cleanup workflow
-preserves `telemetry_status.yml` as the last-known result.
+The `delete_sinks_volume` Boolean extra variable controls whether sink
+persistent volume claims for Kafka, VictoriaMetrics, and VictoriaLogs are
+deleted or preserved. Source cleanup always deletes source-owned persistent
+volumes. The cleanup workflow preserves `telemetry_status.yml` as the last-known
+result.
 
 #### Cleanup example
 
-The following example shows a successful cleanup in which persistent-volume
-deletion was not requested:
+The following example shows a successful cleanup in which sink-volume deletion
+was not requested:
 
 ```yaml
 domain: "telemetry"
@@ -271,9 +273,8 @@ independent deployment domain.
 | Recovery initialization | The `cleanup-mysql-locks` init container removes stale `.sock` and `.pid` files after an ungraceful shutdown. |
 
 Disabling iDRAC metrics scales the StatefulSet to zero replicas and preserves
-the MySQL PVC. `cleanup_idrac` removes the source resources but also preserves
-the PVC by default. Passing `Delete_volume=true` deletes the PVC and permanently
-removes the stored service inventory.
+the MySQL PVC. Running `cleanup_idrac` removes the source resources and the
+source-owned MySQL PVC, permanently removing the stored service inventory.
 
 The `services.auth` column contains authentication data used by the receiver.
 Operational verification must not print or publish this column.

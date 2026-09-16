@@ -30,14 +30,14 @@ Run one operation tag at a time:
   ./omnia.sh -i utils
   ```
 
-- Confirm that the active project contains valid Orchestrator
+- Confirm that the Utils project input directory contains valid
   `omnia_config.yml` and `storage_config.yml` files. The first
   `slurm_cluster` entry must reference an NFS storage name that exists in the
   `mounts` list in `storage_config.yml`.
 - Confirm that the Slurm NFS `mount_point` is mounted and writable on the OIM.
 - Provide a PXE mapping containing a `slurm_control_node_*` functional group.
   The default mapping is
-  `$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml`. A CSV
+  `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/nodes_slurm.yaml`. A CSV
   `pxe_mapping_file.csv` can be selected through the optional configuration.
 - For rollback, confirm passwordless root SSH access from the OIM to the first
   Slurm controller in the mapping. The controller must have `slurmctld`,
@@ -55,6 +55,39 @@ $OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/slurm_config_util_config.yml
 Defaults are used when the file is absent or its path overrides are empty. See
 [Slurm Config Utility Configuration](../../Reference/Configuration/slurm_config_util_config.md)
 for all parameters.
+
+### Source the input files
+
+The Slurm configuration workflows expect their default inputs in:
+
+```text
+$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/
+├── omnia_config.yml
+├── storage_config.yml
+└── nodes_slurm.yaml
+```
+
+These files are normally generated in other Omnia domains. Copy the applicable
+files into the Utils input directory:
+
+| Required input | Source location |
+|---|---|
+| `omnia_config.yml` | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config.yml` |
+| `storage_config.yml` | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/storage_config.yml` |
+| `nodes_slurm.yaml` | `$OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml` |
+
+As an alternative to `nodes_slurm.yaml`, copy the Orchestrator-generated
+`$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
+into the Utils input directory and set `pxe_mapping_path` to the copied file.
+The mapping format is detected from its extension: `.csv` selects CSV, and
+every other extension selects YAML.
+
+!!! note
+
+    Copy these inputs rather than creating symbolic links. To keep them in
+    their source locations, override `omnia_config_path`, `storage_config_path`,
+    and `pxe_mapping_path` in `slurm_config_util_config.yml` or with
+    command-line extra variables.
 
 The backup destination is selected in this order:
 
@@ -210,8 +243,9 @@ scontrol show nodes
 ## Troubleshooting
 
 - **An input file is not found**: Confirm the active project and the paths in
-  `slurm_config_util_config.yml`. Run `./omnia.sh -i utils` to stage the latest
-  optional Utils configuration.
+  `slurm_config_util_config.yml`. Confirm that the required files were copied
+  into the Utils project input directory, or configure explicit source paths.
+  Run `./omnia.sh -i utils` to stage the latest optional Utils configuration.
 - **No Slurm controller is found**: Confirm that the YAML or CSV mapping
   contains a functional group beginning with `slurm_control_node_`.
 - **The backup NFS destination cannot be mounted**: Confirm DNS or IP

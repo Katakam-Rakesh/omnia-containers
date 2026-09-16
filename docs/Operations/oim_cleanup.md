@@ -85,16 +85,17 @@ environment.
 
 ### 2. Select optional destructive behavior
 
-Telemetry preserves persistent volumes by default. Delete them only when a
-complete telemetry data reset is intended:
+Telemetry cleanup always deletes source-owned persistent volumes and preserves
+sink volumes by default. Delete the Kafka, VictoriaMetrics, and VictoriaLogs
+sink volumes only when a complete telemetry data reset is intended:
 
 ```bash title="Run on: OIM"
-./omnia.sh --run telemetry --tags cleanup -e Delete_volume=true
+./omnia.sh --run telemetry --tags cleanup -e delete_sinks_volume=true
 ```
 
-To remove only iDRAC Telemetry resources, use `--tags cleanup_idrac`. Its MySQL
-PVC `mysqldb-pvc-idrac-telemetry-0` is also preserved unless
-`Delete_volume=true` is supplied.
+To remove only iDRAC Telemetry resources, use `--tags cleanup_idrac`. This
+source cleanup also deletes its MySQL PVC
+`mysqldb-pvc-idrac-telemetry-0` and the stored service inventory.
 
 Orchestrator removes its encrypted credentials and Vault key during full
 cleanup. The current implementation does not consume the documented

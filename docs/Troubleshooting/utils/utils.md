@@ -83,11 +83,14 @@ Slurm configuration management, and cleanup workflows. The Utils Ansible log is
        Slurm project.
     2. Review path overrides in
        `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/slurm_config_util_config.yml`.
-    3. Confirm that the selected `omnia_config.yml` contains a nonempty
+    3. When using the defaults, confirm that `omnia_config.yml`,
+       `storage_config.yml`, and `nodes_slurm.yaml` were copied into
+       `$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/`.
+    4. Confirm that the selected `omnia_config.yml` contains a nonempty
        `slurm_cluster` list.
-    4. Confirm that its `nfs_storage_name` matches a `mounts[].name` value in
+    5. Confirm that its `nfs_storage_name` matches a `mounts[].name` value in
        `storage_config.yml`.
-    5. Confirm that the YAML or CSV node mapping exists at the resolved path.
+    6. Confirm that the YAML or CSV node mapping exists at the resolved path.
 
 ## Slurm controller is not found in the mapping
 
