@@ -55,67 +55,131 @@ full `image_build_manager` cleanup tag.
 
 ## Clean up deployed domains
 
-Run only the commands for domains that have deployed or generated state. Use
-reverse dependency order so consumers are removed before the services they
-depend on:
+Run only the following sections for domains that have deployed or generated
+state. Keep the listed reverse dependency order so consumers are removed
+before the services they depend on. For example, remove Telemetry before its
+Kubernetes environment and remove Image Build Manager before Repo Manager.
+
+### Complete full-cleanup command sequence
+
+Use the following block only when every listed domain was deployed and a
+complete data reset is intended. If a domain was not deployed, remove its
+command from the block before running it. The subshell exits immediately if a
+command fails, which prevents cleanup from continuing to a dependency or the
+shared environment.
+
+!!! danger
+
+    This sequence deletes PostgreSQL data, all Telemetry source and sink
+    volumes, and Slurm and Kubernetes shared data. It then removes the Omnia
+    environment and all remaining data under `OMNIA_DATA_PATH`. Confirm that
+    required data has been backed up outside every cleanup target.
+
+    Image Build Manager cleanup does not delete objects from an external
+    PowerScale S3 provider. Review and remove external objects separately only
+    when their deletion is intended.
 
 ```bash title="Run on: OIM host"
-cd <OMNIA_SOURCE_PATH>/src/main
+(
+  set -e
+  cd <OMNIA_SOURCE_PATH>/src/main
 
-./omnia.sh --run build_stream --tags cleanup
-./omnia.sh --run telemetry --tags cleanup
-./omnia.sh --run orchestrator --tags cleanup
-./omnia.sh --run discovery --tags cleanup
-./omnia.sh --run image_build_manager --tags cleanup
-./omnia.sh --run repo_manager --tags cleanup
-./omnia.sh --run utils --tags cleanup
+  ./omnia.sh --run build_stream --tags cleanup \
+    -e postgres_backup=false
+  ./omnia.sh --run telemetry --tags cleanup \
+    -e delete_sinks_volume=true
+  ./omnia.sh --run orchestrator --tags cleanup \
+    -e cleanup_slurm=true -e cleanup_k8s=true
+  ./omnia.sh --run discovery --tags cleanup
+  ./omnia.sh --run image_build_manager --tags cleanup
+  ./omnia.sh --run repo_manager --tags cleanup
+  ./omnia.sh --run utils --tags cleanup
+
+  ./omnia.sh --cleanup --all
+)
 ```
 
-Review every prompt and the final Ansible recap. Stop and correct a failure
-before continuing to the next domain. Do not run Main cleanup while a domain
-playbook still needs the shared virtual environment.
+Review each command's final Ansible recap as the sequence runs. Main full
+cleanup still performs its safety check and requests the exact confirmation
+`yes`; `set -e` stops the sequence when that safety check or any earlier
+command fails.
 
-!!! warning
+The following sections explain each command and its less-destructive options.
+For individual execution, start from `<OMNIA_SOURCE_PATH>/src/main`. Do not
+remove the shared virtual environment while another domain cleanup still
+needs it.
 
-    Discovery cleanup removes all artifacts from the current project's output
-    directory and removes its credential file and Vault key by default. Copy
-    any mapping required by Orchestrator before cleanup. See
-    [Clean up Discovery data](../HowTo/discovery/index.md#clean-up-discovery-data)
-    for credential-preservation and credentials-only commands.
+### 1. Clean up BuildStreaM
 
-## Select optional cleanup behavior
+Skip this section when BuildStreaM was not deployed. The full cleanup removes
+the managed GitLab deployment, BuildStreaM service, watcher, automation
+artifacts, PostgreSQL service, NFS runtime directories, and BuildStreaM
+credentials. Ensure the configured GitLab host is reachable and its stored SSH
+credential is available before starting.
 
-### BuildStreaM
+PostgreSQL data and volumes are preserved by default:
 
-BuildStreaM stops and removes PostgreSQL but preserves its data by default. To
-delete the PostgreSQL data and volumes as part of cleanup, run:
+```bash title="Run on: OIM host"
+./omnia.sh --run build_stream --tags cleanup
+```
+
+To remove PostgreSQL data and volumes as part of a complete reset, run instead:
 
 ```bash title="Run on: OIM host"
 ./omnia.sh --run build_stream --tags cleanup -e postgres_backup=false
 ```
 
-### Telemetry
+To remove an individual BuildStreaM image group while retaining the deployed
+domain, do not run full domain cleanup. Use
+[Clean up BuildStreaM image groups](build_stream/cleanup_operations.md).
 
-Full Telemetry cleanup deletes source-owned persistent volumes and preserves
-Kafka, VictoriaMetrics, and VictoriaLogs volumes by default. Delete the sink
-volumes only when a complete telemetry data reset is intended:
+### 2. Clean up Telemetry
+
+Run Telemetry cleanup while its Kubernetes cluster remains available. Full
+cleanup removes all enabled Telemetry sources and sinks and deletes the stored
+Telemetry credential file and Vault key. Source-owned persistent volumes are
+deleted; Kafka, VictoriaMetrics, and VictoriaLogs volumes are preserved by
+default:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run telemetry --tags cleanup
+```
+
+Delete the preserved sink volumes only when a complete Telemetry data reset is
+intended:
 
 ```bash title="Run on: OIM host"
 ./omnia.sh --run telemetry --tags cleanup -e delete_sinks_volume=true
 ```
 
-Use a component-specific cleanup tag when only one Telemetry source must be
-removed. A full `cleanup` run also deletes the Telemetry credential file and
-Vault key.
+When retaining the rest of Telemetry, use the applicable component tag instead
+of `cleanup`: `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`,
+`cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `cleanup_kafka`,
+`cleanup_victoria_metrics`, or `cleanup_victoria_logs`.
 
-### Orchestrator
+### 3. Clean up Orchestrator
 
-Orchestrator prompts independently before deleting Slurm and Kubernetes
-shared data. Any response other than the exact value `yes` preserves that
-component's shared data, but cleanup still unmounts its storage and removes
-the corresponding `/etc/fstab` entry.
+Back up required Slurm and Kubernetes shared data before this step. Preview the
+full cleanup plan without changing the environment:
 
-Set the choices explicitly for a noninteractive decision:
+```bash title="Run on: OIM host"
+DRY_RUN=true ./omnia.sh --run orchestrator --tags cleanup
+```
+
+For an interactive run, use:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run orchestrator --tags cleanup
+```
+
+Orchestrator prompts independently before deleting Slurm and Kubernetes shared
+data. Only the exact response `yes` deletes the selected component's data. Any
+other response preserves its data, but cleanup still unmounts that storage and
+removes its `/etc/fstab` entry.
+
+For a reviewed noninteractive decision, set both choices explicitly. For
+example, the following command deletes Slurm data and preserves Kubernetes
+data:
 
 ```bash title="Run on: OIM host"
 ./omnia.sh --run orchestrator --tags cleanup \
@@ -124,11 +188,10 @@ Set the choices explicitly for a noninteractive decision:
 
 The current implementation does not consume `cleanup_credentials=false`,
 although source comments mention it. Full cleanup therefore removes the
-Orchestrator credential file and Vault key. To retain them, use the supported
-standalone component flow described in
-[Clean up Orchestrator](../HowTo/orchestrator/cleanup_orchestrator.md), selecting
-explicit component tags and omitting `cleanup_credentials`, or preserve both
-files through an approved secure backup procedure.
+Orchestrator credential file and Vault key. To preserve them or clean only one
+component, follow
+[Clean up Orchestrator](../HowTo/orchestrator/cleanup_orchestrator.md) and use
+the standalone component flow with explicit component tags.
 
 !!! warning
 
@@ -136,23 +199,81 @@ files through an approved secure backup procedure.
     when `cleanup_slurm` or `cleanup_k8s` is omitted. Set both choices
     explicitly before using noninteractive cleanup.
 
-### Repo Manager
+### 4. Clean up Discovery
 
-Repo Manager removes its credentials and logs by default without prompting.
-Preserve either set explicitly when required:
+Discovery cleanup affects only the current project. It empties the project
+output directory and removes `discovery_credentials.yml` and its Vault key by
+default. Copy any discovered node mapping needed for later reuse before
+running:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run discovery --tags cleanup
+```
+
+To empty the current project's output while preserving its credentials, run:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run discovery --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+Other Discovery input files and Discovery logs are preserved. For the
+credentials-only operation, see
+[Clean up Discovery data](../HowTo/discovery/index.md#clean-up-discovery-data).
+
+### 5. Clean up Image Build Manager
+
+Full Image Build Manager cleanup removes the locally managed MinIO service and
+data, the local registry and its data, build work directories, credentials,
+domain logs, and `/root/.s3cfg` when local MinIO is used. It also empties the
+shared Image Build Manager `output` and `log` roots, affecting every project
+that uses the configured domain data path:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run image_build_manager --tags cleanup
+```
+
+When PowerScale is the configured S3 provider, full cleanup preserves
+`/root/.s3cfg` and does not delete objects from PowerScale. If the goal is only
+to remove selected or all built images while retaining Image Build Manager
+services, use
+[Clean up built images](cleanup_built_images.md) instead.
+
+### 6. Clean up Repo Manager
+
+Run Repo Manager cleanup after Image Build Manager no longer needs its package
+content. Full cleanup removes the Pulp service, container image, Pulp data,
+repository integration, credentials, and logs. Credentials and logs are
+removed by default without prompting:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run repo_manager --tags cleanup
+```
+
+To retain credentials and logs for a later deployment, run instead:
 
 ```bash title="Run on: OIM host"
 ./omnia.sh --run repo_manager --tags cleanup \
   -e cleanup_credentials=false -e cleanup_logs=false
 ```
 
-### Utils
+To remove selected repositories or artifacts while retaining Pulp, use
+[Pulp cleanup](pulp_cleanup.md) instead of full Repo Manager cleanup.
 
-The general Utils cleanup removes all four utility artifact sets, including
-OIM log backups and Slurm configuration backups, without applying retention.
-Use scoped cleanup tags when any backup class must remain. Review
-[Clean up Utils](../HowTo/utils/cleanup_utils.md) before running the general
-command.
+### 7. Clean up Utils
+
+The general Utils cleanup removes cluster-log artifacts, unattended-install
+temporary files and credentials, all OIM log-backup runs, and all Slurm
+configuration backup runs:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run utils --tags cleanup
+```
+
+The backup cleanup workflows do not apply retention or ask for confirmation.
+When any artifact or backup class must remain, follow
+[Clean up Utils](../HowTo/utils/cleanup_utils.md) and run only the applicable
+scoped cleanup tags.
 
 ## Remove the shared Omnia environment
 
