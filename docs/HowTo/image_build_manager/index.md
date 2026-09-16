@@ -48,6 +48,7 @@ functional layers and architectures that Image Build Manager builds.
 |---|---|
 | [Select or update the catalog](../main/update_catalog.md) | Choose the workload, architecture, and VAST variant used for catalog-based image builds. |
 | [Build OS Images](build_images.md) | Configure the build inputs, prepare storage and registry services, build functional-group images, upload their artifacts, and generate `build_status.yml`. |
+| [Clean up built images](../../Operations/cleanup_built_images.md) | Remove selected or all built artifacts from S3 and the local registry without removing Image Build Manager services. |
 
 ## Contract reference
 

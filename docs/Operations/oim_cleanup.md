@@ -49,6 +49,10 @@ virtual environment installed until every required domain cleanup completes.
 | `repo_manager` | Removes the Pulp deployment, Pulp data, repository integration, logs, and Repo Manager credentials. Credentials and logs are removed by default. |
 | `utils` | Removes cluster-log artifacts, unattended-installation temporary files and credentials, all OIM log-backup runs, and all Slurm configuration backup runs. |
 
+To preserve Image Build Manager services and remove only selected or all built
+artifacts, use [Clean up built images](cleanup_built_images.md) instead of the
+full `image_build_manager` cleanup tag.
+
 ## Clean up deployed domains
 
 Run only the commands for domains that have deployed or generated state. Use

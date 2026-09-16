@@ -432,6 +432,9 @@ used by the workflow are fixed.
 - When package inputs change, run the build again. Set `force_rebuild: true`
   when the package-hash cache must be bypassed; set `backup_s3_images: true` to
   preserve the existing compute artifacts under `*_prev` before rebuilding.
+- Use [Clean up built images](../../Operations/cleanup_built_images.md) to
+  remove selected or all image artifacts while preserving Image Build Manager
+  services and configuration.
 
 ## Troubleshooting
 
