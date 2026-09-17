@@ -21,7 +21,7 @@ devices and software, see [Support Matrix](../index.md#support-matrix).
     ```
 
 - All target bare-metal servers (cluster nodes) must be **reachable from the OIM**.
-- Make sure that the required Omnia ports are available on the applicable hosts. For detailed information on the required ports, refer to [Ports Used by the Omnia](../../GetStarted/prerequisites_checklist.md#ports-used-by-the-omnia).
+- Make sure that the required Omnia ports are available on the applicable hosts. For detailed information on the required ports, refer to [Ports used by Omnia](../../GetStarted/prerequisites_checklist.md#ports-used-by-omnia).
 - Complete [Setup the OIM](../../HowTo/main/setup_oim.md) to install the shared
   environment and initialize the deployment modules.
 
@@ -29,7 +29,6 @@ devices and software, see [Support Matrix](../index.md#support-matrix).
 
     See [Running Deployment Modules](../../Overview/domain_execution.md) for
     the supported module setup and execution workflow.
-
 
 
 

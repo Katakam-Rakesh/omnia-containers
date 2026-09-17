@@ -72,11 +72,11 @@ cluster.
 | ☐ | Internet access (direct or via proxy) | Required while the Repository Manager `download` workflow synchronizes OS packages, Python modules, and container images. After synchronization, air-gapped operation is possible. |
 | ☐ | Git installed | `dnf install git -y`. Needed to clone the Omnia repository. |
 | ☐ | 500 GB+ free disk on / | Local repos, container images, and node OS images consume significant space. Use `df -h /` to check. |
-| ☐ | Required Omnia ports available | See [Ports Used by the Omnia](#ports-used-by-the-omnia) below for the complete list of ports and the systems on which they must be available. |
+| ☐ | Required Omnia ports available | See [Ports used by Omnia](#ports-used-by-omnia) below for the complete list of ports and the systems on which they must be available. |
 | ☐ | OIM setup completed | Complete [Setup the OIM](../HowTo/main/setup_oim.md) to install the shared environment and initialize the deployment modules. |
 | ☐ | All target bare-metal servers reachable from OIM | Ensure network connectivity from OIM to all cluster nodes. |
 
-### Ports Used by the Omnia
+### Ports used by Omnia
 
 Omnia uses the following ports across the OIM, service Kubernetes nodes, Slurm nodes,
 and other functional hosts. Ensure the applicable ports are available on the systems
@@ -307,7 +307,7 @@ via iDRAC or BIOS Setup (F2 at POST).
 | ☑ | Requirement | Details |
 | --- | --- | --- |
 | ☐ | iDRAC Datacenter license installed | The Datacenter license enables streaming telemetry via iDRAC. Enterprise license is insufficient for iDRAC telemetry. |
-| ☐ | Telemetry ports available | Ensure telemetry ports are accessible on the applicable systems (see [Ports Used by the Omnia](#ports-used-by-the-omnia) for the complete list). |
+| ☐ | Telemetry ports available | Ensure telemetry ports are accessible on the applicable systems (see [Ports used by Omnia](#ports-used-by-omnia) for the complete list). |
 | ☐ | S3 storage configured for telemetry data | If using PowerScale S3, ensure it is configured and accessible from the OIM. |
 
 ### LDMS Prerequisites (for HPC Telemetry)
