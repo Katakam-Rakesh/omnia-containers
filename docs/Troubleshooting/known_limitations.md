@@ -212,26 +212,6 @@ detachment and reattachment, and successful MySQL initialization.
 
 No manual intervention is required. Wait for the telemetry services to recover and fail over automatically. Do not restart pods or nodes during this period, as it may extend recovery time.
 
-### Removed iDRAC Inventory Reconciliation
-
-**Symptom:**
-
-Telemetry deployment can fail while removing BMC addresses that are no longer
-present in the configured BMC inventory.
-
-**Cause:**
-
-The current MySQL deletion module has inconsistent `mysql_*` and `mysqldb_*`
-argument names. This affects removal of stale records from the `services` table;
-it does not affect initial MySQL deployment or insertion of valid BMC records.
-
-**Resolution:**
-
-Keep the source inventory and database state unchanged until the module argument
-names are corrected. Do not manually delete database rows without a current
-backup and an approved recovery plan.
-
-
 ### Limited iDRAC Telemetry Metrics for PowerEdge XE8712
 
 **Symptom:**
@@ -254,7 +234,6 @@ There is currently no workaround available.
 An enhancement request has been submitted to enable support for the complete set of iDRAC telemetry metrics on the PowerEdge XE8712 platform:
 
 **GitHub Enhancement Request:** [Enhancement Request: Support Complete iDRAC Telemetry Metrics on PowerEdge XE8712 with NVIDIA GB200](https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues/190)
-
 
 
 

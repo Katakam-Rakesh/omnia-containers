@@ -26,11 +26,6 @@ The file contains `utility`, `overall_status`, `playbook`, `version`,
 `started_at`, and `completed_at`. It can also contain role results, errors,
 and warnings when those values are supplied to the status writer.
 
-The current status writer emits `version: "2.2.0"` even though the Utils Galaxy
-collection is version `2.3.0`. Treat this field as status-schema metadata until
-the source version is aligned; do not use it to determine the installed Omnia
-release.
-
 ### OS installation artifacts
 
 ISO build operations write these artifacts to the directory selected by

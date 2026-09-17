@@ -84,10 +84,10 @@ The first installation run prompts for `bmc_username`, `bmc_password`, and
 2. Edit the staged configuration:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/utils/input/project_default/install_os_config.yml
+    vi <OMNIA_DATA_PATH>/utils/input/<project>/install_os_config.yml
     ```
 
-    Replace `project_default` when `OMNIA_PROJECT_NAME` selects another project.
+    Replace `<project>` with the value of `OMNIA_PROJECT_NAME`.
 
 3. Configure the source ISO, NFS destination, and target node. For example:
 
@@ -191,8 +191,25 @@ media or an unsupported virtual-CD boot target.
 
 ### Run individual build or deployment stages
 
-For troubleshooting or controlled operation, run the installation playbook
-directly from the utils collection after activating the Omnia environment:
+For troubleshooting or controlled operation, run an individual stage through
+the Utils domain launcher:
+
+```bash title="Run from: <omnia-repository>/src/main"
+./omnia.sh --run utils --tags generate_ks
+./omnia.sh --run utils --tags build_iso
+./omnia.sh --run utils --tags deploy
+```
+
+Use the stage that matches the required operation:
+
+| Tag | When to use it |
+| --- | --- |
+| `generate_ks` | Generate the Kickstart file for review or troubleshooting without building an ISO or deploying it to a server. |
+| `build_iso` | Build the custom ISO without attaching it to the target server or starting the OS installation. Use this option to prepare the ISO for a later deployment. If the ISO already exists and must be replaced, set `rebuild_iso: true`. |
+| `deploy` | Reuse an existing ISO and install the operating system without rebuilding the ISO. The ISO specified in `custom_iso_path` is used for the operating system installation. |
+
+The same stages can be invoked directly from the utils collection after
+activating the Omnia environment:
 
 ```bash title="Run from: <omnia-repository>/src/utils"
 ansible-playbook playbooks/install_os.yml --tags credentials
