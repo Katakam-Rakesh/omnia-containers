@@ -23,6 +23,13 @@ Skipping a prerequisite is the single most common cause of failed deployments.
 | ☐ | AMD 17G models | Supported: R6725, R7725, R6715, R7715, R7725xd. Validated: R7725xd. |
 | ☐ | NVIDIA Grace 17G models | Supported: XE8712 with GB200. Validated: XE8712 with GB200. |
 
+#### Aarch64 Node Prerequisites
+
+| ☑ | Requirement | Details |
+| --- | --- | --- |
+| ☐ | Disk available for Full OS installation | You must install the OS manually on aarch64 nodes. |
+| ☐ | IP address assigned with PXE network connectivity | Ensure the aarch64 node has an IP and connectivity to the PXE network. |
+
 !!! note
 
     For aarch64 architecture platforms, limited validation has been performed on early access systems.
@@ -79,8 +86,8 @@ cluster.
 ### Ports used by Omnia
 
 Omnia uses the following ports across the OIM, service Kubernetes nodes, Slurm nodes,
-and other functional hosts. Ensure the applicable ports are available on the systems
-identified in the **Functional Group/OIM** column.
+and other functional hosts. Ensure the applicable ports are not assigned to any other
+service, on the systems identified in the **Functional Group/OIM** column.
 
 **Container Ports**
 
