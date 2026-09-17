@@ -211,11 +211,14 @@ kubectl get pods -n telemetry
 
 !!! note
 
-    The `idrac-telemetry` StatefulSet has one replica,
-    `idrac-telemetry-0`. That pod contains MySQL, ActiveMQ, the receiver,
-    KafkaPump, and VictoriaPump, and handles every iDRAC service record loaded
-    from the mapping file. Parent values group inventory records; they do not
-    create or shard StatefulSet replicas.
+    The `idrac-telemetry` StatefulSet is dynamically scaled based on
+    `bmc_group_data.csv`. It creates one pod for `MGMT_node`
+    (`idrac-telemetry-0`) and one additional pod for each unique, non-empty
+    parent value. Each pod contains MySQL, ActiveMQ, the receiver, KafkaPump,
+    and VictoriaPump. BMC records without a parent are assigned to the MGMT
+    pod, while records belonging to each parent are assigned to that parent's
+    dedicated pod. For example, three parent groups create four pods: one MGMT
+    pod and three parent pods.
 
 ### Verify iDRAC messages in Kafka
 
