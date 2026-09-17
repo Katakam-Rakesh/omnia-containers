@@ -6,9 +6,18 @@ Omnia provides seven independently invocable deployment-module entry playbooks. 
 `src/main/omnia.sh` script installs and activates the shared runtime, validates
 the requested module identifier, and invokes its top-level playbook.
 
+The supported domain identifiers are `repo_manager`, `image_build_manager`,
+`discovery`, `orchestrator`, `telemetry`, `build_stream`, and `utils`.
+
 `--run` accepts one module's internal domain identifier per command. It does
 not accept `all` or a comma-separated list. Run each required module in dependency order, or
 use the BuildStreaM pipeline path where applicable.
+
+For example:
+
+```bash title="Run on: OIM host"
+./omnia.sh --run orchestrator
+```
 
 ## Prepare the common runtime
 
@@ -19,10 +28,19 @@ cd src/main
 vi omnia.env
 ```
 
-At minimum, `SYSTEM_ADMIN_NIC_IPV4` must identify an IPv4 address assigned to
-the OIM. Review `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`, `SYSTEM_HOSTNAME`,
-`SYSTEM_DOMAIN_NAME`, `OMNIA_VENV_PATH`, and `CATALOG_FILE_PATH` for the
-deployment.
+Review these environment variables for the deployment:
+
+- `SYSTEM_ADMIN_NIC_IPV4` must identify an IPv4 address assigned to the OIM
+  administrative NIC.
+- `OMNIA_DATA_PATH` is the data directory for all persistent Omnia data,
+  whether NFS-mounted or local.
+- `OMNIA_PROJECT_NAME` is the project name that maps to input and output
+  subdirectories.
+- `SYSTEM_HOSTNAME` is the short hostname of the OIM, not the FQDN.
+- `SYSTEM_DOMAIN_NAME` is the domain name of the OIM.
+- `OMNIA_VENV_PATH` is the path to the shared Omnia Python virtual environment.
+- `CATALOG_FILE_PATH` is the path to the catalog JSON used by catalog-aware
+  operations.
 
 Set up the shared virtual environment, install module dependencies, create
 runtime directories, stage input templates, and copy the supplied catalog
@@ -175,9 +193,9 @@ cd src/main
 ./omnia.sh --run telemetry --tags deploy
 ```
 
-Review the module's How-To guide before running these commands. Each guide
-identifies its required inputs, credentials, conditional features, and output
-contract.
+Review the module's [How-to guide](../HowTo/index.md) before running these
+commands. Each guide identifies its required inputs, credentials, conditional
+features, and output contract.
 
 ## Verify module outputs
 
