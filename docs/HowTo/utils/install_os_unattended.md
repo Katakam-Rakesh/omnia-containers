@@ -84,10 +84,10 @@ The first installation run prompts for `bmc_username`, `bmc_password`, and
 2. Edit the staged configuration:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/utils/input/project_default/install_os_config.yml
+    vi <OMNIA_DATA_PATH>/utils/input/<project>/install_os_config.yml
     ```
 
-    Replace `project_default` when `OMNIA_PROJECT_NAME` selects another project.
+    Replace `<project>` with the value of `OMNIA_PROJECT_NAME`.
 
 3. Configure the source ISO, NFS destination, and target node. For example:
 
