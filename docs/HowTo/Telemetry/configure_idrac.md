@@ -62,9 +62,6 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
   $ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
   ```
 
-  If this setting is left empty, Telemetry uses
-  `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/bmc_group_data.csv`.
-
 - For deployment-time validation, ensure each BMC is reachable from at least
   one service Kubernetes worker. Validation starts from the first worker; when
   individual BMCs remain unreachable, it retries them from the second worker,
