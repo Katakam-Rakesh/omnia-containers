@@ -30,11 +30,6 @@ is not supported by this workflow.
 
 At least one `slurm_control_node_...` entry must remain in the PXE mapping file.
 
-This behavior is implemented in
-[`confs.yml`](https://github.com/dell/omnia/blob/issue-4849-omnia-modernization/src/orchestrator/roles/slurm_config/tasks/confs.yml)
-and
-[`drain_and_remove_node.yml`](https://github.com/dell/omnia/blob/issue-4849-omnia-modernization/src/orchestrator/roles/slurm_config/tasks/drain_and_remove_node.yml).
-
 ## Prerequisites
 
 - Complete [Deploy Slurm](../HowTo/orchestrator/deploy_slurm.md).
@@ -188,9 +183,6 @@ cd <OMNIA_SOURCE_PATH>/src/main
 The Telemetry workflow compares the regenerated `bmc_group_data.csv` with its
 database, disables telemetry on deleted iDRAC endpoints when possible, and
 removes their database entries.
-
-This behavior is implemented in
-[`remove_deleted_nodes.yml`](https://github.com/dell/omnia/blob/issue-4849-omnia-modernization/src/telemetry/roles/deploy_idrac_telemetry/tasks/remove_deleted_nodes.yml).
 
 ## Verification
 
