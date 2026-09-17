@@ -47,8 +47,8 @@ or provision cluster nodes.
   aarch64, OpenLDAP, and Orchestrator configurations available. The command
   collects only the values applicable to the current configuration.
 
-If the immediate goal is only to prepare for an image build, Orchestrator can
-be skipped until its inputs are ready.
+For a manual image-build workflow that does not use BuildStreaM, Orchestrator
+can be skipped until its inputs are ready.
 
 ## Procedure
 
@@ -75,8 +75,8 @@ be skipped until its inputs are ready.
     phase across the selected domains before starting the next phase. If any
     domain fails, processing stops immediately.
 
-4. To prepare only the services required before building images, skip
-   Orchestrator:
+4. For a manual image-build workflow that does not use BuildStreaM, prepare
+   only the services required before building images by skipping Orchestrator:
 
     ```bash title="Run on: OIM host"
     ./omnia.sh --prepare-base --skip orchestrator
@@ -87,6 +87,12 @@ be skipped until its inputs are ready.
     environment, include Repo Manager because Image Build Manager requires its
     synchronized output during the build phase. Skip Repo Manager only when
     its Pulp service and a successful `repo_status.yml` are already available.
+
+    !!! note
+
+        For the BuildStreaM workflow, do not skip any domain. Run
+        `./omnia.sh --prepare-base` without `--skip` so Repo Manager, Image
+        Build Manager, and Orchestrator are all prepared.
 
 ## Verification
 
@@ -118,14 +124,25 @@ Services for a skipped domain are not expected to be prepared by this command.
 
 ## Next steps
 
-After configuring the catalog and repository sources, continue from the Main
-source directory:
+!!! note
+
+    Skip the commands in this section for the BuildStreaM workflow. The
+    BuildStreaM build and deployment pipelines perform the corresponding
+    repository, image-build, and cluster-deployment operations.
+
+For a manual workflow, after configuring the catalog, repository sources, and
+required Orchestrator inputs, continue from the Main source directory:
 
 ```bash title="Run on: OIM host"
-./omnia.sh --run repo_manager --tags download
-./omnia.sh --run repo_manager --tags status
-./omnia.sh --run image_build_manager --tags build
+./omnia.sh --run repo_manager --tags execute
+./omnia.sh --run image_build_manager --tags execute
+./omnia.sh --run orchestrator --tags execute
 ```
+
+Repo Manager synchronizes the configured content and writes
+`repo_status.yml`. Image Build Manager consumes that file, builds the images,
+and writes `build_status.yml`. Orchestrator consumes the generated outputs,
+provisions the cluster nodes, and performs PXE boot when it is enabled.
 
 For the complete procedures:
 

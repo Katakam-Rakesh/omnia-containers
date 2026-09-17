@@ -148,22 +148,23 @@ Telemetry source guide:
 - Export [Kafka](configure_external_kafka.md) or
   [Victoria](configure_external_victoria.md) connection details when external
   systems must publish or query Telemetry data.
-- To remove all Telemetry runtime resources while preserving PVCs and Kafka
-  identity metadata, run the following from `src/main`:
+- To remove all Telemetry runtime resources while preserving sink PVCs and
+  Kafka identity metadata, run the following from `src/main`:
 
     ```bash title="Run on: OIM"
     ./omnia.sh --run telemetry --tags cleanup
     ```
 
-  Pass `-e Delete_volume=true` only when persistent volumes must also be
-  deleted. Source-specific tags such as `cleanup_idrac`, `cleanup_ldms`, and
-  `cleanup_powerscale` remove their respective sources. Although sink-specific
-  cleanup tags are discoverable in the current playbook, sink cleanup is gated
-  by the full `cleanup` operation.
+  Pass `-e delete_sinks_volume=true` only when the Kafka, VictoriaMetrics, and
+  VictoriaLogs sink volumes must also be deleted. Source-specific tags such as
+  `cleanup_idrac`, `cleanup_ldms`, and `cleanup_powerscale` remove their
+  respective sources and source-owned volumes. Although sink-specific cleanup
+  tags are discoverable in the current playbook, sink cleanup is gated by the
+  full `cleanup` operation.
 
-  For `cleanup_idrac`, the preserved data includes the MySQL PVC
-  `mysqldb-pvc-idrac-telemetry-0`. Deleting that PVC permanently removes the
-  iDRAC service inventory stored in `idrac_telemetrydb`.
+  The `cleanup_idrac` workflow deletes the MySQL PVC
+  `mysqldb-pvc-idrac-telemetry-0` and permanently removes the iDRAC service
+  inventory stored in `idrac_telemetrydb`.
 
 ## Troubleshooting
 

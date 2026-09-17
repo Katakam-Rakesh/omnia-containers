@@ -33,7 +33,7 @@ its own task-oriented guides:
 | **orchestrator** | Slurm, Kubernetes, networking, storage, authentication | [Orchestrator](orchestrator/index.md) |
 | **telemetry** | iDRAC, LDMS, storage, and fabric metrics collection | [Telemetry](Telemetry/index.md) |
 | **build_stream** | GitLab CI/CD pipeline automation | [BuildStreaM](build_stream/index.md) |
-| **utils** | Helper utilities for backup and installation | [Utilities](utils/index.md) |
+| **utils** | Helper utilities for log backup, Slurm configuration management, and OS installation | [Utilities](utils/index.md) |
 
 ## Module-specific procedures
 
@@ -51,7 +51,6 @@ Select a module above to view its how-to guides. Depending on the module, these 
     Repository Manager → Image Build Manager → optional Discovery →
     Orchestrator → optional Telemetry. BuildStreaM provides a separate GitLab
     CI/CD automation path; Utilities runs on demand.
-
 
 
 

@@ -3,15 +3,16 @@
 ## Overview
 
 The Utils domain provides separate cleanup workflows for cluster-log
-collection, unattended operating-system installation, and OIM log backups.
-Use the scoped tags when only one utility must be cleaned. The general
-`cleanup` tag runs log-collection and OS-installation cleanup only.
+collection, unattended operating-system installation, OIM log backups, and
+Slurm configuration backups. Use a scoped tag when only one utility must be
+cleaned. The general `cleanup` tag runs all four cleanup playbooks.
 
 !!! warning
 
-    Utils cleanup deletes artifacts. Copy any required support or OIM log
-    backups before cleaning them, and confirm whether installation credentials
-    must be preserved before cleaning the OS-install workflow.
+    Utils cleanup deletes artifacts. Copy any required support, OIM log, and
+    Slurm configuration backups before cleaning them, and confirm whether
+    installation credentials must be preserved before cleaning the OS-install
+    workflow.
 
 ## Prerequisites
 
@@ -19,21 +20,23 @@ Use the scoped tags when only one utility must be cleaned. The general
 - Initialize the Utils domain with `./omnia.sh -i utils`.
 - Confirm `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` select the intended
   project.
-- Copy log archives that must be retained out of the Utils project output.
+- Copy log archives and configuration backups that must be retained out of
+  the Utils project output or custom backup destination.
 
 ## Procedure
 
-To clean the cluster-log collection and unattended OS-installation workflows,
-run:
+To clean every Utils workflow, run:
 
 ```bash title="Run from: <omnia-repository>/src/main"
 ./omnia.sh --run utils --tags cleanup
 ```
 
-!!! note
+!!! danger
 
-    The `cleanup` tag does not remove OIM log backups. Use
-    `cleanup_backup_oim_logs` explicitly when those backups must be removed.
+    The general `cleanup` tag removes cluster-log artifacts, OS-installation
+    temporary files, OIM log-backup runs, and all Slurm configuration backup
+    runs. The two backup cleanup playbooks do not apply retention or request
+    confirmation. Use a scoped cleanup tag when backups must be preserved.
 
 To clean only log-collection artifacts, run:
 
@@ -59,22 +62,15 @@ To clean only unattended-installation artifacts, run:
 ```
 
 This workflow removes `/tmp/install_os`, unmounts `/tmp/install_os_nfs` when it
-is mounted, and removes the temporary NFS mount point. When a stored credential
-file exists, the playbook asks whether it should be deleted. For a
-non-interactive decision, pass one of the following values:
+is mounted, and removes the temporary NFS mount point. By default, it also
+removes `install_os_credentials.yml` and `.install_os_credentials_key`. To
+explicitly remove or preserve both credential files, pass the applicable
+value:
 
 ```bash title="Run from: <omnia-repository>/src/main"
 ./omnia.sh --run utils --tags cleanup_install_os -e cleanup_credentials=true
 ./omnia.sh --run utils --tags cleanup_install_os -e cleanup_credentials=false
 ```
-
-!!! important
-
-    The current credential role stores its Vault key as
-    `.install_os_credentials_key`, but the cleanup playbook targets the legacy
-    name `.install_os_vault_key`. If credentials are being reset, verify the
-    active project input directory and securely remove the remaining
-    `.install_os_credentials_key` after the workflow completes.
 
 To remove OIM log backups, run:
 
@@ -95,6 +91,32 @@ the backups were created.
     retention period or ask for confirmation. Preserve required backups before
     running it.
 
+To remove stored Slurm configuration backups, run:
+
+```bash title="Run from: <omnia-repository>/src/main"
+./omnia.sh --run utils --tags cleanup_slurm_config_backups
+```
+
+The workflow resolves the destination using command-line
+`slurm_backup_path`, configuration-file `slurm_backup_path`,
+`OMNIA_BACKUP_PATH`, and then the following default, in that order:
+
+```text
+$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/slurm_config_util
+```
+
+For a custom or NFS destination, supply or configure the same path used when
+the Slurm configuration backups were created.
+
+!!! danger
+
+    `cleanup_slurm_config_backups` removes every directory immediately below
+    the resolved destination. It does not apply a retention period or ask for
+    confirmation. This operation deletes stored backups; it does not delete
+    the active Slurm configuration. See
+    [Slurm Configuration Utilities](backup_slurm_config.md) for the distinction
+    between this tag and `slurm_config_cleanup`.
+
 ## Verification
 
 Review the domain status and the applicable artifact locations:
@@ -104,6 +126,8 @@ cat "$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/utils_status.yml"
 find "$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/collect" \
   -maxdepth 2 -type f 2>/dev/null
 find "$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/backup_oim_logs" \
+  -maxdepth 2 -type f 2>/dev/null
+find "$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/slurm_config_util" \
   -maxdepth 2 -type f 2>/dev/null
 find "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME" \
   -maxdepth 1 \( -name 'install_os_credentials.yml' \
@@ -121,6 +145,8 @@ match the choice made during cleanup.
   the target BMC, administrative address, and installation disk.
 - [Back up OIM logs](backup_oim_logs.md) again after reviewing the selected
   domains and destination.
+- [Manage Slurm configuration](backup_slurm_config.md) to create a new verified
+  backup or restore a retained backup.
 
 ## Troubleshooting
 
@@ -128,13 +154,12 @@ match the choice made during cleanup.
   directories based on archive age. Restore the bundle from the external copy.
 - **The NFS mount remains active**: Check `mountpoint /tmp/install_os_nfs`,
   unmount it safely, and rerun the scoped cleanup.
-- **OIM log backups remain after cleanup**: The general `cleanup` tag does not
-  include them. Run `cleanup_backup_oim_logs` with the same destination that
-  was used to create the backups.
+- **OIM or Slurm backups remain after cleanup**: A custom destination may have
+  been resolved differently. Run the applicable scoped cleanup tag with the
+  same `backup_path` or `slurm_backup_path` used to create the backups.
+- **Required Slurm backups were removed**: Neither the general cleanup nor
+  `cleanup_slurm_config_backups` provides retention. Restore the backup from
+  an external copy; it cannot be recovered from the cleaned destination.
 - **Credentials are requested on the next installation**: The encrypted
   credential file was removed. Run the installation interactively and provide
   the BMC username, BMC password, and OS root password again.
-- **The Vault key remains after credential cleanup**: Remove
-  `.install_os_credentials_key` securely from the active Utils project input
-  directory after confirming that the encrypted credential file is no longer
-  needed.

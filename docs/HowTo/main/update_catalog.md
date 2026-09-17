@@ -14,10 +14,11 @@ src/main/samples/catalog_rhel.json
 
 The default catalog targets RHEL 10.0 and combines x86_64 management and
 service Kubernetes layers with aarch64 Slurm compute layers without VAST.
-Additional deployment-specific catalogs are available under:
+Additional deployment-specific catalogs for RHEL 10.0 and RHEL 10.2 are
+available under:
 
 ```text
-src/main/samples/catalogs/10.0/
+src/main/samples/catalogs/<RHEL-version>/
 ```
 
 During `./omnia.sh --setup-venv`, Main copies only the top-level JSON and YAML
@@ -45,7 +46,9 @@ versioned `catalogs` subdirectory must be selected and copied explicitly.
     set +a
     ```
 
-2. Choose the RHEL 10.0 catalog that matches the deployment:
+2. Choose the catalog that matches the target RHEL version and deployment.
+   The same catalog filenames are available under the `10.0` and `10.2`
+   directories:
 
     | Deployment | With VAST | Without VAST |
     |---|---|---|
@@ -66,6 +69,9 @@ versioned `catalogs` subdirectory must be selected and copied explicitly.
     cp src/main/samples/catalogs/10.0/slurm_x86_64_no_vast.json \
       "${OMNIA_DATA_PATH}/catalog/slurm_x86_64_no_vast.json"
     ```
+
+    This example selects the RHEL 10.0 variant. Use the corresponding file
+    under `src/main/samples/catalogs/10.2/` when building RHEL 10.2 nodes.
 
     Keep the default `catalog_rhel.json` when it already matches the intended
     deployment.

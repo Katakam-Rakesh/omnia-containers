@@ -50,6 +50,10 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
 ## Prerequisites
 
 - Complete the common [Telemetry deployment prerequisites](deploy_telemetry.md#prerequisites).
+- Ensure Redfish is enabled in iDRAC.
+- Update the iDRAC firmware to the latest version.
+- Install an iDRAC Datacenter license on the nodes. An Enterprise license is
+  not sufficient for streaming telemetry.
 - Provide the following input file with the header
   `BMC_IP,GROUP_NAME,PARENT`, and set its path in
   `idrac_telemetry_configurations.bmc_group_data_path`:
@@ -57,9 +61,6 @@ and [iDRAC Telemetry Reference Tools](https://github.com/dell/iDRAC-Telemetry-Re
   ```text
   $ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
   ```
-
-  If this setting is left empty, Telemetry uses
-  `<TELEMETRY_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/bmc_group_data.csv`.
 
 - For deployment-time validation, ensure each BMC is reachable from at least
   one service Kubernetes worker. Validation starts from the first worker; when
@@ -210,11 +211,14 @@ kubectl get pods -n telemetry
 
 !!! note
 
-    The `idrac-telemetry` StatefulSet has one replica,
-    `idrac-telemetry-0`. That pod contains MySQL, ActiveMQ, the receiver,
-    KafkaPump, and VictoriaPump, and handles every iDRAC service record loaded
-    from the mapping file. Parent values group inventory records; they do not
-    create or shard StatefulSet replicas.
+    The `idrac-telemetry` StatefulSet is dynamically scaled based on
+    `bmc_group_data.csv`. It creates one pod for `MGMT_node`
+    (`idrac-telemetry-0`) and one additional pod for each unique, non-empty
+    parent value. Each pod contains MySQL, ActiveMQ, the receiver, KafkaPump,
+    and VictoriaPump. BMC records without a parent are assigned to the MGMT
+    pod, while records belonging to each parent are assigned to that parent's
+    dedicated pod. For example, three parent groups create four pods: one MGMT
+    pod and three parent pods.
 
 ### Verify iDRAC messages in Kafka
 
@@ -415,23 +419,19 @@ deployment scales the `idrac-telemetry` StatefulSet to zero replicas. The MySQL
 PVC is preserved so the service inventory remains available when iDRAC
 telemetry is enabled again.
 
-To remove only the iDRAC Telemetry resources while preserving the MySQL PVC:
+To remove the iDRAC Telemetry resources and the source-owned MySQL PVC:
 
 ```bash title="Run on: OIM"
 cd src/main
 ./omnia.sh --run telemetry --tags cleanup_idrac
 ```
 
-Delete the MySQL PVC only when a complete iDRAC telemetry data reset is
-intended:
-
-```bash title="Run on: OIM"
-./omnia.sh --run telemetry --tags cleanup_idrac -e Delete_volume=true
-```
-
 !!! warning
 
-    `Delete_volume=true` permanently removes the MySQL service inventory.
+    The `cleanup_idrac` workflow permanently removes the MySQL service
+    inventory. The `delete_sinks_volume` option does not apply to this
+    source-owned volume; it controls only Kafka, VictoriaMetrics, and
+    VictoriaLogs sink volumes during full cleanup.
 
 ## Next steps
 

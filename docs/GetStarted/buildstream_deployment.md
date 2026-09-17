@@ -66,8 +66,8 @@ building and node provisioning occur when you run the corresponding pipeline.
 
 ## Prerequisites
 
-- Use an Omnia source checkout on the OIM. BuildStreaM requires RHEL or Rocky
-  Linux 10.x, Python 3.12 or later, Ansible Core 2.20 or later, and Podman 5.0
+- Use an Omnia source checkout on the OIM. BuildStreaM requires RHEL 10.x,
+  Python 3.12 or later, Ansible Core 2.20 or later, and Podman 5.0
   or later.
 - Set `SYSTEM_ADMIN_NIC_IPV4` in `src/main/omnia.env` to an IPv4 address
   assigned to an OIM interface. Keep `OMNIA_PROJECT_NAME=project_default` for

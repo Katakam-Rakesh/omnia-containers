@@ -61,14 +61,16 @@ runs.
 | `--run`, `-r <domain> [--tags <tags>] [extra Ansible arguments]` | Activate the shared environment and run the selected domain playbook. |
 | `--check-deps` | Report conflicting Python or Ansible Galaxy dependency requirements across domains. The command exits with a nonzero status when conflicts are found. |
 | `--cleanup` | Remove the virtual environment, installed environment files, command-line tools, Bash completion, activation helper, and dependency cache. Runtime data under `$OMNIA_DATA_PATH` is preserved. |
-| `--cleanup --all` | Remove the same installed resources and all runtime data under `$OMNIA_DATA_PATH`. The command requests confirmation. |
+| `--cleanup --all` | Perform a guarded full reset. The command refuses to remove anything until deployed, generated, or otherwise uncleared domain state has been cleaned. After the safety check, it requests confirmation and removes the installed resources and remaining runtime data under `$OMNIA_DATA_PATH`. |
 | `--help`, `-h` | Display the current command help. |
 
 !!! warning
 
-    `./omnia.sh --cleanup --all` removes all Omnia input, output, and log data
-    under `$OMNIA_DATA_PATH`. Review the configured path and retain required
-    data before confirming the operation.
+    `./omnia.sh --cleanup --all` removes all remaining Omnia data under
+    `$OMNIA_DATA_PATH` only after its safety preflight succeeds. If the command
+    reports uncleared domain state, run the applicable domain cleanup and retry.
+    Review the configured path and retain required data before confirming the
+    operation.
 
 ### Options
 
@@ -81,6 +83,7 @@ runs.
 | `--dry-run` | `--setup-venv`, `--init`, `--prepare-base` | Preview domain initialization or base-domain phases. With `--setup-venv`, other setup operations still run. |
 | `--skip-catalog` | `--setup-venv` | Do not copy the source catalog files during setup. |
 | `--skip-omnia-cli` | `--setup-venv` | Do not install `omnia-cli` or shared Bash completion. |
+| `--skip-approval` | `--cleanup` | Skip the confirmation prompt for trusted unattended automation. The `--cleanup --all` safety preflight still runs. |
 
 ### Supported domains and tags
 
@@ -90,11 +93,11 @@ domain operation.
 | Domain | Public tags |
 |---|---|
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `upgrade`, `rollback` |
-| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `discovery`, `cleanup`, `upgrade`, `rollback` |
+| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images`, `upgrade`, `rollback` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `upgrade`, `rollback`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
-| `telemetry` | `precheck`, `validate`, `validation`, `execute`, `deploy`, `cleanup`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
+| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
 | `utils` | `precheck`, `setup`, `collect`, `install_os`, `backup_oim_logs`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `upgrade`, `rollback` |
 
 Running a domain without `--tags` starts that domain's default flow. Defaults
@@ -119,30 +122,6 @@ outputs from earlier domains:
 BuildStreaM is an alternative automation path for the build and deployment
 flows; it is not an additional step after Utils.
 
-### Common examples
-
-Set up the OIM and maintain domain initialization:
-
-```bash title="Run from: <omnia-repository>/src/main"
-./omnia.sh --setup-venv
-./omnia.sh --init telemetry
-./omnia.sh --init repo_manager,telemetry
-./omnia.sh --init --skip telemetry,utils
-./omnia.sh --init --dry-run
-./omnia.sh --check-deps
-```
-
-Prepare base services and run domain operations:
-
-```bash title="Run from: <omnia-repository>/src/main"
-./omnia.sh --prepare-base
-./omnia.sh --prepare-base --skip orchestrator
-./omnia.sh --prepare-base --dry-run
-./omnia.sh --run image_build_manager --tags validate
-./omnia.sh --run image_build_manager --tags build
-./omnia.sh --run repo_manager --tags precheck
-```
-
 ### Dependency caching
 
 Initialization caches the dependency state under
@@ -150,20 +129,6 @@ Initialization caches the dependency state under
 `requirements.yml` are unchanged, their installation is skipped on later
 initialization runs. Use `--force-deps` when the dependencies must be
 reinstalled.
-
-### `omnia-cli` diagnostics
-
-`--setup-venv` installs `omnia-cli` and shared Bash completion unless
-`--skip-omnia-cli` is supplied. Use these commands after setup:
-
-| Command | Purpose |
-|---|---|
-| `omnia-cli status [--project <name>]` | Display status for all domains. |
-| `omnia-cli repo-manager [--project <name>]` | Display Repo Manager status details. |
-| `omnia-cli image-build [--project <name>]` | Display Image Build Manager status details. |
-| `omnia-cli <domain> [--project <name>]` | Display status for one domain. |
-| `omnia-cli version` | Display version information. |
-| `omnia-cli help [<domain>]` | Display general or domain-specific CLI help. |
 
 After setup, [select or update the catalog](update_catalog.md), and then
 [prepare the base infrastructure](prepare_base.md).

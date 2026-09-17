@@ -1,10 +1,11 @@
 # Build OS Images
 
-Build customized OS images for diskless HPC cluster provisioning with Omnia's Image Build Manager.
+Build customized OS images for diskless cluster-node provisioning with
+Omnia's Image Build Manager.
 
 ## Overview
 
-The Image Build Manager builds RHEL 10.x boot images for diskless HPC cluster
+The Image Build Manager builds RHEL 10.x boot images for diskless cluster
 nodes. It runs on the Omnia Infrastructure Manager (OIM) and can build images
 with either OpenCHAMI `image-builder` or `image-thrillhouse`.
 
@@ -12,7 +13,7 @@ The workflow:
 
 1. Reads repository information from the Repo Manager's `repo_status.yml`.
 2. Resolves packages from either `package_groups.yml` or a catalog JSON file.
-3. Deploys a local OCI registry and, when selected, MinIO S3 storage.
+3. Deploys a local OCI registry and, when selected, local MinIO S3 storage.
 4. Builds a base image and an image for each functional group.
 5. Uploads the kernel, initramfs, and root filesystem artifacts to S3.
 6. Writes `build_status.yml` for the provisioning workflow.
@@ -35,9 +36,15 @@ are not supported.
 - Run the playbooks on the OIM with privileges sufficient to create files
   under the path configured by `OMNIA_DATA_PATH` and under `/var/log/omnia`,
   manage systemd services and firewall rules, and run Podman.
+- When host firewall policy blocks the required traffic, allow access to the
+  S3 endpoint. Also allow TCP port 5000 from the ARM build host when building
+  aarch64 images. Image Build Manager does not add these firewall rules during
+  preparation.
 
-Export the following environment variables in the shell used to run the
-playbooks:
+Configure the following values in `/etc/omnia/omnia.env`. The `omnia.sh`
+wrapper loads the installed file automatically. Direct `ansible-playbook`
+execution requires the values to be exported; the activation helper shown in
+the procedure loads them into the current shell.
 
 | Variable | Requirement |
 |----------|-------------|
@@ -55,12 +62,15 @@ For aarch64 images, also provide one network-reachable ARM64 host with:
 - `uname -m` reporting `aarch64`.
 - RHEL 10.x and Podman 5.0 or later.
 - SSH port 22 reachable from the OIM.
-- At least 30 GB free under `<IMAGE_BUILD_MANAGER_DATA_PATH>`.
+- At least 30 GB free under `<OMNIA_DATA_PATH>/image_build_manager` on the ARM
+  host. The remote workspace does not use the controller's
+  `IMAGE_BUILD_MANAGER_DATA_PATH` override.
 - Access to the OIM Repo Manager, or internet access for the builder-image and
   `regctl` download fallbacks.
 
-The workflow configures passwordless SSH from the OIM. It requests the remote
-user's password when a key has not already been installed.
+Whenever an ARM host is configured, the workflow requests and stores the
+remote user's password. It uses that password to install the OIM SSH key when
+passwordless access is not already configured.
 
 ### Input contract
 
@@ -68,6 +78,12 @@ Image Build Manager reads its domain-owned inputs from
 `<IMAGE_BUILD_MANAGER_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/`. When
 `IMAGE_BUILD_MANAGER_DATA_PATH` is unset, it resolves to
 `<OMNIA_DATA_PATH>/image_build_manager`.
+
+Main initialization stages the input templates under the default
+`<OMNIA_DATA_PATH>/image_build_manager` path. When
+`IMAGE_BUILD_MANAGER_DATA_PATH` overrides that path, copy the staged
+`image_build_config.yml` and `package_groups.yml` into the corresponding
+project input directory under the override before running Image Build Manager.
 
 | Domain input | When required | Contract |
 |--------------|---------------|----------|
@@ -85,13 +101,17 @@ files are not stored in the Image Build Manager input directory.
 
 For MinIO, leave `s3_configurations.endpoint_url` empty; the endpoint is set to
 `http://<SYSTEM_ADMIN_NIC_IPV4>:9000`. For PowerScale, set the provider to
-`powerscale` and provide a reachable HTTP or HTTPS endpoint. The S3 bucket names
+`powerscale` and provide a reachable HTTP or HTTPS endpoint. PowerScale is an
+external backend, so Image Build Manager does not deploy or initialize it.
+Before building, configure `s3cmd` and `/root/.s3cfg` on the OIM for that
+endpoint, and ensure the `boot-images` and `efi` buckets exist. The supplied
+credentials must allow object read/write and ACL updates. The bucket names
 used by the workflow are fixed.
 
 ## Procedure
 
 1. If the Image Build Manager was not initialized during OIM setup, initialize
-   it from the Omnia source tree:
+   it through Main:
 
     !!! note "Optional after OIM setup"
 
@@ -101,8 +121,8 @@ used by the workflow are fixed.
         Image Build Manager input files.
 
     ```bash title="Run on: OIM host"
-    cd src/image_build_manager
-    sudo ./domain-init.sh
+    cd <OMNIA_SOURCE_PATH>/src/main
+    ./omnia.sh --init image_build_manager
     ```
 
     Initialization installs the declared dependencies, creates the runtime and
@@ -142,12 +162,16 @@ used by the workflow are fixed.
 
 3. Configure one package-resolution mode:
 
-    - For catalog mode, set `functional_groups_source: "catalog"` and export
-      the default catalog path:
+    - For catalog mode, set `functional_groups_source: "catalog"` and set
+      `CATALOG_FILE_PATH` in `/etc/omnia/omnia.env`. For the default catalog,
+      use:
 
-        ```bash title="Run on: OIM host"
-        export CATALOG_FILE_PATH="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
+        ```bash title="File: /etc/omnia/omnia.env"
+        CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/catalog_rhel.json
         ```
+
+        Do not rely on a shell-only override when using `omnia.sh`; the wrapper
+        reloads the installed environment before running the domain.
 
         !!! note
 
@@ -166,19 +190,17 @@ used by the workflow are fixed.
             and then update `CATALOG_FILE_PATH` to reference that JSON file.
 
     - For config mode, set `functional_groups_source: "config"` and edit the
-      staged `package_groups.yml`. Packages under `base_packages` are installed
-      in every image. Each key under `functional_groups` selects another image
-      and supplies the additional packages for that group:
+      staged `package_groups.yml`. Retain the complete shipped `base_packages`
+      list because those packages are installed in every image. Each
+      architecture-matching key under `functional_groups` with a non-empty
+      `packages` list selects another image and supplies the additional
+      packages for that group. Entries with an empty list are skipped. Confirm
+      that the existing `os` and `os_version` values match the synchronized
+      repositories; do not replace the staged file with an abbreviated
+      package list.
 
-        ```yaml title="File: /opt/omnia/image_build_manager/input/project_default/package_groups.yml"
-        os: "rhel"
-        os_version: "10.0"
-
-        base_packages:
-          - systemd
-          - kernel
-          - dracut
-
+        ```yaml title="Edit the existing package_groups.yml (fragment)"
+        # Keep the shipped os, os_version, and base_packages entries.
         functional_groups:
           slurm_node_x86_64:
             packages:
@@ -196,13 +218,12 @@ used by the workflow are fixed.
    x86_64-only build.
 
 5. Run the environment precheck. Choose one execution method; do not run both
-   commands for the same operation. Run each command from the root of the
-   Omnia source tree.
+   commands for the same operation.
 
     === "Using omnia.sh (recommended)"
 
         ```bash title="Run on: OIM host"
-        cd src/main
+        cd <OMNIA_SOURCE_PATH>/src/main
         ./omnia.sh --run image_build_manager --tags precheck
         ```
 
@@ -213,7 +234,7 @@ used by the workflow are fixed.
 
         ```bash title="Run on: OIM host"
         source /opt/omnia/activate-omnia.sh
-        cd src/image_build_manager/playbooks
+        cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
         ansible-playbook image_build_manager.yml --tags precheck
         ```
 
@@ -222,14 +243,15 @@ used by the workflow are fixed.
 
     The precheck verifies that the environment matches the OIM hostname,
     domain, administrative IP, and data path. It also reports whether the
-    installed Omnia environment file and Repo Manager output are present.
+    installed Omnia environment file and the default Repo Manager output are
+    present.
 
 6. Validate the Image Build Manager inputs:
 
     === "Using omnia.sh (recommended)"
 
         ```bash title="Run on: OIM host"
-        cd src/main
+        cd <OMNIA_SOURCE_PATH>/src/main
         ./omnia.sh --run image_build_manager --tags validate
         ```
 
@@ -237,7 +259,7 @@ used by the workflow are fixed.
 
         ```bash title="Run on: OIM host"
         source /opt/omnia/activate-omnia.sh
-        cd src/image_build_manager/playbooks
+        cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
         ansible-playbook image_build_manager.yml --tags validate
         ```
 
@@ -250,7 +272,7 @@ used by the workflow are fixed.
     === "Using omnia.sh (recommended)"
 
         ```bash title="Run on: OIM host"
-        cd src/main
+        cd <OMNIA_SOURCE_PATH>/src/main
         ./omnia.sh --run image_build_manager --tags prepare
         ```
 
@@ -258,7 +280,7 @@ used by the workflow are fixed.
 
         ```bash title="Run on: OIM host"
         source /opt/omnia/activate-omnia.sh
-        cd src/image_build_manager/playbooks
+        cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
         ansible-playbook image_build_manager.yml --tags prepare
         ```
 
@@ -269,15 +291,17 @@ used by the workflow are fixed.
 
     With MinIO selected, this step deploys `minio.service`, creates the `efi`
     and `boot-images` buckets, and configures their public-read policies. For
-    PowerScale, local MinIO deployment is skipped. The step always deploys the
-    local OCI `registry.service` used by the image build and installs `regctl`.
+    PowerScale, local MinIO deployment and bucket initialization are skipped;
+    the external S3 prerequisites described earlier must already be in place.
+    The step always deploys the local OCI `registry.service` used by the image
+    build and installs `regctl`.
 
 8. Build the images and write the output contract:
 
     === "Using omnia.sh (recommended)"
 
         ```bash title="Run on: OIM host"
-        cd src/main
+        cd <OMNIA_SOURCE_PATH>/src/main
         ./omnia.sh --run image_build_manager --tags build
         ```
 
@@ -285,7 +309,7 @@ used by the workflow are fixed.
 
         ```bash title="Run on: OIM host"
         source /opt/omnia/activate-omnia.sh
-        cd src/image_build_manager/playbooks
+        cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
         ansible-playbook image_build_manager.yml --tags build
         ```
 
@@ -298,7 +322,7 @@ used by the workflow are fixed.
     === "Using omnia.sh (recommended)"
 
         ```bash title="Run on: OIM host"
-        cd src/main
+        cd <OMNIA_SOURCE_PATH>/src/main
         ./omnia.sh --run image_build_manager
         ```
 
@@ -306,7 +330,7 @@ used by the workflow are fixed.
 
         ```bash title="Run on: OIM host"
         source /opt/omnia/activate-omnia.sh
-        cd src/image_build_manager/playbooks
+        cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
         ansible-playbook image_build_manager.yml
         ```
 
@@ -322,11 +346,17 @@ used by the workflow are fixed.
     ```
 
     If `IMAGE_BUILD_MANAGER_DATA_PATH` or `OMNIA_PROJECT_NAME` is customized,
-    use
-    `<IMAGE_BUILD_MANAGER_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/build_status.yml`.
+    use the resolved path:
+
+    ```text
+    ${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}/output/${OMNIA_PROJECT_NAME}/build_status.yml
+    ```
 
     Confirm all of the following:
 
+    - The current build command completed successfully. A failed build can
+      leave an earlier `build_status.yml` in place because the file is updated
+      only after the status-writing step is reached.
     - `overall_status` is `success`.
     - `image_build_type` records the engine used for this build.
     - `s3_configurations.endpoint_url` is the S3 HTTP or HTTPS endpoint and
@@ -388,7 +418,7 @@ used by the workflow are fixed.
 
     - Main playbook log: `/var/log/omnia/image_build_manager/image_build_manager.log`
     - Runtime and per-image logs:
-      `<IMAGE_BUILD_MANAGER_DATA_PATH>/log/<OMNIA_PROJECT_NAME>/`
+      `${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}/log/${OMNIA_PROJECT_NAME}/`
 
 ## Next steps
 
@@ -396,11 +426,15 @@ used by the workflow are fixed.
   It consumes `build_status.yml` to validate images and create the
   `boot-service` configurations used during PXE boot.
 - Retain `build_status.yml` and its S3 artifacts while they are needed for
-  provisioning. The full cleanup flow removes the services, credentials,
-  build output, buckets, and artifacts.
+  provisioning. The full cleanup flow removes the local services,
+  credentials, build output, and local MinIO and registry data. It does not
+  remove object data from an external PowerScale backend.
 - When package inputs change, run the build again. Set `force_rebuild: true`
   when the package-hash cache must be bypassed; set `backup_s3_images: true` to
   preserve the existing compute artifacts under `*_prev` before rebuilding.
+- Use [Clean up built images](../../Operations/cleanup_built_images.md) to
+  remove selected or all image artifacts while preserving Image Build Manager
+  services and configuration.
 
 ## Troubleshooting
 
@@ -449,7 +483,9 @@ used by the workflow are fixed.
 - **The PowerScale endpoint is rejected**: Confirm that
   `s3_configurations.provider` is `powerscale`, `endpoint_url` is a reachable
   HTTP or HTTPS URL, and the Vault-encrypted credentials contain a non-empty
-  `s3_access_id` and `s3_secret_key`.
+  `s3_access_id` and `s3_secret_key`. Also confirm that `s3cmd` uses the
+  matching endpoint and credentials through `/root/.s3cfg`, and that the
+  `boot-images` and `efi` buckets already exist.
 
 - **An aarch64 build fails before image creation**: Confirm that the configured
   host responds to ping, port 22 is open, `uname -m` returns `aarch64`, and SSH
@@ -458,7 +494,8 @@ used by the workflow are fixed.
   access for the fallback download.
 
 - **A build fails or times out**: Review the per-image log in
-  `<IMAGE_BUILD_MANAGER_DATA_PATH>/log/<OMNIA_PROJECT_NAME>/`. Increase
+  `${IMAGE_BUILD_MANAGER_DATA_PATH:-${OMNIA_DATA_PATH}/image_build_manager}/log/${OMNIA_PROJECT_NAME}/`.
+  Increase
   `build_image.build_timeout` within its supported range or reduce
   `build_image.max_parallel` when the OIM does not have enough resources for
   concurrent builds.

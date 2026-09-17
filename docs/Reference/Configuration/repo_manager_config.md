@@ -82,4 +82,3 @@ in `repo_manager_config_credentials.yml` with the matching
 
 - [Repo Manager endpoint](repo_manager_endpoint_config.md)
 - [Repo Manager contract](../domain_contracts/repo_manager_contract.md)
-

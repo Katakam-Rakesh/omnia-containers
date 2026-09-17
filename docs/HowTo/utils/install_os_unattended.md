@@ -37,6 +37,14 @@ requires the source ISO filename to contain `x86_64` or `aarch64`.
   must be able to mount the export, and the target BMC must be able to access it.
 - Configure the target server for UEFI boot. The workflow requests a one-time
   boot from the virtual CD presented through iDRAC.
+- Configure the target node's BIOS boot order so that `Remote File Share 1`
+  and `Remote File Share 2` (Virtual Media) are the first and second boot
+  priorities, respectively, ahead of the hard drive. This is required for the
+  server to boot from the mounted ISO during installation.
+- For a Belton `aarch64` node, ensure that `Virtual Network File` is available
+  in the UEFI boot sequence. This option may appear only after virtual media is
+  connected during the installation workflow. Disable the other UEFI boot
+  options when required so that `Virtual Network File` is selected first.
 - Ensure the OIM can reach the target BMC through HTTPS and the installed node
   through SSH.
 - Ensure the target BMC supports the Redfish operations used by the iDRAC
@@ -76,10 +84,10 @@ The first installation run prompts for `bmc_username`, `bmc_password`, and
 2. Edit the staged configuration:
 
     ```bash title="Run on: OIM host"
-    vi /opt/omnia/utils/input/project_default/install_os_config.yml
+    vi <OMNIA_DATA_PATH>/utils/input/<project>/install_os_config.yml
     ```
 
-    Replace `project_default` when `OMNIA_PROJECT_NAME` selects another project.
+    Replace `<project>` with the value of `OMNIA_PROJECT_NAME`.
 
 3. Configure the source ISO, NFS destination, and target node. For example:
 
@@ -130,6 +138,20 @@ The first installation run prompts for `bmc_username`, `bmc_password`, and
     target_architecture: "aarch64"
     ```
 
+    For a Belton `aarch64` node, also configure these platform-specific
+    values:
+
+    ```yaml title="Belton-specific values"
+    gateway: "<gateway>"
+    network_device: "enP6s3f0np0"
+    install_disk: "nvme0n1"
+    ```
+
+    These values override the general workflow defaults. Set
+    `rebuild_iso: true` after changing any Kickstart-backed value. Set
+    `force_reinstall: true` only when intentionally reinstalling a node on
+    which an operating system is already installed.
+
     !!! important
 
         Do not copy the example `network_device` or `install_disk` values
@@ -169,8 +191,25 @@ media or an unsupported virtual-CD boot target.
 
 ### Run individual build or deployment stages
 
-For troubleshooting or controlled operation, run the installation playbook
-directly from the utils collection after activating the Omnia environment:
+For troubleshooting or controlled operation, run an individual stage through
+the Utils domain launcher:
+
+```bash title="Run from: <omnia-repository>/src/main"
+./omnia.sh --run utils --tags generate_ks
+./omnia.sh --run utils --tags build_iso
+./omnia.sh --run utils --tags deploy
+```
+
+Use the stage that matches the required operation:
+
+| Tag | When to use it |
+| --- | --- |
+| `generate_ks` | Generate the Kickstart file for review or troubleshooting without building an ISO or deploying it to a server. |
+| `build_iso` | Build the custom ISO without attaching it to the target server or starting the OS installation. Use this option to prepare the ISO for a later deployment. If the ISO already exists and must be replaced, set `rebuild_iso: true`. |
+| `deploy` | Reuse an existing ISO and install the operating system without rebuilding the ISO. The ISO specified in `custom_iso_path` is used for the operating system installation. |
+
+The same stages can be invoked directly from the utils collection after
+activating the Omnia environment:
 
 ```bash title="Run from: <omnia-repository>/src/utils"
 ansible-playbook playbooks/install_os.yml --tags credentials
@@ -201,15 +240,15 @@ file.
 | `target_hostname` | Build and Kickstart generation | -- | Hostname written by Kickstart. The current validator does not reject an empty value, but the generated static-network configuration requires one. |
 | `target_admin_ip` | Build, Kickstart generation, and deployment | -- | Static OS address written by Kickstart and used as the post-install SSH-verification target. |
 | `target_architecture` | No | Detected from ISO name | `x86_64` or `aarch64`. Set it explicitly when the ISO filename does not contain the architecture. |
-| `network_device` | No | First active link | Network interface used by Kickstart. |
+| `network_device` | No | First active link | Network interface used by Kickstart. For a Belton `aarch64` node, use `enP6s3f0np0`. |
 | `netmask` | No | `255.255.255.0` | Static network mask. |
-| `gateway` | No | Empty | Static default gateway. |
+| `gateway` | No | Empty | Static default gateway. Set this explicitly for a Belton `aarch64` node. |
 | `dns_server` | No | Empty | DNS server used by Kickstart. |
 | `ssh_public_key_path` | No | `/root/.ssh/id_rsa.pub` | Public key injected for root SSH access. |
-| `install_disk` | No | `sda` | Disk erased and used for installation. |
+| `install_disk` | No | `sda` | Disk erased and used for installation. For a Belton `aarch64` node, use `nvme0n1`. |
 | `timezone` | No | `UTC` | Installed-system timezone. |
-| `rebuild_iso` | No | `false` | Rebuild an existing custom ISO. |
-| `force_reinstall` | No | `false` | Continue when the target OS address already accepts SSH. |
+| `rebuild_iso` | No | `false` | Rebuild an existing custom ISO. Set this to `true` after changing Kickstart-backed configuration. |
+| `force_reinstall` | No | `false` | Continue when the target OS address already accepts SSH. Set this to `true` only when intentionally reinstalling a node. |
 | `ssh_verify_enabled` | No | `true` | Verify SSH after the BMC deployment operation. |
 | `ssh_verify_retries` | No | `60` | Multiplier used with `ssh_verify_delay` to calculate the SSH wait timeout. |
 | `ssh_verify_delay` | No | `30` | Initial delay in seconds before checking SSH; also used to calculate the total timeout. |

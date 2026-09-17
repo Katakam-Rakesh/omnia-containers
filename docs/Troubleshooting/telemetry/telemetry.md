@@ -825,17 +825,25 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
        Telemetry administrators before changing files. Do not delete InnoDB
        files, clear PVC finalizers, or force-delete the pod as a first response.
 
-    4. When an approved complete reset is acceptable, use the domain cleanup
+    4. When an approved complete iDRAC telemetry reset is acceptable, edit
+       `telemetry_config.yml` before redeployment. Set
+       `telemetry_sources.idrac.metrics_enabled` to `true`, and set
+       `metrics_enabled` and `logs_enabled` to `false` for every other telemetry
+       source and bridge. Retain the required values under
+       `telemetry_sources.idrac.collection_targets`; Telemetry automatically
+       deploys the sinks selected by these targets. Then use the domain cleanup
        workflow instead of manually manipulating the PVC:
 
         ```bash title="Run on: OIM"
         cd src/main
-        ./omnia.sh --run telemetry --tags cleanup_idrac -e Delete_volume=true
+        ./omnia.sh --run telemetry --tags cleanup_idrac -e delete_sinks_volume=true
         ./omnia.sh --run telemetry --tags deploy
         ```
 
-    The cleanup command permanently removes the MySQL service inventory. Back
-    up all required data first.
+    The cleanup command permanently removes the MySQL service inventory. With
+    only iDRAC telemetry enabled, the deployment workflow deploys the iDRAC
+    telemetry component without disturbing already deployed telemetry
+    components.
 
 
 !!! info
@@ -843,14 +851,6 @@ Issues related to the telemetry pipeline for example: Kafka, iDRAC telemetry, LD
     - [Setup Telemetry](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry pipeline setup.
     - [Telemetry Setup](../../HowTo/Telemetry/setup_telemetry.md) -- Telemetry sources and configuration.
     - [Log Management](../../Operations/log_management.md) -- Log locations for telemetry services.
-
-
-
-
-
-
-
-
 
 
 

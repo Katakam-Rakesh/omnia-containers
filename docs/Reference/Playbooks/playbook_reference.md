@@ -43,7 +43,7 @@ for `execute`.
 | Orchestrator | `src/orchestrator/playbooks/orchestrator.yml` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`; `rollback` is reserved and unsupported | [How-to guide](../../HowTo/orchestrator/index.md) · [Contract](../domain_contracts/orchestrator_contract.md) |
 | Repository Manager | `src/repo_manager/playbooks/repo_manager.yml` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup_pulp`, `cleanup_repos`, and catalog operations | [How-to guide](../../HowTo/repo_manager/index.md) · [Contract](../domain_contracts/repo_manager_contract.md) |
 | Telemetry | `src/telemetry/playbooks/telemetry.yml` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, component cleanup tags, `external_kafka`, `external_victoria` | [How-to guide](../../HowTo/Telemetry/index.md) · [Contract](../domain_contracts/telemetry_contract.md) |
-| Utils | `src/utils/playbooks/utils.yml` | `precheck`, `collect`, `install_os`, `backup_oim_logs`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs` | [How-to guide](../../HowTo/utils/index.md) · [Contract](../domain_contracts/utils_contract.md) |
+| Utils | `src/utils/playbooks/utils.yml` | `precheck`, `collect`, `install_os`, `backup_oim_logs`, `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `cleanup_slurm_config_backups` | [How-to guide](../../HowTo/utils/index.md) · [Contract](../domain_contracts/utils_contract.md) |
 
 Discovery's `prepare`, `upgrade`, and `rollback` lifecycle files currently
 contain placeholders. Orchestrator's `rollback` operation is reserved and
@@ -101,6 +101,10 @@ selected modules have been initialized.
 | Deploy BuildStreaM infrastructure and GitLab | `./omnia.sh --run build_stream --tags build` |
 | Collect logs with Utils | `./omnia.sh --run utils --tags collect` |
 | Back up OIM logs with Utils | `./omnia.sh --run utils --tags backup_oim_logs` |
+| Back up Slurm configuration | `./omnia.sh --run utils --tags slurm_config_backup` |
+| Delete active Slurm configuration | `./omnia.sh --run utils --tags slurm_config_cleanup` |
+| Restore Slurm configuration | `./omnia.sh --run utils --tags slurm_config_rollback` |
+| Delete stored Slurm configuration backups | `./omnia.sh --run utils --tags cleanup_slurm_config_backups` |
 
 The Repository Manager entry point supports the standard workflow combination
 `prepare,precheck,download,status`. The other module entry points validate tag

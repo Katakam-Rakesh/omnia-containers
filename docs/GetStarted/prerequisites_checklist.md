@@ -17,11 +17,18 @@ Skipping a prerequisite is the single most common cause of failed deployments.
 
 | ☑ | Requirement | Details |
 | --- | --- | --- |
-| ☐ | Dell PowerEdge servers (16th or 17th generation) | Omnia v2.2 supports 16G and 17G PowerEdge servers. |
+| ☐ | Dell PowerEdge servers (16th or 17th generation) | Omnia v2.3 supports 16G and 17G PowerEdge servers. |
 | ☐ | Intel 16G models | Supported: C6620, R660, R760, R760xa, R760xd2, R260, R360. Validated: R660, R260, C6620. |
 | ☐ | AMD 16G models | Supported: R6625, R7625, R6615. Validated: R7625. |
 | ☐ | AMD 17G models | Supported: R6725, R7725, R6715, R7715, R7725xd. Validated: R7725xd. |
 | ☐ | NVIDIA Grace 17G models | Supported: XE8712 with GB200. Validated: XE8712 with GB200. |
+
+#### Aarch64 Node Prerequisites
+
+| ☑ | Requirement | Details |
+| --- | --- | --- |
+| ☐ | Disk available for Full OS installation | You must install the OS manually on aarch64 nodes. |
+| ☐ | IP address assigned with PXE network connectivity | Ensure the aarch64 node has an IP and connectivity to the PXE network. |
 
 !!! note
 
@@ -67,64 +74,89 @@ cluster.
 | ☐ | Choose a server **outside** your intended cluster | The OIM must meet the required storage and system requirements. |
 | ☐ | 64 GB RAM minimum | Verify with `free -h`. Local repositories, service containers, and image-building tasks are memory-intensive. |
 | ☐ | RHEL 10.0 with Server with GUI Base Environment | Minimal installs are not supported. The GUI group pulls in required libraries used by Ansible and Podman. See [supported operating systems](../Reference/SupportMatrix/operating_systems.md). |
-| ☐ | Podman container engine installed | Verify: `podman --version`. If missing, install via `dnf install -y podman`. |
+| ☐ | Podman 5.0 or later installed | Verify with `podman --version`. If missing, install with `dnf install -y podman`. |
 | ☐ | Two active NIC ports | **NIC 1 (public):** Internet-facing, for downloading packages and container images. **NIC 2 (internal/admin):** Connected to the admin switch for PXE provisioning and cluster management. |
 | ☐ | Internet access (direct or via proxy) | Required while the Repository Manager `download` workflow synchronizes OS packages, Python modules, and container images. After synchronization, air-gapped operation is possible. |
 | ☐ | Git installed | `dnf install git -y`. Needed to clone the Omnia repository. |
 | ☐ | 500 GB+ free disk on / | Local repos, container images, and node OS images consume significant space. Use `df -h /` to check. |
-| ☐ | Required ports open on OIM | See [Ports Used by the OIM](#ports-used-by-the-oim) below for the complete list of ports that must be available. |
+| ☐ | Required Omnia ports available | See [Ports used by Omnia](#ports-used-by-omnia) below for the complete list of ports and the systems on which they must be available. |
 | ☐ | OIM setup completed | Complete [Setup the OIM](../HowTo/main/setup_oim.md) to install the shared environment and initialize the deployment modules. |
 | ☐ | All target bare-metal servers reachable from OIM | Ensure network connectivity from OIM to all cluster nodes. |
 
-### Ports Used by the OIM
+### Ports used by Omnia
 
-Omnia uses the following ports on the OIM. Ensure these ports are not assigned to any other services.
+Omnia uses the following ports across the OIM, service Kubernetes nodes, Slurm nodes,
+and other functional hosts. Ensure the applicable ports are not assigned to any other
+service, on the systems identified in the **Functional Group/OIM** column.
 
 **Container Ports**
 
-| Container Name | Port |
-| --- | --- |
-| Pulp Container | 2225 |
+| Port | Protocol | Service | Functional Group/OIM |
+| --- | --- | --- | --- |
+| 2225 | TCP | Pulp Container (configurable using `pulp_server_port`) | OIM |
 
 **OpenCHAMI Ports**
 
-| Port | Protocol | Service |
-| --- | --- | --- |
-| 5432 | TCP | postgres |
-| 27778 | TCP | OpenCHAMI compatibility port reserved by the current deployment |
-| 27779 | TCP | smd |
-| 8081 | TCP | boot-service (iPXE boot script) |
-| 8443 | TCP | OpenCHAMI HTTPS API gateway |
-| 67, 68 | UDP | CoreDHCP and PXE clients |
-| 69 | UDP | TFTP |
-| 53 | TCP, UDP | CoreDNS (when `dns_enabled` is `true`) |
-| 389, 636 | TCP | `omnia_auth` LDAP (when OpenLDAP is selected) |
+| Port | Protocol | Service | Functional Group/OIM |
+| --- | --- | --- | --- |
+| 5432 | TCP | postgres | OIM |
+| 27778 | TCP | OpenCHAMI compatibility port reserved by the current deployment | OIM |
+| 27779 | TCP | smd | OIM |
+| 8081 | TCP | boot-service (iPXE boot script) | OIM |
+| 8443 | TCP | OpenCHAMI HTTPS API gateway | OIM |
+| 67, 68 | UDP | CoreDHCP and PXE clients | OIM |
+| 69 | UDP | TFTP | OIM |
+| 53 | TCP, UDP | CoreDNS (when `dns_enabled` is `true`) | OIM |
+| 389, 636 | TCP | `omnia_auth` LDAP (when OpenLDAP is selected) | OIM |
 
 The object-store and container-registry ports are owned by Image Build Manager,
 not by the OpenCHAMI deployment. Internal Podman-network ports for local CA,
 TokenSmith, and metadata-service do not need to be exposed as OIM host ports.
 
+**Image Build Manager Ports**
+
+| Port | Protocol | Service | Functional Group/OIM |
+| --- | --- | --- | --- |
+| 9000 | TCP | MinIO S3 API (when local MinIO is selected) | OIM |
+| 9001 | TCP | MinIO Console (when local MinIO is selected) | OIM |
+| 5000 | TCP | OCI container registry | OIM |
+
 **Telemetry Ports**
 
-| Port | Protocol | Service |
-| --- | --- | --- |
-| 6001–6100 | TCP | LDMS aggregator |
-| 6001–6100 | TCP | LDMS store daemon |
-| 10001–10100 | TCP | LDMS sampler |
-| 9092, 9093 | TCP | Kafka |
-| 9094 | TCP | Kafka LoadBalancer |
-| 8443 | TCP | VictoriaMetrics service |
-| 8480 | TCP | VictoriaMetrics LB Insert |
-| 8481 | TCP | VictoriaMetrics LB Query |
-| 4318 | TCP | CSM Metrics PowerScale exporter |
-| 8889 | TCP | OTEL Collector (Prometheus) |
-| 514 | TCP, UDP | PowerScale Syslog receiver |
-| 9481 | TCP | VictoriaLogs vlinsert |
-| 9471 | TCP | VictoriaLogs vlselect |
-| 9491 | TCP | VictoriaLogs vlstorage (HTTP) |
-| 9400 | TCP | VictoriaLogs vlstorage insert |
-| 9401 | TCP | VictoriaLogs vlstorage select |
-| 9429 | TCP | VictoriaLogs vlagent |
+| Port | Protocol | Service | Functional Group/OIM |
+| --- | --- | --- | --- |
+| 6001–6100 | TCP | LDMS aggregator | Slurm nodes |
+| 6001–6100 | TCP | LDMS store daemon | Slurm nodes |
+| 10001–10100 | TCP | LDMS sampler | Slurm nodes |
+| 9092 | TCP | Kafka internal (TLS) | Service Kubernetes nodes |
+| 9093 | TCP | Kafka internal (mTLS) | Service Kubernetes nodes |
+| 9094 | TCP | Kafka external LoadBalancer (mTLS) | Service Kubernetes nodes |
+| 8480 | TCP | VictoriaMetrics vminsert LB | Service Kubernetes nodes |
+| 8481 | TCP | VictoriaMetrics vmselect LB | Service Kubernetes nodes |
+| 8482 | TCP | VictoriaMetrics vmstorage health | Service Kubernetes nodes |
+| 8889 | TCP | OTEL Collector (Prometheus) | Service Kubernetes nodes |
+| 9090 | TCP | CSI volume exporter (PowerScale metrics) | Service Kubernetes nodes |
+| 514 | TCP, UDP | PowerScale Syslog receiver (VLAgent) | Service Kubernetes nodes |
+| 9481 | TCP | VictoriaLogs vlinsert | Service Kubernetes nodes |
+| 9471 | TCP | VictoriaLogs vlselect | Service Kubernetes nodes |
+| 9491 | TCP | VictoriaLogs vlstorage (HTTP) | Service Kubernetes nodes |
+| 9400 | TCP | VictoriaLogs vlstorage insert | Service Kubernetes nodes |
+| 9401 | TCP | VictoriaLogs vlstorage select | Service Kubernetes nodes |
+| 9429 | TCP | VictoriaLogs vlagent | Service Kubernetes nodes |
+| 3306 | TCP | iDRAC telemetry MySQL | Service Kubernetes nodes |
+| 33060 | TCP | iDRAC telemetry MySQL X Protocol | Service Kubernetes nodes |
+| 8161 | TCP | iDRAC telemetry ActiveMQ HTTP | Service Kubernetes nodes |
+| 61616 | TCP | iDRAC telemetry ActiveMQ OpenWire | Service Kubernetes nodes |
+| 61613 | TCP | iDRAC telemetry ActiveMQ STOMP | Service Kubernetes nodes |
+| 8082 | TCP | iDRAC telemetry Config UI | Service Kubernetes nodes |
+
+**BuildStreaM Ports**
+
+| Port | Protocol | Service | Functional Group/OIM |
+| --- | --- | --- | --- |
+| 8010 | TCP | BuildStreaM Manager (BSM) API (configurable using `build_stream_port`) | OIM |
+| 443 | TCP | GitLab HTTPS (configurable using `gitlab_https_port`) | GitLab host |
+| 5432 | TCP | PostgreSQL (containerized) | OIM |
 
 ## Networking Prerequisites
 
@@ -185,7 +217,7 @@ TokenSmith, and metadata-service do not need to be exposed as OIM host ports.
 
 | ☑ | Requirement | Details |
 | --- | --- | --- |
-| ☐ | RHEL subscription active on OIM | `subscription-manager status` must show **Current**. Required for `AppStream`, `BaseOS`, and `codeready-builder` repos. |
+| ☐ | RHEL subscription active on OIM | `subscription-manager status` must show **Registered**. Required for `AppStream`, `BaseOS`, and `codeready-builder` repos. |
 | ☐ | Docker Hub credentials available | Provide Docker Hub credentials to Repository Manager when anonymous pulls would exceed registry limits or the selected catalog uses private content. |
 | ☐ | OIM has access to public network | Required to download and store packages/images to the desired NFS share. |
 | ☐ | Certificates stored using Ansible Vault | Ensure all required certificates are stored using Ansible Vault for confidentiality and integrity within the cluster. |
@@ -226,7 +258,7 @@ via iDRAC or BIOS Setup (F2 at POST).
 | ☐ | Minimum 3 Kubernetes controller nodes allocated | Kubernetes HA requires an odd number of control-plane nodes (3 or 5). Each must have 64 GB RAM minimum. |
 | ☐ | At least 1 kube node allocated | Kube nodes run telemetry collectors and monitoring services such as VictoriaMetrics. 64 GB RAM minimum. |
 | ☐ | Dedicated IP range for K8s pod and service networks | Defaults: pod CIDR `10.244.0.0/16`, service CIDR `10.96.0.0/12`. These must not overlap with admin or BMC subnets. |
-| ☐ | Virtual IP (VIP) reserved for K8s API HA | A single unused IP on the admin network that `kube-vip` will float across control-plane nodes. |
+| ☐ | Virtual IP (VIP) reserved for K8s API HA | A single unused IP on the admin network that will float across control-plane nodes. |
 
 ## Slurm Prerequisites
 
@@ -282,7 +314,7 @@ via iDRAC or BIOS Setup (F2 at POST).
 | ☑ | Requirement | Details |
 | --- | --- | --- |
 | ☐ | iDRAC Datacenter license installed | The Datacenter license enables streaming telemetry via iDRAC. Enterprise license is insufficient for iDRAC telemetry. |
-| ☐ | Telemetry ports open on OIM | Ensure telemetry ports are accessible (see [Ports Used by the OIM](#ports-used-by-the-oim) for the complete list). |
+| ☐ | Telemetry ports available | Ensure telemetry ports are accessible on the applicable systems (see [Ports used by Omnia](#ports-used-by-omnia) for the complete list). |
 | ☐ | S3 storage configured for telemetry data | If using PowerScale S3, ensure it is configured and accessible from the OIM. |
 
 ### LDMS Prerequisites (for HPC Telemetry)
@@ -362,7 +394,3 @@ dnf repolist
     deep in the Ansible playbook execution.
 
 You are now ready to choose your deployment path. Return to [Get Started Index](index.md).
-
-
-
-
