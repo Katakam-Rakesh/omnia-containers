@@ -191,8 +191,25 @@ media or an unsupported virtual-CD boot target.
 
 ### Run individual build or deployment stages
 
-For troubleshooting or controlled operation, run the installation playbook
-directly from the utils collection after activating the Omnia environment:
+For troubleshooting or controlled operation, run an individual stage through
+the Utils domain launcher:
+
+```bash title="Run from: <omnia-repository>/src/main"
+./omnia.sh --run utils --tags generate_ks
+./omnia.sh --run utils --tags build_iso
+./omnia.sh --run utils --tags deploy
+```
+
+Use the stage that matches the required operation:
+
+| Tag | When to use it |
+| --- | --- |
+| `generate_ks` | Generate the Kickstart file for review or troubleshooting without building an ISO or deploying it to a server. |
+| `build_iso` | Build the custom ISO without attaching it to the target server or starting the OS installation. Use this option to prepare the ISO for a later deployment. If the ISO already exists and must be replaced, set `rebuild_iso: true`. |
+| `deploy` | Reuse an existing ISO and install the operating system without rebuilding the ISO. For this stage, `custom_iso_path` identifies the existing ISO that is attached through iDRAC Virtual Media. |
+
+The same stages can be invoked directly from the utils collection after
+activating the Omnia environment:
 
 ```bash title="Run from: <omnia-repository>/src/utils"
 ansible-playbook playbooks/install_os.yml --tags credentials
